@@ -1,4 +1,5 @@
 from html import escape
+import socket
 
 from django.contrib import messages
 from django.core.mail import send_mail
@@ -52,18 +53,97 @@ from .models import (
 )
 
 
+def obter_ip_cliente(request):
+    encaminhado = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if encaminhado:
+        return encaminhado.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "")
+
+
+def resolver_hostname_cliente(ip_cliente):
+    if not ip_cliente:
+        return ""
+    try:
+        return socket.gethostbyaddr(ip_cliente)[0]
+    except (socket.herror, socket.gaierror, OSError):
+        return ""
+
+
+def detectar_ativo_cliente(request):
+    from inventario.models import AtivoRede
+
+    ip_cliente = obter_ip_cliente(request)
+    hostname_cliente = resolver_hostname_cliente(ip_cliente)
+    ativo = None
+
+    if ip_cliente:
+        ativo = AtivoRede.objects.filter(ip=ip_cliente).first()
+
+    if not ativo and hostname_cliente:
+        hostname_curto = hostname_cliente.split(".")[0]
+        ativo = (
+            AtivoRede.objects.filter(
+                Q(hostname__iexact=hostname_cliente)
+                | Q(nome__iexact=hostname_cliente)
+                | Q(hostname__iexact=hostname_curto)
+                | Q(nome__iexact=hostname_curto)
+            )
+            .order_by("nome")
+            .first()
+        )
+
+    return ativo, ip_cliente, hostname_cliente
+
+
 class PortalChamadoCreateView(CreateView):
     model = Chamado
     form_class = PortalChamadoForm
     template_name = "chamados/public/abrir_chamado.html"
     success_url = reverse_lazy("chamados:portal_consultar")
 
+    def dispatch(self, request, *args, **kwargs):
+        (
+            self.ativo_detectado,
+            self.ip_cliente,
+            self.hostname_cliente,
+        ) = detectar_ativo_cliente(request)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_initial(self):
+        initial = super().get_initial()
+        if self.ativo_detectado:
+            initial["ativo_rede"] = self.ativo_detectado.pk
+        return initial
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update(
+            {
+                "ativo_detectado": self.ativo_detectado,
+                "ip_cliente": self.ip_cliente,
+                "hostname_cliente": self.hostname_cliente,
+            }
+        )
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["ativo_detectado"] = self.ativo_detectado
+        context["ip_cliente"] = self.ip_cliente
+        context["hostname_cliente"] = self.hostname_cliente
+        return context
+
     def form_valid(self, form):
+        if self.ativo_detectado and not form.instance.ativo_rede_id:
+            form.instance.ativo_rede = self.ativo_detectado
         response = super().form_valid(form)
+        comentario = "Chamado aberto pelo portal."
+        if self.ativo_detectado:
+            comentario += f" Ativo detectado automaticamente: {self.ativo_detectado}."
         HistoricoChamado.objects.create(
             chamado=self.object,
             status=self.object.status,
-            comentario="Chamado aberto pelo portal.",
+            comentario=comentario,
         )
         messages.success(
             self.request,

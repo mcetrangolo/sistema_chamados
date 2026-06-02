@@ -71,6 +71,36 @@ class ChamadoForm(BootstrapFormMixin, forms.ModelForm):
 class PortalChamadoForm(ChamadoForm):
     email = forms.EmailField(label="E-mail")
 
+    def __init__(
+        self,
+        *args,
+        ativo_detectado=None,
+        ip_cliente="",
+        hostname_cliente="",
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        campo_ativo = self.fields.get("ativo_rede")
+        if not campo_ativo:
+            return
+
+        campo_ativo.label = "Ativo/equipamento"
+        campo_ativo.required = False
+        campo_ativo.empty_label = "Nao sei / equipamento nao listado"
+
+        if ativo_detectado:
+            self.initial.setdefault("ativo_rede", ativo_detectado.pk)
+            campo_ativo.help_text = (
+                f"Detectado automaticamente pela rede: {ativo_detectado}. "
+                "Voce pode alterar se o equipamento estiver incorreto."
+            )
+        elif ip_cliente:
+            partes = [f"IP detectado: {ip_cliente}."]
+            if hostname_cliente:
+                partes.append(f"Nome identificado: {hostname_cliente}.")
+            partes.append("Se o equipamento estiver no inventario, selecione-o.")
+            campo_ativo.help_text = " ".join(partes)
+
 
 class AtualizacaoChamadoForm(BootstrapFormMixin, forms.ModelForm):
     registro_atendimento = forms.CharField(

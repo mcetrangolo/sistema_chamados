@@ -23,6 +23,17 @@
       </div>
       <form method="post" class="professional-form">
         {% csrf_token %}
+        {% if ativo_detectado %}
+          <div class="alert alert-info">
+            Equipamento detectado pela rede: <strong>{{ ativo_detectado }}</strong>.
+            Confira o campo Ativo/equipamento antes de enviar.
+          </div>
+        {% elif ip_cliente %}
+          <div class="alert alert-light border">
+            IP detectado: <strong>{{ ip_cliente }}</strong>{% if hostname_cliente %} | Nome: <strong>{{ hostname_cliente }}</strong>{% endif %}.
+            Se este equipamento ja estiver no inventario, selecione-o no campo Ativo/equipamento.
+          </div>
+        {% endif %}
         <div class="row g-3">
           {% for field in form %}
             <div class="{% if field.name == 'descricao' %}col-12{% else %}col-md-6{% endif %}">
