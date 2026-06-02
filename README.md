@@ -174,6 +174,14 @@ docker compose exec web python manage.py backup_local
 bash scripts/deploy_linux.sh
 ```
 
+Tambem existe uma tela em:
+
+```text
+Configuracoes > Atualizacoes
+```
+
+Ela mostra branch, commit atual, repositorio e atualizacoes pendentes. Quando a instalacao estiver rodando a partir de uma pasta Git, a tela tambem permite verificar e aplicar atualizacoes. Em Docker/servidor, o metodo mais seguro continua sendo `bash scripts/deploy_linux.sh` no terminal.
+
 ## Backup e restauracao com SQLite
 
 Pela interface web:
@@ -291,6 +299,7 @@ Antes de migrar, faca backup e planeje a transferencia dos dados SQLite para Pos
 - Aprovacoes: `/gestao/aprovacoes/`
 - Configuracao institucional: `/configuracoes/institucional/`
 - Backup e restauracao: `/configuracoes/backup/`
+- Atualizacoes: `/configuracoes/atualizacoes/`
 - Inventario: `/inventario/`
 
 ## Observacoes

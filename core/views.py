@@ -1,6 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 from re import sub
+import subprocess
 
 from django.conf import settings
 from django.contrib import messages
@@ -181,6 +182,128 @@ class BackupConfiguracaoView(LoginRequiredMixin, TemplateView):
         caminho.unlink()
         messages.success(request, f"Backup {caminho.name} apagado com sucesso.")
         return redirect("core:backup")
+
+
+class AtualizacaoSistemaView(LoginRequiredMixin, TemplateView):
+    template_name = "core/atualizacoes.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["git_info"] = self._git_info()
+        context["ultimo_resultado"] = self.request.session.pop("ultimo_resultado_atualizacao", "")
+        context["comando_servidor"] = "cd /opt/sistema-chamados && bash scripts/deploy_linux.sh"
+        return context
+
+    def post(self, request, *args, **kwargs):
+        acao = request.POST.get("acao")
+        if acao == "verificar":
+            return self._verificar(request)
+        if acao == "atualizar":
+            return self._atualizar(request)
+        messages.error(request, "Ação inválida.")
+        return redirect("core:atualizacoes")
+
+    def _git_disponivel(self):
+        return (settings.BASE_DIR / ".git").exists()
+
+    def _rodar(self, comando, timeout=120):
+        resultado = subprocess.run(
+            comando,
+            cwd=settings.BASE_DIR,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+        saida = "\n".join(
+            parte.strip()
+            for parte in [resultado.stdout, resultado.stderr]
+            if parte and parte.strip()
+        )
+        return resultado.returncode, saida
+
+    def _git_texto(self, *args):
+        codigo, saida = self._rodar(["git", *args], timeout=30)
+        return saida.strip() if codigo == 0 else ""
+
+    def _git_info(self):
+        if not self._git_disponivel():
+            return {
+                "disponivel": False,
+                "mensagem": "Esta instalação não possui a pasta .git. Em Docker, atualize pelo terminal do servidor.",
+            }
+
+        branch = self._git_texto("branch", "--show-current") or "main"
+        status = self._git_texto("status", "--short")
+        atras = self._git_texto("rev-list", "--count", f"HEAD..origin/{branch}") or "0"
+        return {
+            "disponivel": True,
+            "branch": branch,
+            "commit": self._git_texto("rev-parse", "--short", "HEAD"),
+            "commit_data": self._git_texto("log", "-1", "--format=%ci"),
+            "remote": self._git_texto("remote", "get-url", "origin"),
+            "status": status,
+            "limpo": not bool(status),
+            "atualizacoes_pendentes": atras,
+        }
+
+    def _verificar(self, request):
+        if not self._git_disponivel():
+            messages.error(request, "Esta instalação não pode verificar atualizações pela tela. Use o terminal do servidor.")
+            return redirect("core:atualizacoes")
+
+        codigo, saida = self._rodar(["git", "fetch", "--prune"], timeout=120)
+        request.session["ultimo_resultado_atualizacao"] = saida or "git fetch executado sem saída."
+        if codigo == 0:
+            messages.success(request, "Verificação concluída.")
+        else:
+            messages.error(request, "Não foi possível verificar atualizações.")
+        return redirect("core:atualizacoes")
+
+    def _atualizar(self, request):
+        if request.POST.get("confirmacao", "").strip() != "ATUALIZAR":
+            messages.error(request, "Digite ATUALIZAR para confirmar.")
+            return redirect("core:atualizacoes")
+
+        if not self._git_disponivel():
+            messages.error(request, "Esta instalação não pode ser atualizada pela tela. Use o terminal do servidor.")
+            return redirect("core:atualizacoes")
+
+        info = self._git_info()
+        if not info.get("limpo"):
+            messages.error(request, "Existem alterações locais não commitadas. Atualização bloqueada para evitar perda de dados.")
+            return redirect("core:atualizacoes")
+
+        saidas = []
+        try:
+            if settings.DATABASES["default"]["ENGINE"].endswith("sqlite3"):
+                call_command("backup_local")
+                saidas.append("Backup local criado antes da atualização.")
+
+            for comando in [
+                ["git", "fetch", "--prune"],
+                ["git", "pull", "--ff-only"],
+            ]:
+                codigo, saida = self._rodar(comando, timeout=180)
+                saidas.append(f"$ {' '.join(comando)}\n{saida or '(sem saída)'}")
+                if codigo != 0:
+                    request.session["ultimo_resultado_atualizacao"] = "\n\n".join(saidas)
+                    messages.error(request, "Atualização interrompida. Veja o resultado na tela.")
+                    return redirect("core:atualizacoes")
+
+            call_command("migrate", interactive=False)
+            saidas.append("Migrations aplicadas.")
+            call_command("collectstatic", interactive=False, verbosity=0)
+            saidas.append("Arquivos estáticos coletados.")
+        except Exception as exc:
+            saidas.append(f"Erro: {exc}")
+            request.session["ultimo_resultado_atualizacao"] = "\n\n".join(saidas)
+            messages.error(request, "Atualização falhou.")
+            return redirect("core:atualizacoes")
+
+        request.session["ultimo_resultado_atualizacao"] = "\n\n".join(saidas)
+        messages.success(request, "Atualização concluída. Reinicie o serviço se estiver em produção.")
+        return redirect("core:atualizacoes")
 
 
 @login_required

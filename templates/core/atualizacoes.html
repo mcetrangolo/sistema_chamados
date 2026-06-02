@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Atualizações | Sistema{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">Atualizações</h1>
+    <p class="text-secondary mb-0">Verifique a versão instalada e aplique atualizações vindas do GitHub quando o ambiente permitir.</p>
+  </div>
+  {% if git_info.disponivel %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="acao" value="verificar">
+      <button class="btn btn-outline-primary" type="submit">Verificar atualizações</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="detail-section">
+      <h2 class="h5">Versão instalada</h2>
+      {% if git_info.disponivel %}
+        <dl class="row mb-0">
+          <dt class="col-sm-3">Branch</dt><dd class="col-sm-9">{{ git_info.branch|default:"-" }}</dd>
+          <dt class="col-sm-3">Commit</dt><dd class="col-sm-9">{{ git_info.commit|default:"-" }}</dd>
+          <dt class="col-sm-3">Data</dt><dd class="col-sm-9">{{ git_info.commit_data|default:"-" }}</dd>
+          <dt class="col-sm-3">Repositório</dt><dd class="col-sm-9">{{ git_info.remote|default:"-" }}</dd>
+          <dt class="col-sm-3">Pendentes</dt><dd class="col-sm-9">{{ git_info.atualizacoes_pendentes|default:"0" }} commit(s)</dd>
+          <dt class="col-sm-3">Estado local</dt>
+          <dd class="col-sm-9">
+            {% if git_info.limpo %}
+              <span class="badge text-bg-success">Limpo</span>
+            {% else %}
+              <span class="badge text-bg-warning">Alterações locais</span>
+            {% endif %}
+          </dd>
+        </dl>
+      {% else %}
+        <p class="text-secondary mb-0">{{ git_info.mensagem }}</p>
+      {% endif %}
+    </section>
+
+    {% if git_info.disponivel %}
+      <section class="detail-section">
+        <h2 class="h5">Atualizar pelo sistema</h2>
+        <p class="text-secondary">
+          Esta ação cria um backup local, baixa atualizações do GitHub, aplica migrations e coleta arquivos estáticos.
+          Em produção, reinicie o serviço após concluir.
+        </p>
+        {% if not git_info.limpo %}
+          <div class="alert alert-warning">
+            Existem alterações locais não commitadas. A atualização pela tela fica bloqueada para evitar perda de dados.
+          </div>
+        {% endif %}
+        <form method="post" onsubmit="return confirm('Atualizar o sistema agora? Faça backup antes se tiver dúvidas.');">
+          {% csrf_token %}
+          <input type="hidden" name="acao" value="atualizar">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="confirmacao">Confirmação</label>
+              <input class="form-control" id="confirmacao" name="confirmacao" placeholder="Digite ATUALIZAR" required>
+            </div>
+          </div>
+          <button class="btn btn-primary mt-3" type="submit" {% if not git_info.limpo %}disabled{% endif %}>Atualizar agora</button>
+        </form>
+      </section>
+    {% endif %}
+
+    {% if ultimo_resultado %}
+      <section class="detail-section">
+        <h2 class="h5">Último resultado</h2>
+        <pre class="backup-command">{{ ultimo_resultado }}</pre>
+      </section>
+    {% endif %}
+  </div>
+
+  <aside class="col-lg-4">
+    <section class="side-panel">
+      <h2 class="h6">Atualização recomendada</h2>
+      <p class="text-secondary">No servidor Debian/Ubuntu, o caminho mais seguro continua sendo executar:</p>
+      <pre class="backup-command">{{ comando_servidor }}</pre>
+    </section>
+
+    <section class="side-panel mt-3">
+      <h2 class="h6">Boas práticas</h2>
+      <ul class="task-list">
+        <li><strong>Faça backup antes</strong><span>Use a tela de backup ou `python manage.py backup_local`.</span></li>
+        <li><strong>Atualize um local por vez</strong><span>Assim fica mais fácil validar e corrigir.</span></li>
+        <li><strong>Reinicie em produção</strong><span>Depois do update, reinicie os containers ou o serviço.</span></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+{% endblock %}
