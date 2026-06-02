@@ -1,32 +1,14 @@
 services:
-  db:
-    image: postgres:16
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sistema_chamados}
-      POSTGRES_USER: ${POSTGRES_USER:-sistema_chamados}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-senha_forte}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sistema_chamados} -d ${POSTGRES_DB:-sistema_chamados}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   web:
     build: .
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      DB_ENGINE: postgresql
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
-    depends_on:
-      db:
-        condition: service_healthy
+      DB_ENGINE: sqlite
+      SQLITE_NAME: data/db.sqlite3
     volumes:
+      - sqlite_data:/app/data
       - media_data:/app/media
       - static_data:/app/staticfiles
       - logs_data:/app/logs
@@ -38,14 +20,10 @@ services:
     env_file:
       - .env
     environment:
-      DB_ENGINE: postgresql
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
+      DB_ENGINE: sqlite
+      SQLITE_NAME: data/db.sqlite3
     depends_on:
-      db:
-        condition: service_healthy
-      web:
-        condition: service_started
+      - web
     command: >
       sh -c "while true; do
       python manage.py executar_varreduras;
@@ -53,6 +31,7 @@ services:
       sleep $${SCHEDULER_INTERVAL_SECONDS:-86400};
       done"
     volumes:
+      - sqlite_data:/app/data
       - media_data:/app/media
       - static_data:/app/staticfiles
       - logs_data:/app/logs
@@ -71,7 +50,7 @@ services:
       - media_data:/app/media:ro
 
 volumes:
-  postgres_data:
+  sqlite_data:
   media_data:
   static_data:
   logs_data:

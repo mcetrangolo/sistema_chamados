@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-if [ "$POSTGRES_HOST" ]; then
+if [ "$DB_ENGINE" = "postgresql" ] && [ "$POSTGRES_HOST" ]; then
   echo "Aguardando PostgreSQL em $POSTGRES_HOST:${POSTGRES_PORT:-5432}..."
   while ! nc -z "$POSTGRES_HOST" "${POSTGRES_PORT:-5432}"; do
     sleep 1

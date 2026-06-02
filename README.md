@@ -8,6 +8,18 @@ Repositorio:
 https://github.com/mcetrangolo/sistema_chamados
 ```
 
+## Banco de dados atual
+
+Neste momento o projeto esta configurado para usar **SQLite**.
+
+Isso vale para:
+
+- desenvolvimento local no Windows;
+- instalacao inicial no Debian/Ubuntu;
+- backup e restauracao pela tela `Configuracoes > Backup e restauracao`.
+
+O PostgreSQL ficou apenas como opcao futura para ambientes maiores.
+
 ## Recursos principais
 
 - Portal publico para abertura e consulta de chamados.
@@ -19,11 +31,11 @@ https://github.com/mcetrangolo/sistema_chamados
 - Inventario de rede com ativos editaveis, ocorrencias, chamados vinculados e exclusao em lote.
 - Descoberta por Ping/ICMP, DNS reverso, TCP/portas, SNMP e Active Directory.
 - Configuracao institucional com nome, CNPJ, endereco, logo, temas visuais, cores e rodape.
-- Backup e restauracao para ambiente local e producao Docker/PostgreSQL.
+- Backup e restauracao com SQLite e pasta `media`.
 
-## Instalacao rapida em Debian/Ubuntu
+## Instalacao rapida em Debian/Ubuntu usando SQLite
 
-Use este caminho em uma VPS ou servidor Linux limpo com Debian/Ubuntu.
+Use este caminho em uma maquina Debian/Ubuntu limpa.
 
 ### 1. Instalar o Git
 
@@ -49,9 +61,9 @@ O instalador faz automaticamente:
 
 - instala Docker e Docker Compose;
 - copia o projeto para `/opt/sistema-chamados`;
-- cria o arquivo `.env` inicial;
-- gera `SECRET_KEY` e senha do PostgreSQL;
-- sobe PostgreSQL, Django/Gunicorn, Nginx e scheduler;
+- cria o arquivo `.env` inicial usando SQLite;
+- gera uma `SECRET_KEY`;
+- sobe Django/Gunicorn, Nginx e scheduler;
 - executa migrations e collectstatic;
 - carrega dados iniciais;
 - valida a aplicacao.
@@ -85,20 +97,23 @@ http://IP_DO_SERVIDOR/login/
 
 ## Ajustes depois da instalacao
 
-Edite o arquivo de ambiente:
+Edite:
 
 ```bash
 nano /opt/sistema-chamados/.env
 ```
 
-Campos mais importantes:
+Campos principais:
 
 ```env
 ALLOWED_HOSTS=IP_DO_SERVIDOR,NOME_DO_SERVIDOR
 CSRF_TRUSTED_ORIGINS=http://IP_DO_SERVIDOR,http://NOME_DO_SERVIDOR
+
+DB_ENGINE=sqlite
+SQLITE_NAME=data/db.sqlite3
 ```
 
-SMTP:
+SMTP, quando for configurar e-mail real:
 
 ```env
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
@@ -111,7 +126,7 @@ EMAIL_HOST_PASSWORD=senha
 DEFAULT_FROM_EMAIL=helpdesk@seudominio.local
 ```
 
-Active Directory:
+Active Directory, quando for integrar:
 
 ```env
 AD_SERVER=ldap://dc.seudominio.local
@@ -132,19 +147,19 @@ Validar:
 ```bash
 docker compose exec web python manage.py check
 docker compose exec web python manage.py validar_producao
-docker compose exec web python manage.py testar_smtp seu.email@dominio.local
-docker compose exec web python manage.py testar_ad
 ```
 
-SNMP:
+Testes opcionais:
 
 ```bash
+docker compose exec web python manage.py testar_smtp seu.email@dominio.local
+docker compose exec web python manage.py testar_ad
 docker compose exec web python manage.py testar_snmp 192.168.0.1 --community public
 ```
 
 ## Atualizar o sistema no servidor
 
-Quando houver melhorias enviadas ao GitHub, atualize o servidor com:
+Quando houver melhorias enviadas ao GitHub:
 
 ```bash
 cd /opt/sistema-chamados
@@ -155,15 +170,13 @@ Rotina recomendada antes de atualizar:
 
 ```bash
 cd /opt/sistema-chamados
-bash scripts/backup_docker.sh
+docker compose exec web python manage.py backup_local
 bash scripts/deploy_linux.sh
 ```
 
-## Backup e restauracao
+## Backup e restauracao com SQLite
 
-### Pela interface web
-
-No sistema:
+Pela interface web:
 
 ```text
 Configuracoes > Backup e restauracao
@@ -185,23 +198,13 @@ RESTAURAR
 
 Depois da restauracao, reinicie o servidor da aplicacao.
 
-### Backup em producao Docker/PostgreSQL
-
-Criar backup:
+Pelo terminal:
 
 ```bash
-cd /opt/sistema-chamados
-bash scripts/backup_docker.sh
+docker compose exec web python manage.py backup_local
+docker compose exec web python manage.py listar_backups
+docker compose exec web python manage.py restaurar_backup_local backups/NOME_DO_BACKUP.zip --confirmar
 ```
-
-Restaurar banco PostgreSQL:
-
-```bash
-cd /opt/sistema-chamados
-bash scripts/restore_docker.sh backups/postgres_20260601_230000.dump
-```
-
-O script pede confirmacao digitando `RESTAURAR`.
 
 ## Operacao diaria
 
@@ -234,6 +237,8 @@ docker compose exec web python manage.py COMANDO
 
 ## Execucao local no Windows
 
+Copie `.env.example` para `.env` se necessario. O padrao local tambem usa SQLite.
+
 Instale as dependencias:
 
 ```bash
@@ -254,6 +259,24 @@ Acesse:
 http://127.0.0.1:8000/
 ```
 
+## PostgreSQL no futuro
+
+PostgreSQL nao e obrigatorio neste momento.
+
+Se futuramente quiser migrar para PostgreSQL em Docker, ha um arquivo separado:
+
+```text
+docker-compose.postgresql.yml
+```
+
+O comando base seria:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.postgresql.yml up -d --build
+```
+
+Antes de migrar, faca backup e planeje a transferencia dos dados SQLite para PostgreSQL.
+
 ## Enderecos principais
 
 - Portal publico: `/`
@@ -273,6 +296,7 @@ http://127.0.0.1:8000/
 ## Observacoes
 
 - O arquivo `.env` nunca deve ser enviado ao GitHub.
-- O banco local `db.sqlite3`, backups, logs, midias e `staticfiles` ficam fora do Git.
-- Em producao, prefira acessar por IP interno ou nome DNS da rede.
-- Para HTTPS/domino publico, ajuste `CSRF_TRUSTED_ORIGINS` e as opcoes `SECURE_*` no `.env`.
+- O banco SQLite, backups, logs, midias e `staticfiles` ficam fora do Git.
+- No Docker atual, o SQLite fica no volume `sqlite_data`, usando o caminho `data/db.sqlite3`.
+- Em producao interna, prefira acessar por IP interno ou nome DNS da rede.
+- Para HTTPS/dominio publico, ajuste `CSRF_TRUSTED_ORIGINS` e as opcoes `SECURE_*` no `.env`.

@@ -33,10 +33,10 @@ if [ "$CONFIRMACAO" != "RESTAURAR" ]; then
 fi
 
 echo "Parando servicos da aplicacao..."
-$DOCKER compose stop web scheduler
+$DOCKER compose -f docker-compose.yml -f docker-compose.postgresql.yml stop web scheduler
 
 echo "Restaurando banco PostgreSQL..."
-cat "$DUMP_FILE" | $DOCKER compose exec -T db pg_restore \
+cat "$DUMP_FILE" | $DOCKER compose -f docker-compose.yml -f docker-compose.postgresql.yml exec -T db pg_restore \
   -U "$POSTGRES_USER" \
   -d "$POSTGRES_DB" \
   --clean \
@@ -44,9 +44,9 @@ cat "$DUMP_FILE" | $DOCKER compose exec -T db pg_restore \
   --no-owner
 
 echo "Subindo servicos..."
-$DOCKER compose up -d
+$DOCKER compose -f docker-compose.yml -f docker-compose.postgresql.yml up -d
 
 echo "Validando aplicacao..."
-$DOCKER compose exec -T web python manage.py check
+$DOCKER compose -f docker-compose.yml -f docker-compose.postgresql.yml exec -T web python manage.py check
 
 echo "Restore concluido."

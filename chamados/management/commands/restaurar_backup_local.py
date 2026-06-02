@@ -81,13 +81,14 @@ class Command(BaseCommand):
         call_command("backup_local")
 
     def _restaurar_db(self, zipf):
-        db_path = settings.BASE_DIR / "db.sqlite3"
-        temporario = settings.BASE_DIR / "db.sqlite3.restore"
+        db_path = Path(settings.DATABASES["default"]["NAME"])
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        temporario = db_path.with_suffix(db_path.suffix + ".restore")
         with zipf.open("db.sqlite3") as origem, temporario.open("wb") as destino:
             destino.write(origem.read())
 
         if db_path.exists():
-            copia = settings.BASE_DIR / f"db.sqlite3.antes_restore_{timezone.now():%Y%m%d_%H%M%S}"
+            copia = db_path.with_name(f"{db_path.name}.antes_restore_{timezone.now():%Y%m%d_%H%M%S}")
             copy2(db_path, copia)
         temporario.replace(db_path)
 

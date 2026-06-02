@@ -45,7 +45,6 @@ fi
 if [ ! -f ".env" ]; then
   echo "Criando .env inicial..."
   SECRET_KEY="$(openssl rand -base64 48 | tr -d '\n')"
-  POSTGRES_PASSWORD="$(openssl rand -base64 24 | tr -d '\n')"
   cat > .env <<EOF
 SECRET_KEY=$SECRET_KEY
 DEBUG=False
@@ -56,10 +55,12 @@ SECURE_SSL_REDIRECT=False
 SESSION_COOKIE_SECURE=False
 CSRF_COOKIE_SECURE=False
 
-DB_ENGINE=postgresql
+DB_ENGINE=sqlite
+SQLITE_NAME=data/db.sqlite3
+
 POSTGRES_DB=sistema_chamados
 POSTGRES_USER=sistema_chamados
-POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+POSTGRES_PASSWORD=troque_esta_senha_se_usar_postgresql
 POSTGRES_HOST=db
 POSTGRES_PORT=5432
 POSTGRES_CONNECT_TIMEOUT=5

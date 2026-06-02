@@ -3,33 +3,43 @@ from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
-    help = "Verifica configuracoes essenciais antes de publicar o sistema em producao."
+    help = "Verifica configuracoes essenciais antes de publicar o sistema."
 
     def handle(self, *args, **options):
+        usando_sqlite = settings.DATABASES["default"]["ENGINE"].endswith("sqlite3")
         verificacoes = [
-            ("DEBUG=False", settings.DEBUG is False),
-            ("SECRET_KEY alterada", not settings.SECRET_KEY.startswith("django-insecure") and "dev" not in settings.SECRET_KEY.lower()),
-            ("ALLOWED_HOSTS configurado", bool(settings.ALLOWED_HOSTS)),
-            ("Banco em PostgreSQL", settings.DATABASES["default"]["ENGINE"].endswith("postgresql")),
-            ("SMTP configurado", "smtp" in settings.EMAIL_BACKEND and bool(settings.EMAIL_HOST)),
-            ("DEFAULT_FROM_EMAIL configurado", "localhost" not in settings.DEFAULT_FROM_EMAIL),
-            ("Active Directory configurado", all([settings.AD_SERVER, settings.AD_USER, settings.AD_PASSWORD, settings.AD_BASE_DN])),
-            ("Pasta de governanca configurada", bool(settings.GOVERNANCA_DOCUMENT_ROOT)),
-            ("STATIC_ROOT configurado", bool(settings.STATIC_ROOT)),
-            ("MEDIA_ROOT configurado", bool(settings.MEDIA_ROOT)),
+            ("DEBUG=False", settings.DEBUG is False, True),
+            ("SECRET_KEY alterada", not settings.SECRET_KEY.startswith("django-insecure") and "dev" not in settings.SECRET_KEY.lower(), True),
+            ("ALLOWED_HOSTS configurado", bool(settings.ALLOWED_HOSTS), True),
+            ("Banco configurado", bool(settings.DATABASES["default"]["ENGINE"]), True),
+            ("SMTP configurado", "smtp" in settings.EMAIL_BACKEND and bool(settings.EMAIL_HOST), False),
+            ("DEFAULT_FROM_EMAIL configurado", "localhost" not in settings.DEFAULT_FROM_EMAIL, False),
+            ("Active Directory configurado", all([settings.AD_SERVER, settings.AD_USER, settings.AD_PASSWORD, settings.AD_BASE_DN]), False),
+            ("Pasta de governanca configurada", bool(settings.GOVERNANCA_DOCUMENT_ROOT), True),
+            ("STATIC_ROOT configurado", bool(settings.STATIC_ROOT), True),
+            ("MEDIA_ROOT configurado", bool(settings.MEDIA_ROOT), True),
         ]
 
-        pendencias = []
-        for nome, ok in verificacoes:
-            marcador = self.style.SUCCESS("OK") if ok else self.style.WARNING("PENDENTE")
+        pendencias_obrigatorias = []
+        for nome, ok, obrigatorio in verificacoes:
+            if ok:
+                marcador = self.style.SUCCESS("OK")
+            elif obrigatorio:
+                marcador = self.style.ERROR("PENDENTE")
+                pendencias_obrigatorias.append(nome)
+            else:
+                marcador = self.style.WARNING("AJUSTAR DEPOIS")
             self.stdout.write(f"{marcador} - {nome}")
-            if not ok:
-                pendencias.append(nome)
 
-        if pendencias:
+        if usando_sqlite:
             self.stdout.write("")
-            self.stdout.write(self.style.WARNING("Ainda existem pendencias para producao."))
+            self.stdout.write(self.style.WARNING("INFO - Banco atual: SQLite. Mantido por ser o modo atual do projeto."))
+            self.stdout.write("INFO - Para ambientes maiores, PostgreSQL pode ser ativado futuramente com docker-compose.postgresql.yml.")
+
+        if pendencias_obrigatorias:
+            self.stdout.write("")
+            self.stdout.write(self.style.ERROR("Existem pendencias obrigatorias para publicar."))
             return
 
         self.stdout.write("")
-        self.stdout.write(self.style.SUCCESS("Configuracoes essenciais de producao estao preenchidas."))
+        self.stdout.write(self.style.SUCCESS("Configuracoes obrigatorias preenchidas."))
