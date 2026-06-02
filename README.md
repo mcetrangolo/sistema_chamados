@@ -1,56 +1,60 @@
-# Sistema de Controle de Chamados, Service Desk e Inventário
+# Sistema de Chamados, Service Desk e Inventario
 
-Sistema web em Django para helpdesk/service desk, governança de acessos, base de conhecimento e inventário de rede.
+Sistema web em Django para helpdesk/service desk, governanca de acessos, base de conhecimento e inventario de rede.
+
+Repositorio:
+
+```text
+https://github.com/mcetrangolo/sistema_chamados
+```
 
 ## Recursos principais
 
-- Portal público para abertura e consulta de chamados.
-- Área interna de gestão com filas, SLA, anexos, respostas, impressão e histórico.
-- Catálogo de serviços com aprovação quando necessário.
-- Base de conhecimento pública e interna, com imagem e vídeo do YouTube.
-- Relatórios com filtros e exportação em XLS/PDF.
-- Governança com formulários de usuário/acessos e Wi-Fi corporativo, gerando PDF.
-- Inventário de rede com ativos editáveis, ocorrências, chamados vinculados e exclusão em lote.
+- Portal publico para abertura e consulta de chamados.
+- Area interna de gestao com filas, SLA, anexos, respostas, impressao e historico.
+- Catalogo de servicos com aprovacao quando necessario.
+- Base de conhecimento publica e interna, com imagem e video do YouTube.
+- Relatorios com filtros e exportacao em XLS/PDF.
+- Governanca com formularios de usuario/acessos e Wi-Fi corporativo, gerando PDF.
+- Inventario de rede com ativos editaveis, ocorrencias, chamados vinculados e exclusao em lote.
 - Descoberta por Ping/ICMP, DNS reverso, TCP/portas, SNMP e Active Directory.
-- Configuração institucional com nome, CNPJ, endereço, logo, temas visuais, cores e rodapé.
-- Backup e restauração para ambiente local e produção Docker/PostgreSQL.
+- Configuracao institucional com nome, CNPJ, endereco, logo, temas visuais, cores e rodape.
+- Backup e restauracao para ambiente local e producao Docker/PostgreSQL.
 
-## Instalação fácil em produção
+## Instalacao rapida em Debian/Ubuntu
 
-O caminho recomendado para Debian/Ubuntu é usar:
+Use este caminho em uma VPS ou servidor Linux limpo com Debian/Ubuntu.
 
-```text
-GitHub -> Docker Compose -> Nginx -> Gunicorn -> Django -> PostgreSQL
-```
-
-### 1. Enviar o projeto para o GitHub
-
-No seu computador:
-
-```bash
-git init
-git add .
-git commit -m "Versao inicial do sistema de chamados"
-git branch -M main
-git remote add origin https://github.com/SEU_USUARIO/sistema-chamados.git
-git push -u origin main
-```
-
-Use um repositório privado. O arquivo `.env`, banco local, logs, backups, mídia e `staticfiles` não devem ser enviados.
-
-### 2. Instalar no servidor Linux
-
-No servidor Debian/Ubuntu:
+### 1. Instalar o Git
 
 ```bash
 sudo apt update
 sudo apt install -y git
-git clone https://github.com/SEU_USUARIO/sistema-chamados.git /tmp/sistema-chamados
-cd /tmp/sistema-chamados
-bash scripts/install_linux.sh https://github.com/SEU_USUARIO/sistema-chamados.git
 ```
 
-O instalador cria o projeto em `/opt/sistema-chamados`, instala Docker, gera `.env`, sobe os containers e valida a aplicação.
+### 2. Baixar o projeto
+
+```bash
+git clone https://github.com/mcetrangolo/sistema_chamados.git /tmp/sistema-chamados
+cd /tmp/sistema-chamados
+```
+
+### 3. Rodar o instalador automatico
+
+```bash
+bash scripts/install_linux.sh https://github.com/mcetrangolo/sistema_chamados.git
+```
+
+O instalador faz automaticamente:
+
+- instala Docker e Docker Compose;
+- copia o projeto para `/opt/sistema-chamados`;
+- cria o arquivo `.env` inicial;
+- gera `SECRET_KEY` e senha do PostgreSQL;
+- sobe PostgreSQL, Django/Gunicorn, Nginx e scheduler;
+- executa migrations e collectstatic;
+- carrega dados iniciais;
+- valida a aplicacao.
 
 Ao final, acesse:
 
@@ -58,15 +62,43 @@ Ao final, acesse:
 http://IP_DO_SERVIDOR/
 ```
 
-## Ajustes obrigatórios depois da instalação
+Para descobrir o IP do servidor:
 
-Edite:
+```bash
+hostname -I
+```
+
+## Criar usuario administrador
+
+Depois da instalacao:
+
+```bash
+cd /opt/sistema-chamados
+docker compose exec web python manage.py createsuperuser
+```
+
+Acesse a area interna:
+
+```text
+http://IP_DO_SERVIDOR/login/
+```
+
+## Ajustes depois da instalacao
+
+Edite o arquivo de ambiente:
 
 ```bash
 nano /opt/sistema-chamados/.env
 ```
 
-Configure SMTP:
+Campos mais importantes:
+
+```env
+ALLOWED_HOSTS=IP_DO_SERVIDOR,NOME_DO_SERVIDOR
+CSRF_TRUSTED_ORIGINS=http://IP_DO_SERVIDOR,http://NOME_DO_SERVIDOR
+```
+
+SMTP:
 
 ```env
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
@@ -79,7 +111,7 @@ EMAIL_HOST_PASSWORD=senha
 DEFAULT_FROM_EMAIL=helpdesk@seudominio.local
 ```
 
-Configure Active Directory:
+Active Directory:
 
 ```env
 AD_SERVER=ldap://dc.seudominio.local
@@ -88,70 +120,72 @@ AD_PASSWORD=senha
 AD_BASE_DN=DC=seudominio,DC=local
 ```
 
-Depois aplique:
+Aplicar alteracoes:
 
 ```bash
 cd /opt/sistema-chamados
 docker compose up -d
+```
+
+Validar:
+
+```bash
+docker compose exec web python manage.py check
 docker compose exec web python manage.py validar_producao
 docker compose exec web python manage.py testar_smtp seu.email@dominio.local
 docker compose exec web python manage.py testar_ad
 ```
 
-Para SNMP:
+SNMP:
 
 ```bash
 docker compose exec web python manage.py testar_snmp 192.168.0.1 --community public
 ```
 
-## Atualização
+## Atualizar o sistema no servidor
 
-Quando você alterar o projeto no PC e enviar para o GitHub:
+Quando houver melhorias enviadas ao GitHub, atualize o servidor com:
 
 ```bash
 cd /opt/sistema-chamados
 bash scripts/deploy_linux.sh
 ```
 
-## Backup e restauração
+Rotina recomendada antes de atualizar:
 
-### Ambiente local com SQLite
+```bash
+cd /opt/sistema-chamados
+bash scripts/backup_docker.sh
+bash scripts/deploy_linux.sh
+```
 
-Pela interface web:
+## Backup e restauracao
+
+### Pela interface web
+
+No sistema:
 
 ```text
-Configurações > Backup e restauração
+Configuracoes > Backup e restauracao
 ```
 
-A tela permite criar, baixar, apagar e restaurar backups locais. Para restaurar em caso de catástrofe, escolha o arquivo `.zip` salvo no seu computador e digite `RESTAURAR`.
+A tela permite:
 
-Criar backup:
+- criar backup;
+- baixar backup;
+- apagar backups antigos;
+- restaurar um backup salvo no servidor;
+- restaurar enviando um arquivo `.zip` do computador.
 
-```bash
-python manage.py backup_local
+Para restaurar pela tela, selecione o arquivo e digite:
+
+```text
+RESTAURAR
 ```
 
-Listar backups:
+Depois da restauracao, reinicie o servidor da aplicacao.
 
-```bash
-python manage.py listar_backups
-```
-
-Validar um backup antes de restaurar:
-
-```bash
-python manage.py restaurar_backup_local backups/backup_20260601_230000.zip
-```
-
-Restaurar de verdade:
-
-```bash
-python manage.py restaurar_backup_local backups/backup_20260601_230000.zip --confirmar
-```
-
-O comando cria backup prévio do estado atual antes da restauração. Depois de restaurar, reinicie o servidor da aplicação.
-
-### Produção Docker com PostgreSQL
+### Backup em producao Docker/PostgreSQL
 
 Criar backup:
 
@@ -167,15 +201,14 @@ cd /opt/sistema-chamados
 bash scripts/restore_docker.sh backups/postgres_20260601_230000.dump
 ```
 
-O script pede confirmação digitando `RESTAURAR`, para os containers `web` e `scheduler`, restaura o dump e sobe os serviços novamente.
+O script pede confirmacao digitando `RESTAURAR`.
 
-Observação: arquivos enviados, logos e anexos ficam no volume/pasta `media`. Para restauração completa em produção, mantenha também cópia do volume `media_data` ou da pasta `media` exportada pelo backup local.
-
-## Operação diária
+## Operacao diaria
 
 Ver logs:
 
 ```bash
+cd /opt/sistema-chamados
 docker compose logs -f web
 docker compose logs -f nginx
 docker compose logs -f scheduler
@@ -199,15 +232,9 @@ Executar comandos Django:
 docker compose exec web python manage.py COMANDO
 ```
 
-Criar usuário administrador:
+## Execucao local no Windows
 
-```bash
-docker compose exec web python manage.py createsuperuser
-```
-
-## Execução local no Windows
-
-Instale as dependências:
+Instale as dependencias:
 
 ```bash
 pip install -r requirements.txt
@@ -227,17 +254,25 @@ Acesse:
 http://127.0.0.1:8000/
 ```
 
-## Endereços principais
+## Enderecos principais
 
-- Portal público: `/`
+- Portal publico: `/`
 - Consulta de chamado: `/consultar/`
-- Catálogo de serviços: `/catalogo/`
+- Catalogo de servicos: `/catalogo/`
 - Base de conhecimento: `/conhecimento/`
-- Governança: `/governanca/`
+- Governanca: `/governanca/`
 - Login interno: `/login/`
-- Gestão: `/gestao/`
+- Gestao: `/gestao/`
 - Chamados: `/gestao/chamados/`
-- Relatórios: `/gestao/relatorios/chamados/`
-- Aprovações: `/gestao/aprovacoes/`
-- Configuração institucional: `/configuracoes/institucional/`
-- Inventário: `/inventario/`
+- Relatorios: `/gestao/relatorios/chamados/`
+- Aprovacoes: `/gestao/aprovacoes/`
+- Configuracao institucional: `/configuracoes/institucional/`
+- Backup e restauracao: `/configuracoes/backup/`
+- Inventario: `/inventario/`
+
+## Observacoes
+
+- O arquivo `.env` nunca deve ser enviado ao GitHub.
+- O banco local `db.sqlite3`, backups, logs, midias e `staticfiles` ficam fora do Git.
+- Em producao, prefira acessar por IP interno ou nome DNS da rede.
+- Para HTTPS/domino publico, ajuste `CSRF_TRUSTED_ORIGINS` e as opcoes `SECURE_*` no `.env`.
