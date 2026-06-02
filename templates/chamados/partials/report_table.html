@@ -1,0 +1,18 @@
+{% load chamados_extras %}
+<div class="col-md-6 col-xl-3">
+  <section class="report-block">
+    <h2 class="h6">{{ titulo }}</h2>
+    <table class="table table-sm mb-0">
+      <tbody>
+        {% for linha in linhas %}
+          <tr>
+            <td>{{ linha|get_item:campo|default:"Não informado" }}</td>
+            <td class="text-end">{{ linha.total }}</td>
+          </tr>
+        {% empty %}
+          <tr><td class="text-secondary">Sem dados</td><td></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>

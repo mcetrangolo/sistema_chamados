@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Credenciais SNMP | Inventário{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Credenciais SNMP</h1>
+  <a class="btn btn-primary" href="{% url 'inventario:snmp_nova' %}">Nova credencial</a>
+</div>
+<section class="detail-section">
+  <table class="table table-hover mb-0">
+    <thead><tr><th>Nome</th><th>Versão</th><th>Status</th><th class="text-end">Ações</th></tr></thead>
+    <tbody>
+      {% for credencial in credenciais %}
+        <tr><td>{{ credencial.nome }}</td><td>{{ credencial.get_versao_display }}</td><td>{{ credencial.ativo|yesno:"Ativa,Inativa" }}</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'inventario:snmp_editar' credencial.pk %}">Editar</a></td></tr>
+      {% empty %}
+        <tr><td colspan="4" class="text-center text-secondary py-4">Nenhuma credencial cadastrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

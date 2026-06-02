@@ -1,0 +1,35 @@
+{% extends "public_base.html" %}
+{% block title %}{{ servico.nome }} | Catálogo{% endblock %}
+{% block content %}
+<div class="public-header">
+  <div>
+    <span class="section-label">{{ servico.categoria }}</span>
+    <h1>{{ servico.nome }}</h1>
+    <p>{{ servico.descricao|default:"Preencha os dados para registrar a solicitação." }}</p>
+  </div>
+</div>
+{% if servico.instrucoes %}
+  <section class="support-panel mb-4">
+    <h2>Instruções</h2>
+    <p>{{ servico.instrucoes|linebreaks }}</p>
+  </section>
+{% endif %}
+<section class="public-panel request-panel">
+  <form method="post" class="professional-form">
+    {% csrf_token %}
+    <div class="row g-3">
+      {% for field in form %}
+        <div class="{% if field.name == 'detalhes' %}col-12{% else %}col-md-6{% endif %}">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="form-footer">
+      <span>A solicitação criará um chamado para acompanhamento.</span>
+      <button class="btn btn-primary btn-lg" type="submit">Enviar solicitação</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

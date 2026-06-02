@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Tipo de ativo | Inventário{% endblock %}
+{% block content %}
+<div class="content-narrow">
+  <h1 class="h3 mb-3">Tipo de ativo</h1>
+  <form method="post">
+    {% csrf_token %}
+    {% include "chamados/partials/form_fields.html" with form=form %}
+    <button class="btn btn-primary" type="submit">Salvar</button>
+  </form>
+</div>
+{% endblock %}

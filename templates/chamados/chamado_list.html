@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Chamados | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">Chamados</h1>
+    <p class="text-secondary mb-0">Fila atual: {{ fila|default:"todos" }}</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'chamados:novo' %}">Novo chamado</a>
+</div>
+
+<div class="queue-tabs mb-3">
+  <a class="btn btn-sm {% if fila == 'todos' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'chamados:lista' %}">Todos</a>
+  <a class="btn btn-sm {% if fila == 'abertos' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'chamados:fila' 'abertos' %}">Abertos</a>
+  <a class="btn btn-sm {% if fila == 'meus' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'chamados:fila' 'meus' %}">Meus</a>
+  <a class="btn btn-sm {% if fila == 'nao-atribuidos' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'chamados:fila' 'nao-atribuidos' %}">Não atribuídos</a>
+  <a class="btn btn-sm {% if fila == 'atrasados' %}btn-primary{% else %}btn-outline-danger{% endif %}" href="{% url 'chamados:fila' 'atrasados' %}">Atrasados</a>
+</div>
+
+<form method="get" class="row g-2 mb-3 filters">
+  <div class="col-md-3"><input class="form-control" name="q" value="{{ filtros.q }}" placeholder="Buscar"></div>
+  <div class="col-md-2">
+    <select class="form-select" name="status">
+      <option value="">Status</option>
+      {% for value,label in status_choices %}<option value="{{ value }}" {% if filtros.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select class="form-select" name="prioridade">
+      <option value="">Prioridade</option>
+      {% for value,label in prioridade_choices %}<option value="{{ value }}" {% if filtros.prioridade == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select class="form-select" name="setor">
+      <option value="">Setor</option>
+      {% for setor in setores %}<option value="{{ setor.id }}" {% if filtros.setor == setor.id|stringformat:"s" %}selected{% endif %}>{{ setor.nome }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select class="form-select" name="categoria">
+      <option value="">Categoria</option>
+      {% for categoria in categorias %}<option value="{{ categoria.id }}" {% if filtros.categoria == categoria.id|stringformat:"s" %}selected{% endif %}>{{ categoria.nome }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-1 d-grid"><button class="btn btn-outline-primary" type="submit">Filtrar</button></div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>Número</th>
+        <th>Solicitante</th>
+        <th>Setor</th>
+        <th>Tópico</th>
+        <th>Prioridade</th>
+        <th>Status</th>
+        <th>Atendente</th>
+        <th>SLA</th>
+        <th>Abertura</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for chamado in chamados %}
+        <tr>
+          <td><a href="{{ chamado.get_absolute_url }}">{{ chamado.numero }}</a></td>
+          <td>{{ chamado.nome_solicitante }}</td>
+          <td>{{ chamado.setor }}</td>
+          <td>{{ chamado.topico_ajuda|default:"-" }}</td>
+          <td>{{ chamado.get_prioridade_display }}</td>
+          <td><span class="badge text-bg-light">{{ chamado.get_status_display }}</span></td>
+          <td>{{ chamado.tecnico_responsavel|default:"-" }}</td>
+          <td>{% if chamado.atrasado %}<span class="badge text-bg-danger">Atrasado</span>{% elif chamado.vencimento_em %}{{ chamado.vencimento_em|date:"d/m/Y H:i" }}{% else %}-{% endif %}</td>
+          <td>{{ chamado.criado_em|date:"d/m/Y H:i" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="9" class="text-center text-secondary py-4">Nenhum chamado encontrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "public_base.html" %}
+{% block title %}{{ artigo.titulo }} | Base de conhecimento{% endblock %}
+{% block content %}
+<article class="public-panel knowledge-article">
+  <span class="section-label">{{ artigo.topico_ajuda|default:"Geral" }}</span>
+  <h1>{{ artigo.titulo }}</h1>
+  {% if artigo.resumo %}<p class="lead text-secondary">{{ artigo.resumo }}</p>{% endif %}
+  {% if artigo.imagem %}
+    <figure class="knowledge-media">
+      <img src="{{ artigo.imagem.url }}" alt="{{ artigo.legenda_imagem|default:artigo.titulo }}">
+      {% if artigo.legenda_imagem %}<figcaption>{{ artigo.legenda_imagem }}</figcaption>{% endif %}
+    </figure>
+  {% endif %}
+  {% if artigo.youtube_embed_url %}
+    <div class="video-frame">
+      <iframe src="{{ artigo.youtube_embed_url }}" title="{{ artigo.titulo }}" allowfullscreen></iframe>
+    </div>
+  {% endif %}
+  <div class="article-body">{{ artigo.conteudo|linebreaks }}</div>
+</article>
+{% endblock %}

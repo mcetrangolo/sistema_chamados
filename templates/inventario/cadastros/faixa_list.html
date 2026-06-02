@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Faixas de rede | Inventário{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Faixas de rede</h1>
+  <a class="btn btn-primary" href="{% url 'inventario:faixa_nova' %}">Nova faixa</a>
+</div>
+<section class="detail-section">
+  <form method="post" id="varredura-template" class="d-none">
+    {% csrf_token %}
+  </form>
+  <table class="table table-hover align-middle mb-0">
+    <thead><tr><th>Nome</th><th>CIDR</th><th>SNMP</th><th>Status</th><th class="text-end">Ações</th></tr></thead>
+    <tbody>
+      {% for faixa in faixas %}
+        <tr>
+          <td>{{ faixa.nome }}</td>
+          <td>{{ faixa.cidr }}</td>
+          <td>{{ faixa.credencial_snmp|default:"-" }}</td>
+          <td>{{ faixa.ativa|yesno:"Ativa,Inativa" }}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'inventario:faixa_editar' faixa.pk %}">Editar</a>
+            <form method="post" action="{% url 'inventario:varrer_snmp' faixa.pk %}" class="scan-form d-inline-flex gap-1 align-items-center">
+              {% csrf_token %}
+              <select class="form-select form-select-sm scan-method" name="metodo" aria-label="Método de descoberta">
+                {% for value,label in varredura_form.fields.metodo.choices %}
+                  <option value="{{ value }}" {% if value == "snmp" %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <input class="form-control form-control-sm scan-ports" name="portas" placeholder="Portas" style="max-width: 120px;">
+              <button class="btn btn-sm btn-outline-success" type="submit">Varrer</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="text-center text-secondary py-4">Nenhuma faixa cadastrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

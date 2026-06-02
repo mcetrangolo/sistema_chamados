@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Backup e restauração | Sistema{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">Backup e restauração</h1>
+    <p class="text-secondary mb-0">Crie, baixe, apague e restaure backups da base local.</p>
+  </div>
+  {% if usa_sqlite %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="acao" value="criar">
+      <button class="btn btn-primary" type="submit">Criar backup agora</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="detail-section">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h5 mb-0">Backups disponíveis</h2>
+        <span class="badge text-bg-light">{{ backups|length }} arquivo(s)</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th>Arquivo</th>
+              <th>Tipo</th>
+              <th>Tamanho</th>
+              <th>Data</th>
+              <th class="text-end">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for backup in backups %}
+              <tr>
+                <td><strong>{{ backup.nome }}</strong></td>
+                <td>{{ backup.tipo }}</td>
+                <td>{{ backup.tamanho_mb|floatformat:2 }} MB</td>
+                <td>{{ backup.modificado_em|date:"d/m/Y H:i" }}</td>
+                <td class="text-end">
+                  <div class="d-inline-flex gap-2">
+                    <a class="btn btn-outline-primary btn-sm" href="{% url 'core:backup_baixar' backup.nome %}">Baixar</a>
+                    <form method="post" onsubmit="return confirm('Apagar este backup definitivamente?');">
+                      {% csrf_token %}
+                      <input type="hidden" name="acao" value="apagar">
+                      <input type="hidden" name="backup" value="{{ backup.nome }}">
+                      <input type="hidden" name="confirmacao_apagar" value="APAGAR">
+                      <button class="btn btn-outline-danger btn-sm" type="submit">Apagar</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" class="text-secondary">Nenhum backup encontrado.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {% if usa_sqlite %}
+      <section class="detail-section">
+        <h2 class="h5">Restaurar backup</h2>
+        <p class="text-secondary">
+          A restauração substitui a base atual e os arquivos de mídia. O sistema cria um backup prévio automaticamente antes de restaurar.
+        </p>
+
+        <form method="post" enctype="multipart/form-data" onsubmit="return confirm('Esta ação vai substituir a base atual. Deseja continuar?');">
+          {% csrf_token %}
+          <input type="hidden" name="acao" value="restaurar">
+
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Origem do backup</label>
+              <div class="backup-source-options">
+                <label class="form-check">
+                  <input class="form-check-input" type="radio" name="origem" value="upload" checked>
+                  <span class="form-check-label">Selecionar arquivo do meu computador</span>
+                </label>
+                <label class="form-check">
+                  <input class="form-check-input" type="radio" name="origem" value="existente">
+                  <span class="form-check-label">Usar backup já salvo no servidor</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label" for="arquivo_backup">Arquivo de backup do PC</label>
+              <input class="form-control" id="arquivo_backup" name="arquivo_backup" type="file" accept=".zip">
+              <div class="form-text">Use o arquivo `.zip` baixado anteriormente pela tela de backup.</div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label" for="backup">Backup no servidor</label>
+              <select class="form-select" id="backup" name="backup">
+                <option value="">Selecione um backup</option>
+                {% for backup in backups_sqlite %}
+                  <option value="{{ backup.nome }}">{{ backup.nome }} - {{ backup.modificado_em|date:"d/m/Y H:i" }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label" for="confirmacao">Confirmação</label>
+              <input class="form-control" id="confirmacao" name="confirmacao" placeholder="Digite RESTAURAR" required>
+            </div>
+          </div>
+
+          <button class="btn btn-danger mt-3" type="submit">Restaurar backup</button>
+        </form>
+      </section>
+    {% endif %}
+  </div>
+
+  <aside class="col-lg-4">
+    <section class="side-panel">
+      <h2 class="h6">Ambiente atual</h2>
+      {% if usa_sqlite %}
+        <p class="mb-2"><strong>Banco local SQLite</strong></p>
+        <p class="text-secondary mb-0">O backup cria um ZIP com a base `db.sqlite3` e a pasta `media`.</p>
+      {% else %}
+        <p class="mb-2"><strong>Banco PostgreSQL</strong></p>
+        <p class="text-secondary mb-0">Para produção com PostgreSQL, use os scripts Docker de backup e restauração no servidor.</p>
+      {% endif %}
+    </section>
+
+    <section class="side-panel mt-3">
+      <h2 class="h6">Cenário de catástrofe</h2>
+      <p class="text-secondary mb-0">
+        Guarde o `.zip` em outro local. Se perder a máquina ou a pasta do sistema, instale novamente a aplicação e use
+        “Selecionar arquivo do meu computador” para restaurar esse backup externo.
+      </p>
+    </section>
+
+    <section class="side-panel mt-3">
+      <h2 class="h6">Atenção</h2>
+      <ul class="task-list">
+        <li><strong>Reinicie após restaurar</strong><span>Depois do restore, pare e suba o servidor novamente.</span></li>
+        <li><strong>Apagar é definitivo</strong><span>Baixe uma cópia externa antes de excluir backups antigos.</span></li>
+        <li><strong>Proteja arquivos</strong><span>Backups podem conter dados pessoais e anexos sensíveis.</span></li>
+      </ul>
+    </section>
+  </aside>
+</div>
+{% endblock %}

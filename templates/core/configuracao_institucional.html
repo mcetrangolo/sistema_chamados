@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Instituição e tema | Sistema{% endblock %}
+{% block content %}
+<div class="content-narrow">
+  <h1 class="h3 mb-3">Instituição e tema visual</h1>
+  <p class="text-secondary">Configure nome, CNPJ, endereço, logo e temas visuais prontos.</p>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="alert alert-info">
+      Para melhor resultado, use uma logo em PNG com fundo transparente, preferencialmente até 320px de largura por 160px de altura.
+      A exibição no menu será ajustada automaticamente.
+    </div>
+    {% if object.logo %}
+      <div class="detail-section mb-3">
+        <h2 class="h6">Logo atual</h2>
+        <img class="config-logo-preview" src="{{ object.logo.url }}" alt="{{ object.nome_instituicao }}">
+      </div>
+    {% endif %}
+    {% include "chamados/partials/form_fields.html" with form=form %}
+    <button class="btn btn-primary" type="submit">Salvar configuração</button>
+  </form>
+</div>
+{% endblock %}

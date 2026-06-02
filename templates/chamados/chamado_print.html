@@ -1,0 +1,411 @@
+{% load static %}
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>Impressão {{ chamado.numero }}</title>
+  <style>
+    :root {
+      --primary: {{ config_institucional.cor_primaria|default:"#155eef" }};
+      --ink: #111827;
+      --muted: #667085;
+      --line: #d0d5dd;
+      --soft: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      line-height: 1.45;
+      margin: 0;
+      background: #eef2f7;
+    }
+
+    .print-actions {
+      background: #111827;
+      color: #fff;
+      padding: 12px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .print-actions button,
+    .print-actions a {
+      background: #fff;
+      border: 0;
+      border-radius: 6px;
+      color: #111827;
+      display: inline-block;
+      font-weight: 700;
+      margin-right: 8px;
+      padding: 8px 12px;
+      text-decoration: none;
+    }
+
+    .page {
+      background: #fff;
+      margin: 24px auto;
+      max-width: 960px;
+      min-height: 1120px;
+      padding: 34px;
+    }
+
+    .header {
+      align-items: flex-start;
+      border-bottom: 3px solid var(--primary);
+      display: flex;
+      gap: 18px;
+      justify-content: space-between;
+      padding-bottom: 18px;
+    }
+
+    .brand {
+      align-items: center;
+      display: flex;
+      gap: 14px;
+    }
+
+    .brand img {
+      max-height: 58px;
+      max-width: 160px;
+      object-fit: contain;
+    }
+
+    .brand-mark {
+      align-items: center;
+      background: var(--primary);
+      border-radius: 8px;
+      color: #fff;
+      display: inline-flex;
+      font-size: 18px;
+      font-weight: 800;
+      height: 52px;
+      justify-content: center;
+      width: 52px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+
+    h2 {
+      border-bottom: 1px solid var(--line);
+      font-size: 15px;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .ticket-meta {
+      text-align: right;
+    }
+
+    .ticket-number {
+      color: var(--primary);
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .status-row {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(4, 1fr);
+      margin: 18px 0;
+    }
+
+    .badge-box {
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .badge-box span {
+      color: var(--muted);
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .badge-box strong {
+      display: block;
+      font-size: 13px;
+      margin-top: 3px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 16px;
+    }
+
+    .section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      padding: 14px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    dl {
+      display: grid;
+      gap: 7px 12px;
+      grid-template-columns: 130px 1fr;
+      margin: 0;
+    }
+
+    dt {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    dd {
+      margin: 0;
+    }
+
+    .text-block {
+      white-space: pre-wrap;
+    }
+
+    .timeline-item,
+    .thread-item,
+    .task-item,
+    .attachment-item {
+      border-left: 3px solid var(--primary);
+      margin-bottom: 10px;
+      padding-left: 10px;
+    }
+
+    .thread-internal {
+      border-left-color: #b7791f;
+    }
+
+    .item-meta {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 3px;
+    }
+
+    .footer {
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      margin-top: 24px;
+      padding-top: 12px;
+    }
+
+    @media print {
+      @page {
+        margin: 12mm;
+        size: A4;
+      }
+
+      body {
+        background: #fff;
+      }
+
+      .print-actions {
+        display: none;
+      }
+
+      .page {
+        margin: 0;
+        max-width: none;
+        min-height: 0;
+        padding: 0;
+      }
+
+      .section,
+      .badge-box {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-actions">
+    <button type="button" onclick="window.print()">Imprimir</button>
+    <a href="{% url 'chamados:detalhe' chamado.pk %}">Voltar ao chamado</a>
+  </div>
+
+  <main class="page">
+    <header class="header">
+      <div class="brand">
+        {% if config_institucional.logo %}
+          <img src="{{ config_institucional.logo.url }}" alt="{{ config_institucional.nome_instituicao }}">
+        {% else %}
+          <span class="brand-mark">{{ config_institucional.sigla|default:"TI" }}</span>
+        {% endif %}
+        <div>
+          <h1>{{ config_institucional.nome_instituicao|default:"Sistema de Chamados" }}</h1>
+          <p class="muted">
+            {% if config_institucional.cnpj %}CNPJ: {{ config_institucional.cnpj }}{% endif %}
+            {% if config_institucional.endereco %}<br>{{ config_institucional.endereco }}{% endif %}
+          </p>
+        </div>
+      </div>
+      <div class="ticket-meta">
+        <div class="ticket-number">{{ chamado.numero }}</div>
+        <p class="muted">Emitido em {{ emitido_em|date:"d/m/Y H:i" }}</p>
+      </div>
+    </header>
+
+    <section class="status-row">
+      <div class="badge-box">
+        <span>Status</span>
+        <strong>{{ chamado.get_status_display }}</strong>
+      </div>
+      <div class="badge-box">
+        <span>Prioridade</span>
+        <strong>{{ chamado.get_prioridade_display }}</strong>
+      </div>
+      <div class="badge-box">
+        <span>Abertura</span>
+        <strong>{{ chamado.criado_em|date:"d/m/Y H:i" }}</strong>
+      </div>
+      <div class="badge-box">
+        <span>SLA</span>
+        <strong>
+          {% if chamado.atrasado %}
+            Atrasado
+          {% elif chamado.vencimento_em %}
+            {{ chamado.vencimento_em|date:"d/m/Y H:i" }}
+          {% else %}
+            -
+          {% endif %}
+        </strong>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="section">
+        <h2>Solicitante</h2>
+        <dl>
+          <dt>Nome</dt><dd>{{ chamado.nome_solicitante }}</dd>
+          <dt>Setor</dt><dd>{{ chamado.setor|default:"-" }}</dd>
+          <dt>E-mail</dt><dd>{{ chamado.email|default:"-" }}</dd>
+          <dt>Telefone</dt><dd>{{ chamado.telefone|default:"-" }}</dd>
+          <dt>Origem</dt><dd>{{ chamado.get_origem_display }}</dd>
+        </dl>
+      </section>
+
+      <section class="section">
+        <h2>Classificação</h2>
+        <dl>
+          <dt>Categoria</dt><dd>{{ chamado.categoria|default:"-" }}</dd>
+          <dt>Tópico</dt><dd>{{ chamado.topico_ajuda|default:"-" }}</dd>
+          <dt>Atendente</dt><dd>{{ chamado.tecnico_responsavel|default:"Não atribuído" }}</dd>
+          <dt>Ativo</dt><dd>{{ chamado.ativo_rede|default:"-" }}</dd>
+          <dt>Conclusão</dt><dd>{{ chamado.concluido_em|date:"d/m/Y H:i"|default:"-" }}</dd>
+        </dl>
+      </section>
+
+      <section class="section full">
+        <h2>Descrição do problema</h2>
+        <div class="text-block">{{ chamado.descricao|default:"-" }}</div>
+      </section>
+
+      <section class="section full">
+        <h2>Solução aplicada</h2>
+        <div class="text-block">{{ chamado.solucao_aplicada|default:"Ainda não informada." }}</div>
+      </section>
+
+      {% if chamado.observacoes_internas %}
+        <section class="section full">
+          <h2>Observações internas</h2>
+          <div class="text-block">{{ chamado.observacoes_internas }}</div>
+        </section>
+      {% endif %}
+
+      <section class="section full">
+        <h2>Conversa do chamado</h2>
+        {% for comentario in chamado.comentarios.all %}
+          <article class="thread-item {% if not comentario.publico %}thread-internal{% endif %}">
+            <div class="item-meta">
+              {{ comentario.criado_em|date:"d/m/Y H:i" }} |
+              {{ comentario.nome_autor|default:comentario.autor|default:"Portal" }} |
+              {% if comentario.publico %}Público{% else %}Interno{% endif %}
+            </div>
+            <div class="text-block">{{ comentario.mensagem }}</div>
+          </article>
+        {% empty %}
+          <p class="muted">Nenhuma resposta registrada.</p>
+        {% endfor %}
+      </section>
+
+      <section class="section">
+        <h2>Histórico</h2>
+        {% for item in chamado.historico.all %}
+          <article class="timeline-item">
+            <strong>{{ item.get_status_display }}</strong>
+            <div class="item-meta">{{ item.usuario|default:"Portal público" }} | {{ item.criado_em|date:"d/m/Y H:i" }}</div>
+            {% if item.comentario %}<div class="text-block">{{ item.comentario }}</div>{% endif %}
+          </article>
+        {% empty %}
+          <p class="muted">Sem movimentações registradas.</p>
+        {% endfor %}
+      </section>
+
+      <section class="section">
+        <h2>Tarefas e anexos</h2>
+        <h3>Tarefas</h3>
+        {% for tarefa in chamado.tarefas.all %}
+          <article class="task-item">
+            <strong>{{ tarefa.titulo }}</strong>
+            <div class="item-meta">
+              {{ tarefa.get_status_display }}
+              {% if tarefa.responsavel %} | {{ tarefa.responsavel }}{% endif %}
+              {% if tarefa.prazo %} | Prazo: {{ tarefa.prazo|date:"d/m/Y H:i" }}{% endif %}
+            </div>
+            {% if tarefa.descricao %}<div class="text-block">{{ tarefa.descricao }}</div>{% endif %}
+          </article>
+        {% empty %}
+          <p class="muted">Nenhuma tarefa vinculada.</p>
+        {% endfor %}
+
+        <h3 style="margin-top: 14px;">Anexos</h3>
+        {% for anexo in chamado.anexos.all %}
+          <article class="attachment-item">
+            <strong>{{ anexo.descricao|default:anexo.arquivo.name }}</strong>
+            <div class="item-meta">
+              {{ anexo.nome_enviado_por|default:anexo.enviado_por|default:"Portal" }} |
+              {{ anexo.criado_em|date:"d/m/Y H:i" }}
+            </div>
+          </article>
+        {% empty %}
+          <p class="muted">Nenhum anexo enviado.</p>
+        {% endfor %}
+      </section>
+    </div>
+
+    <footer class="footer">
+      <span>{{ config_institucional.texto_rodape|default:"Sistema de Chamados" }}</span>
+      <span>{{ chamado.numero }}</span>
+    </footer>
+  </main>
+</body>
+</html>

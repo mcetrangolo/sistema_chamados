@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Artigo | Base de conhecimento{% endblock %}
+{% block content %}
+<div class="content-narrow">
+  <h1 class="h3 mb-3">Artigo da base de conhecimento</h1>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% include "chamados/partials/form_fields.html" with form=form %}
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary" type="submit">Salvar artigo</button>
+      <a class="btn btn-outline-secondary" href="{% url 'chamados:artigos' %}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

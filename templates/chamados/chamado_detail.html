@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}{{ chamado.numero }} | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ chamado.numero }}</h1>
+    <p class="text-secondary mb-0">{{ chamado.nome_solicitante }} · {{ chamado.setor }} · {{ chamado.criado_em|date:"d/m/Y H:i" }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'chamados:imprimir' chamado.pk %}" target="_blank">Imprimir</a>
+    <form method="post" action="{% url 'chamados:atribuir_mim' chamado.pk %}">
+      {% csrf_token %}
+      <button class="btn btn-outline-primary" type="submit">Atribuir a mim</button>
+    </form>
+    <a class="btn btn-primary" href="{% url 'chamados:editar' chamado.pk %}">Atualizar</a>
+    <form method="post" action="{% url 'chamados:resolver_rapido' chamado.pk %}" onsubmit="return confirm('Resolver este chamado usando a resposta informada?');">
+      {% csrf_token %}
+      <input type="hidden" name="solucao_aplicada" id="quick-solution">
+      <button class="btn btn-success" type="submit">Resolver</button>
+    </form>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="detail-section">
+      <h2 class="h5">Descrição do problema</h2>
+      <p>{{ chamado.descricao|linebreaks }}</p>
+    </section>
+    <section class="detail-section">
+      <h2 class="h5">Solução aplicada</h2>
+      <p>{{ chamado.solucao_aplicada|default:"Ainda não informada."|linebreaks }}</p>
+    </section>
+    <section class="detail-section">
+      <h2 class="h5">Conversa do chamado</h2>
+      <div class="thread">
+        {% for comentario in chamado.comentarios.all %}
+          <article class="thread-item {% if not comentario.publico %}thread-internal{% endif %}">
+            <div class="thread-meta">
+              <strong>{{ comentario.nome_autor|default:comentario.autor|default:"Portal" }}</strong>
+              <span>{{ comentario.criado_em|date:"d/m/Y H:i" }} · {% if comentario.publico %}Público{% else %}Interno{% endif %}</span>
+            </div>
+            <div>{{ comentario.mensagem|linebreaks }}</div>
+          </article>
+        {% empty %}
+          <p class="text-secondary">Nenhuma resposta registrada.</p>
+        {% endfor %}
+      </div>
+      <form method="post" action="{% url 'chamados:responder' chamado.pk %}" class="mt-3">
+        {% csrf_token %}
+        {% include "chamados/partials/form_fields.html" with form=comentario_form %}
+        <button class="btn btn-primary" type="submit">Registrar resposta</button>
+      </form>
+    </section>
+    <section class="detail-section">
+      <h2 class="h5">Histórico</h2>
+      <div class="timeline">
+        {% for item in chamado.historico.all %}
+          <div class="timeline-item">
+            <strong>{{ item.get_status_display }}</strong>
+            <span>{{ item.usuario|default:"Portal público" }} · {{ item.criado_em|date:"d/m/Y H:i" }}</span>
+            {% if item.comentario %}<p>{{ item.comentario|linebreaks }}</p>{% endif %}
+          </div>
+        {% empty %}
+          <p class="text-secondary">Sem movimentações registradas.</p>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+  <aside class="col-lg-4">
+    <div class="side-panel">
+      <dl class="row mb-0">
+        <dt class="col-5">Status</dt><dd class="col-7">{{ chamado.get_status_display }}</dd>
+        <dt class="col-5">Prioridade</dt><dd class="col-7">{{ chamado.get_prioridade_display }}</dd>
+        <dt class="col-5">Categoria</dt><dd class="col-7">{{ chamado.categoria }}</dd>
+        <dt class="col-5">Tópico</dt><dd class="col-7">{{ chamado.topico_ajuda|default:"-" }}</dd>
+        <dt class="col-5">Origem</dt><dd class="col-7">{{ chamado.get_origem_display }}</dd>
+        <dt class="col-5">Atendente</dt><dd class="col-7">{{ chamado.tecnico_responsavel|default:"Não atribuído" }}</dd>
+        <dt class="col-5">SLA</dt><dd class="col-7">{% if chamado.atrasado %}<span class="badge text-bg-danger">Atrasado</span>{% elif chamado.vencimento_em %}{{ chamado.vencimento_em|date:"d/m/Y H:i" }}{% else %}-{% endif %}</dd>
+        <dt class="col-5">Telefone</dt><dd class="col-7">{{ chamado.telefone|default:"-" }}</dd>
+        <dt class="col-5">E-mail</dt><dd class="col-7">{{ chamado.email|default:"-" }}</dd>
+      </dl>
+    </div>
+    <div class="side-panel mt-3">
+      <h2 class="h6">Anexos</h2>
+      <ul class="task-list">
+        {% for anexo in chamado.anexos.all %}
+          <li>
+            <strong><a href="{{ anexo.arquivo.url }}" target="_blank">{{ anexo.descricao|default:anexo.arquivo.name }}</a></strong>
+            <span>{{ anexo.nome_enviado_por|default:anexo.enviado_por|default:"Portal" }} · {{ anexo.criado_em|date:"d/m/Y H:i" }}</span>
+          </li>
+        {% empty %}
+          <li class="text-secondary">Nenhum anexo enviado.</li>
+        {% endfor %}
+      </ul>
+      <form method="post" enctype="multipart/form-data" action="{% url 'chamados:anexo_novo' chamado.pk %}" class="mt-3">
+        {% csrf_token %}
+        {% include "chamados/partials/form_fields.html" with form=anexo_form %}
+        <button class="btn btn-outline-primary w-100" type="submit">Enviar anexo</button>
+      </form>
+    </div>
+    <div class="side-panel mt-3">
+      <h2 class="h6">Respostas prontas</h2>
+      <select class="form-select" id="resposta-pronta">
+        <option value="">Selecionar resposta</option>
+        {% for resposta in respostas_prontas %}
+          <option value="{{ resposta.conteudo }}">{{ resposta.titulo }}</option>
+        {% endfor %}
+      </select>
+      <p class="text-secondary small mt-2 mb-0">Ao selecionar, o texto será colocado no campo de resposta.</p>
+    </div>
+    <div class="side-panel mt-3">
+      <h2 class="h6">Tarefas</h2>
+      <ul class="task-list">
+        {% for tarefa in chamado.tarefas.all %}
+          <li>
+            <strong>{{ tarefa.titulo }}</strong>
+            <span>{{ tarefa.get_status_display }}{% if tarefa.responsavel %} · {{ tarefa.responsavel }}{% endif %}</span>
+          </li>
+        {% empty %}
+          <li class="text-secondary">Nenhuma tarefa vinculada.</li>
+        {% endfor %}
+      </ul>
+      <form method="post" action="{% url 'chamados:tarefa_nova' chamado.pk %}" class="mt-3">
+        {% csrf_token %}
+        {% include "chamados/partials/form_fields.html" with form=tarefa_form %}
+        <button class="btn btn-outline-primary w-100" type="submit">Adicionar tarefa</button>
+      </form>
+    </div>
+    {% if chamado.status != "encerrado" %}
+      <form class="side-panel mt-3" method="post" action="{% url 'chamados:encerrar' chamado.pk %}">
+        {% csrf_token %}
+        <label class="form-label" for="solucao_aplicada">Solução para encerramento</label>
+        <textarea class="form-control" id="solucao_aplicada" name="solucao_aplicada" rows="4">{{ chamado.solucao_aplicada }}</textarea>
+        <button class="btn btn-success w-100 mt-3" type="submit">Encerrar chamado</button>
+      </form>
+    {% endif %}
+  </aside>
+</div>
+<script>
+  const respostaPronta = document.getElementById("resposta-pronta");
+  if (respostaPronta) {
+    respostaPronta.addEventListener("change", () => {
+      const campo = document.getElementById("id_mensagem");
+      if (campo && respostaPronta.value) {
+        campo.value = respostaPronta.value;
+        document.getElementById("quick-solution").value = respostaPronta.value;
+      }
+    });
+  }
+  const campoMensagem = document.getElementById("id_mensagem");
+  if (campoMensagem) {
+    campoMensagem.addEventListener("input", () => {
+      const quick = document.getElementById("quick-solution");
+      if (quick) quick.value = campoMensagem.value;
+    });
+  }
+</script>
+{% endblock %}

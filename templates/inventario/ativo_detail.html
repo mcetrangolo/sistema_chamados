@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ ativo.nome }} | Inventário{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ ativo.nome }}</h1>
+    <p class="text-secondary mb-0">{{ ativo.tipo }} · {{ ativo.ip|default:"sem IP" }} · {{ ativo.get_status_display }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-primary" href="{% url 'inventario:ativo_editar' ativo.pk %}">Editar características</a>
+    <form method="post" action="{% url 'inventario:ativo_excluir' ativo.pk %}" onsubmit="return confirm('Excluir este ativo do inventário? Esta ação não pode ser desfeita.');">
+      {% csrf_token %}
+      <button class="btn btn-outline-danger" type="submit">Excluir</button>
+    </form>
+  </div>
+</div>
+<div class="row g-4">
+  <div class="col-xl-8">
+    <section class="detail-section">
+      <h2 class="h5">Características</h2>
+      <dl class="row mb-0">
+        <dt class="col-sm-3">Hostname</dt><dd class="col-sm-9">{{ ativo.hostname|default:"-" }}</dd>
+        <dt class="col-sm-3">Fabricante</dt><dd class="col-sm-9">{{ ativo.fabricante|default:"-" }}</dd>
+        <dt class="col-sm-3">Modelo</dt><dd class="col-sm-9">{{ ativo.modelo|default:"-" }}</dd>
+        <dt class="col-sm-3">Serial</dt><dd class="col-sm-9">{{ ativo.numero_serie|default:"-" }}</dd>
+        <dt class="col-sm-3">Função</dt><dd class="col-sm-9">{{ ativo.funcao|default:"-" }}</dd>
+        <dt class="col-sm-3">Localização</dt><dd class="col-sm-9">{{ ativo.localizacao|default:"-" }}</dd>
+        <dt class="col-sm-3">Responsável</dt><dd class="col-sm-9">{{ ativo.responsavel|default:"-" }}</dd>
+      </dl>
+    </section>
+    <section class="detail-section">
+      <h2 class="h5">Interfaces</h2>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Nome</th><th>IP</th><th>MAC</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for interface in ativo.interfaces.all %}
+            <tr><td>{{ interface.nome }}</td><td>{{ interface.ip|default:"-" }}</td><td>{{ interface.mac|default:"-" }}</td><td>{{ interface.status|default:"-" }}</td></tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-secondary">Nenhuma interface cadastrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    <section class="detail-section">
+      <h2 class="h5">Chamados vinculados</h2>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Número</th><th>Solicitante</th><th>Status</th><th>Abertura</th></tr></thead>
+        <tbody>
+          {% for chamado in ativo.chamados.all %}
+            <tr>
+              <td><a href="{{ chamado.get_absolute_url }}">{{ chamado.numero }}</a></td>
+              <td>{{ chamado.nome_solicitante }}</td>
+              <td>{{ chamado.get_status_display }}</td>
+              <td>{{ chamado.criado_em|date:"d/m/Y H:i" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-secondary">Nenhum chamado vinculado a este ativo.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <aside class="col-xl-4">
+    <section class="side-panel">
+      <h2 class="h6">Registrar ocorrência</h2>
+      <form method="post" action="{% url 'inventario:ocorrencia_nova' ativo.pk %}">
+        {% csrf_token %}
+        {% include "chamados/partials/form_fields.html" with form=ocorrencia_form %}
+        <button class="btn btn-outline-primary w-100" type="submit">Registrar</button>
+      </form>
+    </section>
+    <section class="side-panel mt-3">
+      <h2 class="h6">Ocorrências</h2>
+      <ul class="task-list">
+        {% for ocorrencia in ativo.ocorrencias.all %}
+          <li><strong>{{ ocorrencia.titulo }}</strong><span>{{ ocorrencia.get_tipo_display }} · {{ ocorrencia.criado_em|date:"d/m/Y H:i" }}</span></li>
+        {% empty %}
+          <li class="text-secondary">Nenhuma ocorrência registrada.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  </aside>
+</div>
+{% endblock %}

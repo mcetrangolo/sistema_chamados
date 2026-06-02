@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Busca global | Sistema{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Busca global</h1>
+<form method="get" class="filters mb-4">
+  <div class="row g-2">
+    <div class="col-md-10"><input class="form-control" name="q" value="{{ q }}" placeholder="Buscar chamado, solicitante, ativo, IP, serial, artigo ou serviço"></div>
+    <div class="col-md-2 d-grid"><button class="btn btn-primary" type="submit">Buscar</button></div>
+  </div>
+</form>
+{% if q %}
+<div class="row g-4">
+  <div class="col-xl-6">
+    <section class="detail-section"><h2 class="h5">Chamados</h2>
+      {% for chamado in chamados %}<p><a href="{{ chamado.get_absolute_url }}">{{ chamado.numero }}</a> - {{ chamado.nome_solicitante }} - {{ chamado.get_status_display }}</p>{% empty %}<p class="text-secondary">Nada encontrado.</p>{% endfor %}
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="detail-section"><h2 class="h5">Ativos</h2>
+      {% for ativo in ativos %}<p><a href="{{ ativo.get_absolute_url }}">{{ ativo.nome }}</a> - {{ ativo.ip|default:"sem IP" }} - {{ ativo.tipo }}</p>{% empty %}<p class="text-secondary">Nada encontrado.</p>{% endfor %}
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="detail-section"><h2 class="h5">Base de conhecimento</h2>
+      {% for artigo in artigos %}<p><a href="{{ artigo.get_absolute_url }}">{{ artigo.titulo }}</a></p>{% empty %}<p class="text-secondary">Nada encontrado.</p>{% endfor %}
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="detail-section"><h2 class="h5">Serviços</h2>
+      {% for servico in servicos %}<p><a href="{{ servico.get_absolute_url }}">{{ servico.nome }}</a> - {{ servico.categoria }}</p>{% empty %}<p class="text-secondary">Nada encontrado.</p>{% endfor %}
+    </section>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

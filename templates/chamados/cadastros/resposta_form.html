@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Resposta pronta | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="content-narrow">
+  <h1 class="h3 mb-3">Resposta pronta</h1>
+  <form method="post">
+    {% csrf_token %}
+    {% include "chamados/partials/form_fields.html" with form=form %}
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary" type="submit">Salvar</button>
+      <a class="btn btn-outline-secondary" href="{% url 'chamados:respostas' %}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

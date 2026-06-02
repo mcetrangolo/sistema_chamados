@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Gestão | Sistema de Chamados{% endblock %}
+{% block content %}
+{{ status_chart|json_script:"status-chart-data" }}
+{{ categoria_chart|json_script:"categoria-chart-data" }}
+{{ tecnico_chart|json_script:"tecnico-chart-data" }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 mb-0">Gestão de chamados</h1>
+    <p class="text-secondary mb-0">Visão operacional no estilo service desk.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'chamados:lista' %}">Fila de chamados</a>
+    <a class="btn btn-primary" href="{% url 'chamados:novo' %}">Abrir interno</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-2"><div class="metric"><span>Total</span><strong>{{ contadores.total }}</strong></div></div>
+  <div class="col-6 col-xl-2"><div class="metric"><span>Abertos</span><strong>{{ contadores.abertos }}</strong></div></div>
+  <div class="col-6 col-xl-2"><div class="metric"><span>Em atendimento</span><strong>{{ contadores.em_atendimento }}</strong></div></div>
+  <div class="col-6 col-xl-2"><div class="metric"><span>Aguardando</span><strong>{{ contadores.aguardando }}</strong></div></div>
+  <div class="col-6 col-xl-2"><div class="metric"><span>Resolvidos</span><strong>{{ contadores.resolvidos }}</strong></div></div>
+  <div class="col-6 col-xl-2"><div class="metric"><span>Encerrados</span><strong>{{ contadores.encerrados }}</strong></div></div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="metric"><span>Atrasados</span><strong>{{ contadores.atrasados }}</strong></div></div>
+  <div class="col-md-4"><div class="metric"><span>Reabertos</span><strong>{{ contadores.reabertos }}</strong></div></div>
+  <div class="col-md-4"><div class="metric"><span>Avaliação média</span><strong>{% if avaliacao_media %}{{ avaliacao_media|floatformat:1 }}{% else %}-{% endif %}</strong></div></div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-4">
+    <section class="chart-panel">
+      <h2 class="h6">Chamados por status</h2>
+      <canvas id="statusChart" height="220"></canvas>
+    </section>
+  </div>
+  <div class="col-lg-4">
+    <section class="chart-panel">
+      <h2 class="h6">Chamados por categoria</h2>
+      <canvas id="categoriaChart" height="220"></canvas>
+    </section>
+  </div>
+  <div class="col-lg-4">
+    <section class="chart-panel">
+      <h2 class="h6">Chamados por atendente</h2>
+      <canvas id="tecnicoChart" height="220"></canvas>
+    </section>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-8">
+    <section class="detail-section">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h5 mb-0">Últimos chamados</h2>
+        <a href="{% url 'chamados:lista' %}">Ver todos</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Número</th>
+              <th>Solicitante</th>
+              <th>Setor</th>
+              <th>Prioridade</th>
+              <th>Status</th>
+              <th>Atendente</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for chamado in ultimos_chamados %}
+              <tr>
+                <td><a href="{{ chamado.get_absolute_url }}">{{ chamado.numero }}</a></td>
+                <td>{{ chamado.nome_solicitante }}</td>
+                <td>{{ chamado.setor }}</td>
+                <td>{{ chamado.get_prioridade_display }}</td>
+                <td><span class="badge text-bg-light">{{ chamado.get_status_display }}</span></td>
+                <td>{{ chamado.tecnico_responsavel|default:"Não atribuído" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="text-center text-secondary py-4">Nenhum chamado cadastrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <div class="col-xl-4">
+    <section class="detail-section">
+      <h2 class="h5">Backlog por prioridade</h2>
+      <table class="table table-sm mb-0">
+        <tbody>
+          {% for item in backlog_por_prioridade %}
+            <tr>
+              <td>{{ item.prioridade }}</td>
+              <td class="text-end fw-semibold">{{ item.total }}</td>
+            </tr>
+          {% empty %}
+            <tr><td class="text-secondary">Sem chamados pendentes.</td><td></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    <section class="detail-section">
+      <h2 class="h5">Top categorias</h2>
+      <table class="table table-sm mb-0">
+        <tbody>
+          {% for item in top_categorias %}
+            <tr><td>{{ item.categoria__nome|default:"-" }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>
+          {% empty %}
+            <tr><td class="text-secondary">Sem dados.</td><td></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const chartOptions = { responsive: true, plugins: { legend: { position: "bottom" } } };
+  function loadChartData(id) {
+    return JSON.parse(document.getElementById(id).textContent);
+  }
+  function buildChart(canvasId, dataId, type) {
+    const data = loadChartData(dataId);
+    new Chart(document.getElementById(canvasId), {
+      type,
+      data: {
+        labels: data.labels,
+        datasets: [{
+          data: data.data,
+          backgroundColor: ["#0d6efd", "#20c997", "#ffc107", "#dc3545", "#6f42c1", "#198754", "#fd7e14", "#6c757d"]
+        }]
+      },
+      options: chartOptions
+    });
+  }
+  buildChart("statusChart", "status-chart-data", "doughnut");
+  buildChart("categoriaChart", "categoria-chart-data", "bar");
+  buildChart("tecnicoChart", "tecnico-chart-data", "bar");
+</script>
+{% endblock %}

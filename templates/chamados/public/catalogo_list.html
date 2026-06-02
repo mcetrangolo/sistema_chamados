@@ -1,0 +1,31 @@
+{% extends "public_base.html" %}
+{% block title %}Catálogo de serviços | Portal{% endblock %}
+{% block content %}
+<div class="public-header">
+  <div>
+    <span class="section-label">Service desk</span>
+    <h1>Catálogo de serviços</h1>
+    <p>Solicite acessos, serviços e atendimentos padronizados da TI.</p>
+  </div>
+</div>
+<form method="get" class="filters mb-4">
+  <div class="row g-2">
+    <div class="col-md-10"><input class="form-control" name="q" value="{{ request.GET.q }}" placeholder="Buscar serviço"></div>
+    <div class="col-md-2 d-grid"><button class="btn btn-primary" type="submit">Buscar</button></div>
+  </div>
+</form>
+<div class="row g-3">
+  {% for servico in servicos %}
+    <div class="col-md-6 col-xl-4">
+      <section class="public-panel h-100">
+        <span class="section-label">{{ servico.categoria }}</span>
+        <h2 class="h5 mt-2"><a href="{{ servico.get_absolute_url }}">{{ servico.nome }}</a></h2>
+        <p class="text-secondary">{{ servico.descricao|default:"Solicitação disponível no catálogo."|truncatechars:150 }}</p>
+        <a class="btn btn-outline-primary" href="{{ servico.get_absolute_url }}">Solicitar</a>
+      </section>
+    </div>
+  {% empty %}
+    <div class="col-12"><section class="public-panel text-center text-secondary">Nenhum serviço disponível.</section></div>
+  {% endfor %}
+</div>
+{% endblock %}

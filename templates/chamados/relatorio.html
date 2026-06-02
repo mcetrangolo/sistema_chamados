@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% load chamados_extras %}
+{% block title %}Relatórios | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">Relatórios de chamados</h1>
+    <p class="text-secondary mb-0">Filtre, agrupe e exporte informações para acompanhamento da operação.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'chamados:relatorio_xls' %}{% if querystring %}?{{ querystring }}{% endif %}">Exportar XLS</a>
+    <a class="btn btn-outline-danger" href="{% url 'chamados:relatorio_pdf' %}{% if querystring %}?{{ querystring }}{% endif %}">Exportar PDF</a>
+  </div>
+</div>
+
+<form method="get" class="filters report-filters mb-4">
+  <div class="row g-3">
+    {% for field in form %}
+      <div class="col-md-6 col-xl-3">
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+  <div class="d-flex justify-content-end gap-2 mt-3">
+    <a class="btn btn-outline-secondary" href="{% url 'chamados:relatorio' %}">Limpar</a>
+    <button class="btn btn-primary" type="submit">Gerar relatório</button>
+  </div>
+</form>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="metric"><span>Total filtrado</span><strong>{{ total }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Em aberto</span><strong>{{ abertos }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Resolvidos</span><strong>{{ resolvidos }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Encerrados</span><strong>{{ encerrados }}</strong></div></div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-md-6"><div class="metric"><span>SLA vencidos em aberto</span><strong>{{ sla_vencidos }}</strong></div></div>
+  <div class="col-md-6"><div class="metric"><span>Avaliação média</span><strong>{% if avaliacao_media %}{{ avaliacao_media|floatformat:1 }}{% else %}-{% endif %}</strong></div></div>
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-4">
+    <section class="report-block">
+      <h2 class="h5">Resumo por {{ titulo_agrupamento|lower }}</h2>
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Grupo</th><th class="text-end">Total</th></tr></thead>
+        <tbody>
+          {% for linha in resumo %}
+            <tr>
+              <td>{{ linha|get_item:campo_agrupamento|default:"Não informado" }}</td>
+              <td class="text-end fw-semibold">{{ linha.total }}</td>
+            </tr>
+          {% empty %}
+            <tr><td class="text-secondary">Sem dados para os filtros escolhidos.</td><td></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <div class="col-xl-8">
+    <section class="report-block">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h5 mb-0">Chamados filtrados</h2>
+        <span class="text-secondary small">Mostrando até 500 registros</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Número</th>
+              <th>Abertura</th>
+              <th>Solicitante</th>
+              <th>Setor</th>
+              <th>Status</th>
+              <th>Atendente</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for chamado in chamados %}
+              <tr>
+                <td><a href="{{ chamado.get_absolute_url }}">{{ chamado.numero }}</a></td>
+                <td>{{ chamado.criado_em|date:"d/m/Y H:i" }}</td>
+                <td>{{ chamado.nome_solicitante }}</td>
+                <td>{{ chamado.setor }}</td>
+                <td><span class="badge text-bg-light">{{ chamado.get_status_display }}</span></td>
+                <td>{{ chamado.tecnico_responsavel.get_full_name|default:chamado.tecnico_responsavel|default:"Não atribuído" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6" class="text-center text-secondary py-4">Nenhum chamado encontrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="report-block">
+      <h2 class="h5">Serviços mais solicitados</h2>
+      <table class="table table-sm mb-0">
+        <tbody>
+          {% for item in servicos_mais_solicitados %}
+            <tr><td>{{ item.servico__nome|default:"-" }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>
+          {% empty %}
+            <tr><td class="text-secondary">Sem solicitações de serviço.</td><td></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="report-block">
+      <h2 class="h5">Inventário por status</h2>
+      <table class="table table-sm mb-0">
+        <tbody>
+          {% for item in inventario_por_status %}
+            <tr><td>{{ item.status }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>
+          {% empty %}
+            <tr><td class="text-secondary">Sem ativos inventariados.</td><td></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+</div>
+{% endblock %}

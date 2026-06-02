@@ -1,0 +1,30 @@
+{% extends "public_base.html" %}
+{% block title %}Base de conhecimento | Portal de Chamados{% endblock %}
+{% block content %}
+<div class="public-header">
+  <div>
+    <span class="section-label">Autoatendimento</span>
+    <h1>Base de conhecimento</h1>
+    <p>Consulte orientações, soluções recorrentes e procedimentos publicados pela equipe de TI.</p>
+  </div>
+</div>
+<form method="get" class="filters mb-4">
+  <div class="row g-2">
+    <div class="col-md-10"><input class="form-control" name="q" value="{{ request.GET.q }}" placeholder="Buscar artigo"></div>
+    <div class="col-md-2 d-grid"><button class="btn btn-primary" type="submit">Buscar</button></div>
+  </div>
+</form>
+<div class="row g-3">
+  {% for artigo in artigos %}
+    <div class="col-md-6 col-xl-4">
+      <article class="public-panel h-100">
+        <span class="section-label">{{ artigo.topico_ajuda|default:"Geral" }}</span>
+        <h2 class="h5 mt-2"><a href="{{ artigo.get_absolute_url }}">{{ artigo.titulo }}</a></h2>
+        <p class="text-secondary mb-0">{{ artigo.resumo|default:artigo.conteudo|truncatechars:140 }}</p>
+      </article>
+    </div>
+  {% empty %}
+    <div class="col-12"><section class="public-panel text-center text-secondary">Nenhum artigo encontrado.</section></div>
+  {% endfor %}
+</div>
+{% endblock %}

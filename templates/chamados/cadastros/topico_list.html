@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Tópicos de ajuda | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">Tópicos de ajuda</h1>
+    <p class="text-secondary mb-0">Roteiam chamados por categoria, prioridade, atendente e SLA.</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'chamados:topico_novo' %}">Novo tópico</a>
+</div>
+<section class="detail-section">
+  <table class="table table-hover align-middle mb-0">
+    <thead><tr><th>Nome</th><th>Categoria</th><th>Prioridade</th><th>Atendente</th><th>SLA</th><th class="text-end">Ações</th></tr></thead>
+    <tbody>
+      {% for topico in topicos %}
+        <tr>
+          <td>{{ topico.nome }}</td>
+          <td>{{ topico.categoria }}</td>
+          <td>{{ topico.get_prioridade_padrao_display }}</td>
+          <td>{{ topico.atendente_padrao|default:"-" }}</td>
+          <td>{{ topico.sla_horas }}h</td>
+          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:topico_editar' topico.pk %}">Editar</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-center text-secondary py-4">Nenhum tópico cadastrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_URL="${1:-${REPO_URL:-}}"
+PROJECT_DIR="${PROJECT_DIR:-/opt/sistema-chamados}"
+APP_HOSTS="${APP_HOSTS:-}"
+
+if [ -z "$REPO_URL" ] && [ ! -d ".git" ]; then
+  echo "Informe a URL do repositorio GitHub."
+  echo "Exemplo: REPO_URL=https://github.com/usuario/sistema-chamados.git bash scripts/install_linux.sh"
+  exit 1
+fi
+
+if [ "$(id -u)" -eq 0 ]; then
+  SUDO=""
+else
+  SUDO="sudo"
+fi
+
+echo "Instalando pacotes base..."
+$SUDO apt-get update
+$SUDO apt-get install -y ca-certificates curl git docker.io docker-compose-plugin openssl
+$SUDO systemctl enable --now docker
+
+if [ ! -d "$PROJECT_DIR/.git" ]; then
+  echo "Preparando diretorio $PROJECT_DIR..."
+  $SUDO mkdir -p "$PROJECT_DIR"
+  $SUDO chown -R "$USER:$USER" "$PROJECT_DIR"
+  if [ -n "$REPO_URL" ]; then
+    git clone "$REPO_URL" "$PROJECT_DIR"
+  else
+    echo "Projeto ja esta local. Copie-o para $PROJECT_DIR ou informe REPO_URL."
+    exit 1
+  fi
+fi
+
+cd "$PROJECT_DIR"
+
+SERVER_IP="$(hostname -I | awk '{print $1}')"
+SERVER_NAME="$(hostname -f 2>/dev/null || hostname)"
+if [ -z "$APP_HOSTS" ]; then
+  APP_HOSTS="localhost,127.0.0.1,$SERVER_IP,$SERVER_NAME"
+fi
+
+if [ ! -f ".env" ]; then
+  echo "Criando .env inicial..."
+  SECRET_KEY="$(openssl rand -base64 48 | tr -d '\n')"
+  POSTGRES_PASSWORD="$(openssl rand -base64 24 | tr -d '\n')"
+  cat > .env <<EOF
+SECRET_KEY=$SECRET_KEY
+DEBUG=False
+ALLOWED_HOSTS=$APP_HOSTS
+CSRF_TRUSTED_ORIGINS=http://$SERVER_IP,http://$SERVER_NAME
+SECURE_PROXY_SSL_HEADER=False
+SECURE_SSL_REDIRECT=False
+SESSION_COOKIE_SECURE=False
+CSRF_COOKIE_SECURE=False
+
+DB_ENGINE=postgresql
+POSTGRES_DB=sistema_chamados
+POSTGRES_USER=sistema_chamados
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
+POSTGRES_CONNECT_TIMEOUT=5
+
+GOVERNANCA_DOCUMENT_ROOT=media/governanca_documentos
+
+AD_SERVER=
+AD_USER=
+AD_PASSWORD=
+AD_BASE_DN=
+AD_COMPUTERS_FILTER=(objectClass=computer)
+AD_USERS_FILTER=(objectClass=user)
+
+EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
+EMAIL_HOST=
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_USE_SSL=False
+EMAIL_HOST_USER=
+EMAIL_HOST_PASSWORD=
+EMAIL_TIMEOUT=15
+DEFAULT_FROM_EMAIL=helpdesk@$SERVER_NAME
+
+LOG_LEVEL=INFO
+SCHEDULER_INTERVAL_SECONDS=86400
+EOF
+  chmod 600 .env
+else
+  echo ".env ja existe. Mantendo configuracao atual."
+fi
+
+echo "Subindo containers..."
+$SUDO docker compose up -d --build
+
+echo "Carregando dados iniciais..."
+$SUDO docker compose exec -T web python manage.py seed_chamados
+
+echo "Validando instalacao..."
+$SUDO docker compose exec -T web python manage.py check
+$SUDO docker compose exec -T web python manage.py validar_producao || true
+
+echo ""
+echo "Instalacao concluida."
+echo "Acesse: http://$SERVER_IP/"
+echo ""
+echo "Comandos uteis:"
+echo "  cd $PROJECT_DIR"
+echo "  docker compose logs -f web"
+echo "  bash scripts/deploy_linux.sh"
+echo "  bash scripts/backup_docker.sh"

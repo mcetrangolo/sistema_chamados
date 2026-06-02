@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Atualizar chamado | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="content-narrow">
+  <h1 class="h3 mb-3">Atualizar chamado {{ object.numero }}</h1>
+  <p class="text-secondary">
+    Registre a movimentação do atendimento em um único campo. Se marcar como Resolvido ou Encerrado, esse registro será usado como solução aplicada.
+  </p>
+  <form method="post">
+    {% csrf_token %}
+    {% include "chamados/partials/form_fields.html" with form=form %}
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn btn-primary" type="submit">Salvar atualização</button>
+      <a class="btn btn-outline-secondary" href="{{ object.get_absolute_url }}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

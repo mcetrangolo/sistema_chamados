@@ -1,0 +1,109 @@
+{% extends "public_base.html" %}
+{% block title %}Consultar chamado | Portal de Chamados{% endblock %}
+{% block content %}
+<div class="public-header">
+  <div>
+    <span class="section-label">Acompanhamento</span>
+    <h1>Consultar chamado</h1>
+    <p>Informe o número do chamado e o e-mail usado na abertura para visualizar o andamento.</p>
+  </div>
+  <div class="public-actions">
+    <a class="btn btn-outline-primary" href="{% url 'chamados:portal_abrir' %}">Abrir novo chamado</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-5">
+    <section class="public-panel">
+      <div class="panel-heading">
+        <h2>Localizar atendimento</h2>
+      </div>
+      <form method="post" class="professional-form">
+        {% csrf_token %}
+        {% include "chamados/partials/form_fields.html" with form=form %}
+        <button class="btn btn-primary w-100" type="submit">Consultar</button>
+      </form>
+    </section>
+  </div>
+  <div class="col-lg-7">
+    {% if chamado %}
+      <section class="public-panel ticket-summary">
+        <div class="ticket-title">
+          <div>
+            <span class="section-label">Chamado</span>
+            <h2>{{ chamado.numero }}</h2>
+            <p>{{ chamado.nome_solicitante }} · {{ chamado.setor }}</p>
+          </div>
+          <span class="status-pill">{{ chamado.get_status_display }}</span>
+        </div>
+        <dl class="ticket-grid">
+          <div><dt>Categoria</dt><dd>{{ chamado.categoria }}</dd></div>
+          <div><dt>Prioridade</dt><dd>{{ chamado.get_prioridade_display }}</dd></div>
+          <div><dt>Abertura</dt><dd>{{ chamado.criado_em|date:"d/m/Y H:i" }}</dd></div>
+          <div><dt>Conclusão</dt><dd>{{ chamado.concluido_em|date:"d/m/Y H:i"|default:"-" }}</dd></div>
+        </dl>
+        <div class="ticket-text">
+          <h3>Descrição</h3>
+          <p>{{ chamado.descricao|linebreaks }}</p>
+          <h3>Conversa</h3>
+          <div class="thread">
+            {% for comentario in chamado.comentarios.all %}
+              {% if comentario.publico %}
+                <article class="thread-item">
+                  <div class="thread-meta">
+                    <strong>{{ comentario.nome_autor|default:"Equipe de TI" }}</strong>
+                    <span>{{ comentario.criado_em|date:"d/m/Y H:i" }}</span>
+                  </div>
+                  <div>{{ comentario.mensagem|linebreaks }}</div>
+                </article>
+              {% endif %}
+            {% empty %}
+              <p class="text-secondary">Nenhuma mensagem registrada.</p>
+            {% endfor %}
+          </div>
+          {% if chamado.solucao_aplicada %}
+            <h3>Solução aplicada</h3>
+            <p>{{ chamado.solucao_aplicada|linebreaks }}</p>
+          {% endif %}
+        </div>
+        <hr>
+        <form method="post" enctype="multipart/form-data" action="{% url 'chamados:portal_responder' chamado.pk %}" class="professional-form">
+          {% csrf_token %}
+          <input type="hidden" name="email_confirmacao" value="{{ chamado.email }}">
+          {% include "chamados/partials/form_fields.html" with form=comentario_form %}
+          <div class="mt-3">
+            {% include "chamados/partials/form_fields.html" with form=anexo_form %}
+          </div>
+          <button class="btn btn-primary" type="submit">Responder chamado</button>
+        </form>
+        {% if chamado.status == "resolvido" or chamado.status == "encerrado" %}
+          <hr>
+          {% if chamado.avaliacao %}
+            <div class="alert alert-success mb-3">Chamado avaliado com nota {{ chamado.avaliacao.nota }}/5.</div>
+          {% else %}
+            <form method="post" action="{% url 'chamados:portal_avaliar' chamado.pk %}" class="professional-form mb-3">
+              {% csrf_token %}
+              <input type="hidden" name="email_confirmacao" value="{{ chamado.email }}">
+              {% include "chamados/partials/form_fields.html" with form=avaliacao_form %}
+              <button class="btn btn-outline-success" type="submit">Avaliar atendimento</button>
+            </form>
+          {% endif %}
+          <form method="post" action="{% url 'chamados:portal_reabrir' chamado.pk %}" class="professional-form">
+            {% csrf_token %}
+            <input type="hidden" name="email_confirmacao" value="{{ chamado.email }}">
+            <label class="form-label" for="motivo">Motivo da reabertura</label>
+            <textarea class="form-control" id="motivo" name="motivo" rows="3"></textarea>
+            <button class="btn btn-outline-danger mt-2" type="submit">Reabrir chamado</button>
+          </form>
+        {% endif %}
+      </section>
+    {% else %}
+      <section class="public-panel empty-state">
+        <span class="section-label">Consulta segura</span>
+        <h2>Acompanhe pelo número do chamado</h2>
+        <p class="text-secondary mb-0">Use o número recebido na abertura e o e-mail informado no formulário.</p>
+      </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

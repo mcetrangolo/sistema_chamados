@@ -1,0 +1,31 @@
+from django.urls import path
+
+from . import views
+
+
+app_name = "inventario"
+
+urlpatterns = [
+    path("", views.InventarioPainelView.as_view(), name="painel"),
+    path("ativos/", views.AtivoRedeListView.as_view(), name="ativos"),
+    path("ativos/exportar/xls/", views.exportar_ativos_xls, name="ativos_xls"),
+    path("ativos/excluir-lote/", views.excluir_ativos_lote, name="ativos_excluir_lote"),
+    path("ativos/novo/", views.AtivoRedeCreateView.as_view(), name="ativo_novo"),
+    path("ativos/<int:pk>/", views.AtivoRedeDetailView.as_view(), name="ativo_detalhe"),
+    path("ativos/<int:pk>/editar/", views.AtivoRedeUpdateView.as_view(), name="ativo_editar"),
+    path("ativos/<int:pk>/excluir/", views.excluir_ativo, name="ativo_excluir"),
+    path("ativos/<int:pk>/ocorrencias/nova/", views.registrar_ocorrencia, name="ocorrencia_nova"),
+    path("tipos/", views.TipoAtivoListView.as_view(), name="tipos"),
+    path("tipos/novo/", views.TipoAtivoCreateView.as_view(), name="tipo_novo"),
+    path("tipos/<int:pk>/editar/", views.TipoAtivoUpdateView.as_view(), name="tipo_editar"),
+    path("snmp/", views.CredencialSNMPListView.as_view(), name="snmp"),
+    path("snmp/nova/", views.CredencialSNMPCreateView.as_view(), name="snmp_nova"),
+    path("snmp/<int:pk>/editar/", views.CredencialSNMPUpdateView.as_view(), name="snmp_editar"),
+    path("faixas/", views.FaixaRedeListView.as_view(), name="faixas"),
+    path("faixas/nova/", views.FaixaRedeCreateView.as_view(), name="faixa_nova"),
+    path("faixas/<int:pk>/editar/", views.FaixaRedeUpdateView.as_view(), name="faixa_editar"),
+    path("faixas/<int:pk>/varrer-snmp/", views.iniciar_varredura_snmp, name="varrer_snmp"),
+    path("agendamentos/", views.AgendamentoVarreduraListView.as_view(), name="agendamentos"),
+    path("agendamentos/novo/", views.AgendamentoVarreduraCreateView.as_view(), name="agendamento_novo"),
+    path("agendamentos/<int:pk>/editar/", views.AgendamentoVarreduraUpdateView.as_view(), name="agendamento_editar"),
+]

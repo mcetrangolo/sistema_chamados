@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Inventário | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 mb-0">Inventário de rede</h1>
+    <p class="text-secondary mb-0">Controle de ativos, SNMP, faixas e ocorrências.</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'inventario:ativo_novo' %}">Novo ativo</a>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="metric"><span>Total</span><strong>{{ contadores.total }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Online</span><strong>{{ contadores.online }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Offline</span><strong>{{ contadores.offline }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Origem SNMP</span><strong>{{ contadores.snmp }}</strong></div></div>
+</div>
+<div class="row g-4">
+  <div class="col-xl-8">
+    <section class="detail-section">
+      <h2 class="h5">Últimos ativos atualizados</h2>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Nome</th><th>Tipo</th><th>IP</th><th>Setor</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for ativo in ultimos_ativos %}
+              <tr>
+                <td><a href="{{ ativo.get_absolute_url }}">{{ ativo.nome }}</a></td>
+                <td>{{ ativo.tipo }}</td>
+                <td>{{ ativo.ip|default:"-" }}</td>
+                <td>{{ ativo.setor|default:"-" }}</td>
+                <td><span class="badge text-bg-light">{{ ativo.get_status_display }}</span></td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="text-center text-secondary py-4">Nenhum ativo cadastrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <div class="col-xl-4">
+    <section class="detail-section">
+      <h2 class="h5">Ativos por tipo</h2>
+      <table class="table table-sm mb-0">
+        <tbody>
+          {% for item in por_tipo %}
+            <tr><td>{{ item.tipo__nome|default:"Não informado" }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>
+          {% empty %}
+            <tr><td class="text-secondary">Sem dados.</td><td></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+</div>
+{% endblock %}

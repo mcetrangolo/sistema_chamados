@@ -1,0 +1,29 @@
+{% extends "public_base.html" %}
+{% block title %}Governança | Portal de Chamados{% endblock %}
+{% block content %}
+<div class="public-header">
+  <div>
+    <span class="section-label">Governança</span>
+    <h1>Solicitações de acesso</h1>
+    <p>Registre solicitações formais para criação de usuários, novos acessos e uso da internet Wi-Fi corporativa.</p>
+  </div>
+</div>
+<div class="row g-4">
+  <div class="col-md-6">
+    <section class="public-panel h-100">
+      <span class="section-label">Rede e sistemas</span>
+      <h2 class="h4 mt-2">Cadastro de usuário e novos acessos</h2>
+      <p class="text-secondary">Solicitação formal para novo usuário de rede ou liberação de acessos corporativos.</p>
+      <a class="btn btn-primary" href="{% url 'governanca:usuario_acesso' %}">Abrir formulário</a>
+    </section>
+  </div>
+  <div class="col-md-6">
+    <section class="public-panel h-100">
+      <span class="section-label">Wi-Fi corporativo</span>
+      <h2 class="h4 mt-2">Acesso à internet Wi-Fi</h2>
+      <p class="text-secondary">Solicitação com ciência de responsabilidade, matrícula, dados do usuário e aparelhos utilizados.</p>
+      <a class="btn btn-primary" href="{% url 'governanca:wifi' %}">Abrir formulário</a>
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Serviço | Catálogo{% endblock %}
+{% block content %}
+<div class="content-narrow">
+  <h1 class="h3 mb-3">Serviço do catálogo</h1>
+  <form method="post">
+    {% csrf_token %}
+    {% include "chamados/partials/form_fields.html" with form=form %}
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary" type="submit">Salvar serviço</button>
+      <a class="btn btn-outline-secondary" href="{% url 'chamados:servicos' %}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
