@@ -43,7 +43,7 @@ class BackupConfiguracaoView(LoginRequiredMixin, TemplateView):
 
         arquivos = []
         for caminho in sorted(pasta.glob("*"), key=lambda item: item.stat().st_mtime, reverse=True):
-            if caminho.suffix.lower() not in {".zip", ".dump"}:
+            if caminho.suffix.lower() != ".zip":
                 continue
             stat = caminho.stat()
             arquivos.append(
@@ -51,14 +51,13 @@ class BackupConfiguracaoView(LoginRequiredMixin, TemplateView):
                     "nome": caminho.name,
                     "tamanho_mb": stat.st_size / 1024 / 1024,
                     "modificado_em": datetime.fromtimestamp(stat.st_mtime),
-                    "tipo": "SQLite/media" if caminho.suffix.lower() == ".zip" else "PostgreSQL",
-                    "restauravel": caminho.suffix.lower() == ".zip",
+                    "tipo": "SQLite/media",
+                    "restauravel": True,
                 }
             )
 
         context["backups"] = arquivos
         context["backups_sqlite"] = [item for item in arquivos if item["restauravel"]]
-        context["usa_sqlite"] = settings.DATABASES["default"]["ENGINE"].endswith("sqlite3")
         return context
 
     def post(self, request, *args, **kwargs):
@@ -66,13 +65,6 @@ class BackupConfiguracaoView(LoginRequiredMixin, TemplateView):
 
         if acao == "apagar":
             return self._apagar_backup(request)
-
-        if not settings.DATABASES["default"]["ENGINE"].endswith("sqlite3"):
-            messages.error(
-                request,
-                "Backup e restauração pela interface estão disponíveis apenas para SQLite. Em PostgreSQL, use os scripts Docker.",
-            )
-            return redirect("core:backup")
 
         if acao == "criar":
             call_command("backup_local")
@@ -90,7 +82,7 @@ class BackupConfiguracaoView(LoginRequiredMixin, TemplateView):
         pasta.mkdir(exist_ok=True)
         return pasta.resolve()
 
-    def _resolver_backup_existente(self, nome, extensoes=(".zip", ".dump")):
+    def _resolver_backup_existente(self, nome, extensoes=(".zip",)):
         pasta = self._pasta_backups()
         caminho = (pasta / Path(nome).name).resolve()
         if not str(caminho).startswith(str(pasta)):

@@ -6,7 +6,6 @@ class Command(BaseCommand):
     help = "Verifica configuracoes essenciais antes de publicar o sistema."
 
     def handle(self, *args, **options):
-        usando_sqlite = settings.DATABASES["default"]["ENGINE"].endswith("sqlite3")
         verificacoes = [
             ("DEBUG=False", settings.DEBUG is False, True),
             ("SECRET_KEY alterada", not settings.SECRET_KEY.startswith("django-insecure") and "dev" not in settings.SECRET_KEY.lower(), True),
@@ -30,11 +29,6 @@ class Command(BaseCommand):
             else:
                 marcador = self.style.WARNING("AJUSTAR DEPOIS")
             self.stdout.write(f"{marcador} - {nome}")
-
-        if usando_sqlite:
-            self.stdout.write("")
-            self.stdout.write(self.style.WARNING("INFO - Banco atual: SQLite. Mantido por ser o modo atual do projeto."))
-            self.stdout.write("INFO - Para ambientes maiores, PostgreSQL pode ser ativado futuramente com docker-compose.postgresql.yml.")
 
         if pendencias_obrigatorias:
             self.stdout.write("")

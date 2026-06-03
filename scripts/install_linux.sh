@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_URL="${1:-${REPO_URL:-}}"
 PROJECT_DIR="${PROJECT_DIR:-/opt/sistema-chamados}"
 APP_HOSTS="${APP_HOSTS:-}"
+INSTALL_USER="${SUDO_USER:-${USER:-$(id -un)}}"
 
 if [ -z "$REPO_URL" ] && [ ! -d ".git" ]; then
   echo "Informe a URL do repositorio GitHub."
@@ -19,13 +20,42 @@ fi
 
 echo "Instalando pacotes base..."
 $SUDO apt-get update
-$SUDO apt-get install -y ca-certificates curl git docker.io docker-compose-plugin openssl
+$SUDO apt-get install -y ca-certificates curl git openssl
+
+if ! command -v docker >/dev/null 2>&1; then
+  $SUDO apt-get install -y docker.io
+fi
 $SUDO systemctl enable --now docker
+
+install_compose() {
+  if $SUDO docker compose version >/dev/null 2>&1 || command -v docker-compose >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Instalando Docker Compose..."
+  $SUDO apt-get install -y docker-compose-plugin \
+    || $SUDO apt-get install -y docker-compose-v2 \
+    || $SUDO apt-get install -y docker-compose
+}
+
+docker_compose() {
+  if $SUDO docker compose version >/dev/null 2>&1; then
+    $SUDO docker compose "$@"
+  elif command -v docker-compose >/dev/null 2>&1; then
+    $SUDO docker-compose "$@"
+  else
+    echo "Docker Compose nao foi encontrado."
+    echo "Tente instalar manualmente: sudo apt install docker-compose docker-compose-plugin"
+    exit 1
+  fi
+}
+
+install_compose
 
 if [ ! -d "$PROJECT_DIR/.git" ]; then
   echo "Preparando diretorio $PROJECT_DIR..."
   $SUDO mkdir -p "$PROJECT_DIR"
-  $SUDO chown -R "$USER:$USER" "$PROJECT_DIR"
+  $SUDO chown -R "$INSTALL_USER:$INSTALL_USER" "$PROJECT_DIR"
   if [ -n "$REPO_URL" ]; then
     git clone "$REPO_URL" "$PROJECT_DIR"
   else
@@ -43,7 +73,7 @@ if [ -z "$APP_HOSTS" ]; then
 fi
 
 if [ ! -f ".env" ]; then
-  echo "Criando .env inicial..."
+  echo "Criando .env inicial para SQLite..."
   SECRET_KEY="$(openssl rand -base64 48 | tr -d '\n')"
   cat > .env <<EOF
 SECRET_KEY=$SECRET_KEY
@@ -55,15 +85,7 @@ SECURE_SSL_REDIRECT=False
 SESSION_COOKIE_SECURE=False
 CSRF_COOKIE_SECURE=False
 
-DB_ENGINE=sqlite
 SQLITE_NAME=data/db.sqlite3
-
-POSTGRES_DB=sistema_chamados
-POSTGRES_USER=sistema_chamados
-POSTGRES_PASSWORD=troque_esta_senha_se_usar_postgresql
-POSTGRES_HOST=db
-POSTGRES_PORT=5432
-POSTGRES_CONNECT_TIMEOUT=5
 
 GOVERNANCA_DOCUMENT_ROOT=media/governanca_documentos
 
@@ -93,17 +115,18 @@ else
 fi
 
 echo "Subindo containers..."
-$SUDO docker compose up -d --build
+docker_compose up -d --build
 
 echo "Carregando dados iniciais..."
-$SUDO docker compose exec -T web python manage.py seed_chamados
+docker_compose exec -T web python manage.py seed_chamados
 
 echo "Validando instalacao..."
-$SUDO docker compose exec -T web python manage.py check
-$SUDO docker compose exec -T web python manage.py validar_producao || true
+docker_compose exec -T web python manage.py check
+docker_compose exec -T web python manage.py validar_producao || true
 
 echo ""
 echo "Instalacao concluida."
+echo "Banco de dados: SQLite em volume Docker (data/db.sqlite3)."
 echo "Acesse: http://$SERVER_IP/"
 echo ""
 echo "Comandos uteis:"

@@ -18,8 +18,6 @@ Isso vale para:
 - instalacao inicial no Debian/Ubuntu;
 - backup e restauracao pela tela `Configuracoes > Backup e restauracao`.
 
-O PostgreSQL ficou apenas como opcao futura para ambientes maiores.
-
 ## Recursos principais
 
 - Portal publico para abertura e consulta de chamados.
@@ -80,6 +78,24 @@ Para descobrir o IP do servidor:
 hostname -I
 ```
 
+### Se a instalacao falhar no Debian 13
+
+O instalador tenta usar `docker compose` e, se necessario, `docker-compose`.
+Para diagnosticar:
+
+```bash
+cd /opt/sistema-chamados
+docker compose version || docker-compose version
+docker compose ps || docker-compose ps
+docker compose logs -f web || docker-compose logs -f web
+```
+
+Erros comuns:
+
+- `docker: 'compose' is not a docker command`: instale Compose com `sudo apt install -y docker-compose || sudo apt install -y docker-compose-plugin` e rode o instalador novamente.
+- `port is already allocated` ou erro na porta `80`: pare Apache/Nginx local ou altere a porta do servico `nginx` em `docker-compose.yml`.
+- falha em `seed_chamados`: confira os logs do `web`; se as migrations terminaram, rode `docker compose exec web python manage.py seed_chamados` novamente.
+
 ## Criar usuario administrador
 
 Depois da instalacao:
@@ -109,7 +125,6 @@ Campos principais:
 ALLOWED_HOSTS=IP_DO_SERVIDOR,NOME_DO_SERVIDOR
 CSRF_TRUSTED_ORIGINS=http://IP_DO_SERVIDOR,http://NOME_DO_SERVIDOR
 
-DB_ENGINE=sqlite
 SQLITE_NAME=data/db.sqlite3
 ```
 
@@ -266,24 +281,6 @@ Acesse:
 ```text
 http://127.0.0.1:8000/
 ```
-
-## PostgreSQL no futuro
-
-PostgreSQL nao e obrigatorio neste momento.
-
-Se futuramente quiser migrar para PostgreSQL em Docker, ha um arquivo separado:
-
-```text
-docker-compose.postgresql.yml
-```
-
-O comando base seria:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.postgresql.yml up -d --build
-```
-
-Antes de migrar, faca backup e planeje a transferencia dos dados SQLite para PostgreSQL.
 
 ## Enderecos principais
 

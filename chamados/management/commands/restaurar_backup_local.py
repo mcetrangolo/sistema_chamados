@@ -24,13 +24,6 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        engine = settings.DATABASES["default"]["ENGINE"]
-        if not engine.endswith("sqlite3"):
-            raise CommandError(
-                "Este comando restaura apenas backups locais SQLite/media. "
-                "Para PostgreSQL, use scripts/restore_docker.sh."
-            )
-
         arquivo = self._resolver_arquivo(options["arquivo"])
         self._validar_zip(arquivo)
 

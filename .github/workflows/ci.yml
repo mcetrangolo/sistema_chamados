@@ -30,7 +30,6 @@ jobs:
           SECRET_KEY=ci-secret-key
           DEBUG=False
           ALLOWED_HOSTS=localhost,127.0.0.1
-          DB_ENGINE=sqlite
           SQLITE_NAME=db.sqlite3
           EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
           GOVERNANCA_DOCUMENT_ROOT=media/governanca_documentos

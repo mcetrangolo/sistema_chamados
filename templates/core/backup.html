@@ -6,13 +6,11 @@
     <h1 class="h3 mb-1">Backup e restauração</h1>
     <p class="text-secondary mb-0">Crie, baixe, apague e restaure backups da base local.</p>
   </div>
-  {% if usa_sqlite %}
-    <form method="post">
-      {% csrf_token %}
-      <input type="hidden" name="acao" value="criar">
-      <button class="btn btn-primary" type="submit">Criar backup agora</button>
-    </form>
-  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="acao" value="criar">
+    <button class="btn btn-primary" type="submit">Criar backup agora</button>
+  </form>
 </div>
 
 <div class="row g-4">
@@ -64,7 +62,6 @@
       </div>
     </section>
 
-    {% if usa_sqlite %}
       <section class="detail-section">
         <h2 class="h5">Restaurar backup</h2>
         <p class="text-secondary">
@@ -115,19 +112,13 @@
           <button class="btn btn-danger mt-3" type="submit">Restaurar backup</button>
         </form>
       </section>
-    {% endif %}
   </div>
 
   <aside class="col-lg-4">
     <section class="side-panel">
       <h2 class="h6">Ambiente atual</h2>
-      {% if usa_sqlite %}
-        <p class="mb-2"><strong>Banco local SQLite</strong></p>
-        <p class="text-secondary mb-0">O backup cria um ZIP com a base `db.sqlite3` e a pasta `media`.</p>
-      {% else %}
-        <p class="mb-2"><strong>Banco PostgreSQL</strong></p>
-        <p class="text-secondary mb-0">Para produção com PostgreSQL, use os scripts Docker de backup e restauração no servidor.</p>
-      {% endif %}
+      <p class="mb-2"><strong>Banco local SQLite</strong></p>
+      <p class="text-secondary mb-0">O backup cria um ZIP com a base `db.sqlite3` e a pasta `media`.</p>
     </section>
 
     <section class="side-panel mt-3">

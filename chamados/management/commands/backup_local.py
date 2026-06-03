@@ -10,11 +10,6 @@ class Command(BaseCommand):
     help = "Cria um backup simples do banco SQLite e da pasta media."
 
     def handle(self, *args, **options):
-        engine = settings.DATABASES["default"]["ENGINE"]
-        if not engine.endswith("sqlite3"):
-            self.stdout.write(self.style.WARNING("backup_local foi pensado para SQLite. Use scripts/backup_postgresql_docker.sh para PostgreSQL."))
-            return
-
         destino = settings.BASE_DIR / "backups"
         destino.mkdir(exist_ok=True)
         nome = destino / f"backup_{timezone.now():%Y%m%d_%H%M%S}.zip"

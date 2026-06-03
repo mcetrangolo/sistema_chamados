@@ -215,8 +215,7 @@ Exibir indicadores como:
 
 ### Banco de Dados
 
-- PostgreSQL.
-- MySQL ou MariaDB como alternativas.
+- SQLite.
 
 ### Ambiente
 

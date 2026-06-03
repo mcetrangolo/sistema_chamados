@@ -5,7 +5,6 @@ services:
     env_file:
       - .env
     environment:
-      DB_ENGINE: sqlite
       SQLITE_NAME: data/db.sqlite3
     volumes:
       - sqlite_data:/app/data
@@ -20,7 +19,6 @@ services:
     env_file:
       - .env
     environment:
-      DB_ENGINE: sqlite
       SQLITE_NAME: data/db.sqlite3
     depends_on:
       - web
