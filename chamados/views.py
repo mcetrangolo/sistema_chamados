@@ -602,6 +602,14 @@ class CatalogoServicoListView(ListView):
 class CatalogoServicoSolicitarView(TemplateView):
     template_name = "chamados/public/catalogo_solicitar.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        slug = kwargs.get("slug")
+        if slug == "novo-usuario-de-rede":
+            return redirect("governanca:usuario_acesso")
+        if slug == "acesso-a-internetwi-fi":
+            return redirect("governanca:wifi")
+        return super().dispatch(request, *args, **kwargs)
+
     def get_servico(self):
         return get_object_or_404(ServicoCatalogo, slug=self.kwargs["slug"], ativo=True)
 

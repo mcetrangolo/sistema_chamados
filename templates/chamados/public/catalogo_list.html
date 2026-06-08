@@ -15,29 +15,25 @@
   </div>
 </form>
 <div class="row g-3">
-  <div class="col-md-6 col-xl-4">
-    <section class="public-panel h-100">
-      <span class="section-label">Governança</span>
-      <h2 class="h5 mt-2"><a href="{% url 'governanca:usuario_acesso' %}">Cadastro de usuário e acessos</a></h2>
-      <p class="text-secondary">Solicitação de novo usuário, acesso à rede, sistemas e permissões corporativas.</p>
-      <a class="btn btn-outline-primary" href="{% url 'governanca:usuario_acesso' %}">Solicitar</a>
-    </section>
-  </div>
-  <div class="col-md-6 col-xl-4">
-    <section class="public-panel h-100">
-      <span class="section-label">Governança</span>
-      <h2 class="h5 mt-2"><a href="{% url 'governanca:wifi' %}">Acesso à internet Wi-Fi</a></h2>
-      <p class="text-secondary">Solicitação de acesso à internet corporativa com dados do usuário e aparelhos utilizados.</p>
-      <a class="btn btn-outline-primary" href="{% url 'governanca:wifi' %}">Solicitar</a>
-    </section>
-  </div>
   {% for servico in servicos %}
     <div class="col-md-6 col-xl-4">
       <section class="public-panel h-100">
         <span class="section-label">{{ servico.categoria }}</span>
-        <h2 class="h5 mt-2"><a href="{{ servico.get_absolute_url }}">{{ servico.nome }}</a></h2>
+        {% if servico.slug == "novo-usuario-de-rede" %}
+          <h2 class="h5 mt-2"><a href="{% url 'governanca:usuario_acesso' %}">{{ servico.nome }}</a></h2>
+        {% elif servico.slug == "acesso-a-internetwi-fi" %}
+          <h2 class="h5 mt-2"><a href="{% url 'governanca:wifi' %}">{{ servico.nome }}</a></h2>
+        {% else %}
+          <h2 class="h5 mt-2"><a href="{{ servico.get_absolute_url }}">{{ servico.nome }}</a></h2>
+        {% endif %}
         <p class="text-secondary">{{ servico.descricao|default:"Solicitação disponível no catálogo."|truncatechars:150 }}</p>
-        <a class="btn btn-outline-primary" href="{{ servico.get_absolute_url }}">Solicitar</a>
+        {% if servico.slug == "novo-usuario-de-rede" %}
+          <a class="btn btn-outline-primary" href="{% url 'governanca:usuario_acesso' %}">Solicitar</a>
+        {% elif servico.slug == "acesso-a-internetwi-fi" %}
+          <a class="btn btn-outline-primary" href="{% url 'governanca:wifi' %}">Solicitar</a>
+        {% else %}
+          <a class="btn btn-outline-primary" href="{{ servico.get_absolute_url }}">Solicitar</a>
+        {% endif %}
       </section>
     </div>
   {% empty %}
