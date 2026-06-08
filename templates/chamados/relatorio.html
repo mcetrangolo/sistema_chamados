@@ -124,6 +124,7 @@
           <thead>
             <tr>
               <th>Número</th>
+              <th>Tipo</th>
               <th>Abertura</th>
               <th>Solicitante</th>
               <th>Setor</th>
@@ -135,6 +136,7 @@
             {% for chamado in chamados %}
               <tr>
                 <td><a href="{{ chamado.get_absolute_url }}">{{ chamado.numero }}</a></td>
+                <td>{{ chamado.get_tipo_display }}</td>
                 <td>{{ chamado.criado_em|date:"d/m/Y H:i" }}</td>
                 <td>{{ chamado.nome_solicitante }}</td>
                 <td>{{ chamado.setor }}</td>
@@ -142,7 +144,7 @@
                 <td>{{ chamado.tecnico_responsavel.get_full_name|default:chamado.tecnico_responsavel|default:"Não atribuído" }}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="6" class="text-center text-secondary py-4">Nenhum chamado encontrado.</td></tr>
+              <tr><td colspan="7" class="text-center text-secondary py-4">Nenhum chamado encontrado.</td></tr>
             {% endfor %}
           </tbody>
         </table>

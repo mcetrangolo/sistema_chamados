@@ -26,6 +26,12 @@
     </select>
   </div>
   <div class="col-md-2">
+    <select class="form-select" name="tipo">
+      <option value="">Tipo</option>
+      {% for value,label in tipo_choices %}<option value="{{ value }}" {% if filtros.tipo == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
     <select class="form-select" name="prioridade">
       <option value="">Prioridade</option>
       {% for value,label in prioridade_choices %}<option value="{{ value }}" {% if filtros.prioridade == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
@@ -53,6 +59,7 @@
     <thead>
       <tr>
         <th>Número</th>
+        <th>Tipo</th>
         <th>Solicitante</th>
         <th>Setor</th>
         <th>Tópico</th>
@@ -67,6 +74,7 @@
       {% for chamado in chamados %}
         <tr>
           <td><a href="{{ chamado.get_absolute_url }}">{{ chamado.numero }}</a></td>
+          <td>{{ chamado.get_tipo_display }}</td>
           <td>{{ chamado.nome_solicitante }}</td>
           <td>{{ chamado.setor }}</td>
           <td>{{ chamado.topico_ajuda|default:"-" }}</td>
@@ -77,7 +85,7 @@
           <td>{{ chamado.criado_em|date:"d/m/Y H:i" }}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="9" class="text-center text-secondary py-4">Nenhum chamado encontrado.</td></tr>
+        <tr><td colspan="10" class="text-center text-secondary py-4">Nenhum chamado encontrado.</td></tr>
       {% endfor %}
     </tbody>
   </table>

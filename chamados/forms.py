@@ -38,9 +38,12 @@ class ChamadoForm(BootstrapFormMixin, forms.ModelForm):
             "setor",
             "telefone",
             "email",
+            "tipo",
             "topico_ajuda",
             "categoria",
             "ativo_rede",
+            "impacto",
+            "urgencia",
             "prioridade",
             "descricao",
         ]
@@ -61,7 +64,8 @@ class ChamadoForm(BootstrapFormMixin, forms.ModelForm):
         if topico:
             cleaned_data["categoria"] = topico.categoria
             self.instance.categoria = topico.categoria
-            self.instance.prioridade = topico.prioridade_padrao
+            if not cleaned_data.get("prioridade"):
+                self.instance.prioridade = topico.prioridade_padrao
             if topico.atendente_padrao_id:
                 self.instance.tecnico_responsavel = topico.atendente_padrao
         elif not categoria:
@@ -114,7 +118,10 @@ class AtualizacaoChamadoForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Chamado
         fields = [
+            "tipo",
             "status",
+            "impacto",
+            "urgencia",
             "prioridade",
             "topico_ajuda",
             "categoria",
@@ -322,6 +329,7 @@ class TecnicoForm(BootstrapFormMixin, UserCreationForm):
 class RelatorioChamadosForm(BootstrapFormMixin, forms.Form):
     AGRUPAMENTO_CHOICES = [
         ("status", "Status"),
+        ("tipo", "Tipo"),
         ("atendente", "Atendente"),
         ("setor", "Setor"),
         ("categoria", "Categoria"),
@@ -342,6 +350,11 @@ class RelatorioChamadosForm(BootstrapFormMixin, forms.Form):
         label="Status",
         required=False,
         choices=[("", "Todos")] + list(Chamado.Status.choices),
+    )
+    tipo = forms.ChoiceField(
+        label="Tipo",
+        required=False,
+        choices=[("", "Todos")] + list(Chamado.Tipo.choices),
     )
     prioridade = forms.ChoiceField(
         label="Prioridade",
@@ -425,6 +438,7 @@ class ServicoCatalogoForm(BootstrapFormMixin, forms.ModelForm):
             "descricao",
             "topico_ajuda",
             "categoria",
+            "tipo_chamado",
             "prioridade_padrao",
             "requer_matricula",
             "requer_aprovacao",

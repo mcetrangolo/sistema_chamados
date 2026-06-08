@@ -51,6 +51,7 @@ def criar_chamado_governanca(solicitacao):
         setor=setor,
         categoria=categoria,
         topico_ajuda=topico,
+        tipo=Chamado.Tipo.REQUISICAO,
         prioridade=topico.prioridade_padrao,
         descricao="\n".join(detalhes),
         origem=Chamado.Origem.PORTAL,

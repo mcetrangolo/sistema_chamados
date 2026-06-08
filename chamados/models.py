@@ -74,6 +74,12 @@ class TopicoAjuda(models.Model):
 
 
 class Chamado(models.Model):
+    class Tipo(models.TextChoices):
+        INCIDENTE = "incidente", "Incidente"
+        REQUISICAO = "requisicao", "Requisição de serviço"
+        PROBLEMA = "problema", "Problema"
+        MUDANCA = "mudanca", "Mudança"
+
     class Origem(models.TextChoices):
         PORTAL = "portal", "Portal"
         INTERNO = "interno", "Interno"
@@ -96,7 +102,18 @@ class Chamado(models.Model):
         ALTA = "alta", "Alta"
         CRITICA = "critica", "Crítica"
 
+    class Impacto(models.TextChoices):
+        BAIXO = "baixo", "Baixo"
+        MEDIO = "medio", "Médio"
+        ALTO = "alto", "Alto"
+
+    class Urgencia(models.TextChoices):
+        BAIXA = "baixa", "Baixa"
+        MEDIA = "media", "Média"
+        ALTA = "alta", "Alta"
+
     numero = models.CharField(max_length=30, unique=True, editable=False)
+    tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.INCIDENTE)
     solicitante = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -128,6 +145,8 @@ class Chamado(models.Model):
     prioridade = models.CharField(
         max_length=20, choices=Prioridade.choices, default=Prioridade.MEDIA
     )
+    impacto = models.CharField(max_length=20, choices=Impacto.choices, default=Impacto.MEDIO)
+    urgencia = models.CharField(max_length=20, choices=Urgencia.choices, default=Urgencia.MEDIA)
     descricao = models.TextField("descrição do problema")
     status = models.CharField(max_length=30, choices=Status.choices, default=Status.ABERTO)
     origem = models.CharField(max_length=20, choices=Origem.choices, default=Origem.PORTAL)
@@ -142,6 +161,7 @@ class Chamado(models.Model):
     observacoes_internas = models.TextField("observações internas", blank=True)
     criado_em = models.DateTimeField("data e hora de abertura", auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
+    primeira_resposta_em = models.DateTimeField("primeira resposta", null=True, blank=True)
     concluido_em = models.DateTimeField("data de conclusão", null=True, blank=True)
     vencimento_em = models.DateTimeField("vencimento SLA", null=True, blank=True)
     sla_pausado_em = models.DateTimeField("SLA pausado em", null=True, blank=True)
@@ -165,6 +185,20 @@ class Chamado(models.Model):
                 raise ValidationError(
                     {"solucao_aplicada": "Informe a solução aplicada para concluir o chamado."}
                 )
+
+    def prioridade_por_impacto_urgencia(self):
+        matriz = {
+            (self.Impacto.ALTO, self.Urgencia.ALTA): self.Prioridade.CRITICA,
+            (self.Impacto.ALTO, self.Urgencia.MEDIA): self.Prioridade.ALTA,
+            (self.Impacto.ALTO, self.Urgencia.BAIXA): self.Prioridade.MEDIA,
+            (self.Impacto.MEDIO, self.Urgencia.ALTA): self.Prioridade.ALTA,
+            (self.Impacto.MEDIO, self.Urgencia.MEDIA): self.Prioridade.MEDIA,
+            (self.Impacto.MEDIO, self.Urgencia.BAIXA): self.Prioridade.BAIXA,
+            (self.Impacto.BAIXO, self.Urgencia.ALTA): self.Prioridade.MEDIA,
+            (self.Impacto.BAIXO, self.Urgencia.MEDIA): self.Prioridade.BAIXA,
+            (self.Impacto.BAIXO, self.Urgencia.BAIXA): self.Prioridade.BAIXA,
+        }
+        return matriz.get((self.impacto, self.urgencia), self.Prioridade.MEDIA)
 
     def save(self, *args, **kwargs):
         status_anterior = None
@@ -415,6 +449,11 @@ class ServicoCatalogo(models.Model):
         Categoria,
         on_delete=models.PROTECT,
         related_name="servicos",
+    )
+    tipo_chamado = models.CharField(
+        max_length=20,
+        choices=Chamado.Tipo.choices,
+        default=Chamado.Tipo.REQUISICAO,
     )
     prioridade_padrao = models.CharField(
         max_length=20,

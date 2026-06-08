@@ -274,6 +274,7 @@ class ChamadoListView(LoginRequiredMixin, ListView):
         )
         q = self.request.GET.get("q", "").strip()
         status = self.request.GET.get("status", "")
+        tipo = self.request.GET.get("tipo", "")
         setor = self.request.GET.get("setor", "")
         prioridade = self.request.GET.get("prioridade", "")
         categoria = self.request.GET.get("categoria", "")
@@ -286,9 +287,12 @@ class ChamadoListView(LoginRequiredMixin, ListView):
                 | Q(nome_solicitante__icontains=q)
                 | Q(email__icontains=q)
                 | Q(descricao__icontains=q)
+                | Q(tipo__icontains=q)
             )
         if status:
             queryset = queryset.filter(status=status)
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
         if setor:
             queryset = queryset.filter(setor_id=setor)
         if prioridade:
@@ -323,6 +327,7 @@ class ChamadoListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["status_choices"] = Chamado.Status.choices
+        context["tipo_choices"] = Chamado.Tipo.choices
         context["prioridade_choices"] = Chamado.Prioridade.choices
         context["setores"] = Setor.objects.filter(ativo=True)
         context["categorias"] = Categoria.objects.filter(ativo=True)
@@ -401,6 +406,9 @@ class ChamadoUpdateView(LoginRequiredMixin, UpdateView):
         registro = form.cleaned_data.get("registro_atendimento", "").strip()
 
         if status_anterior != self.object.status or registro:
+            if registro and not self.object.primeira_resposta_em:
+                self.object.primeira_resposta_em = timezone.now()
+                self.object.save(update_fields=["primeira_resposta_em", "atualizado_em"])
             HistoricoChamado.objects.create(
                 chamado=self.object,
                 usuario=self.request.user,
@@ -682,6 +690,7 @@ class BuscaGlobalView(LoginRequiredMixin, TemplateView):
                     | Q(nome_solicitante__icontains=q)
                     | Q(email__icontains=q)
                     | Q(descricao__icontains=q)
+                    | Q(tipo__icontains=q)
                     | Q(setor__nome__icontains=q)
                     | Q(categoria__nome__icontains=q)
                     | Q(status__icontains=q)
@@ -757,6 +766,7 @@ def criar_chamado_de_solicitacao(solicitacao):
         setor=solicitacao.setor,
         categoria=servico.categoria,
         topico_ajuda=servico.topico_ajuda,
+        tipo=servico.tipo_chamado,
         prioridade=servico.prioridade_padrao,
         descricao=f"Solicitação de serviço: {servico.nome}\n\n{solicitacao.detalhes}",
         origem=Chamado.Origem.PORTAL,
@@ -851,6 +861,7 @@ class TecnicoCreateView(LoginRequiredMixin, CreateView):
 
 AGRUPAMENTO_MAP = {
     "status": ("status", "Status"),
+    "tipo": ("tipo", "Tipo"),
     "atendente": ("tecnico_responsavel__username", "Atendente"),
     "setor": ("setor__nome", "Setor"),
     "categoria": ("categoria__nome", "Categoria"),
@@ -870,6 +881,8 @@ def filtrar_chamados_relatorio(params):
             chamados = chamados.filter(criado_em__date__lte=dados["data_fim"])
         if dados.get("status"):
             chamados = chamados.filter(status=dados["status"])
+        if dados.get("tipo"):
+            chamados = chamados.filter(tipo=dados["tipo"])
         if dados.get("prioridade"):
             chamados = chamados.filter(prioridade=dados["prioridade"])
         if dados.get("setor"):
@@ -1013,6 +1026,7 @@ def exportar_relatorio_xls(request):
     response.write("<table border='1'><tr>")
     cabecalhos = [
         "Número",
+        "Tipo",
         "Abertura",
         "Solicitante",
         "Setor",
@@ -1027,6 +1041,7 @@ def exportar_relatorio_xls(request):
     for chamado in linhas_analiticas(chamados):
         valores = [
             chamado.numero,
+            chamado.get_tipo_display(),
             chamado.criado_em.strftime("%d/%m/%Y %H:%M"),
             chamado.nome_solicitante,
             chamado.setor.nome,
@@ -1253,10 +1268,10 @@ def exportar_relatorio_pdf(request):
 
     y -= 3 * mm
     escrever_linha("Chamados", tamanho=11, negrito=True)
-    escrever_linha("Numero | Abertura | Solicitante | Status | Atendente", tamanho=8, negrito=True)
+    escrever_linha("Numero | Tipo | Abertura | Solicitante | Status | Atendente", tamanho=8, negrito=True)
     for chamado in linhas_analiticas(chamados)[:120]:
         escrever_linha(
-            f"{chamado.numero} | {chamado.criado_em:%d/%m/%Y} | "
+            f"{chamado.numero} | {chamado.get_tipo_display()} | {chamado.criado_em:%d/%m/%Y} | "
             f"{chamado.nome_solicitante} | {chamado.get_status_display()} | "
             f"{nome_atendente(chamado)}",
             tamanho=8,
@@ -1370,6 +1385,8 @@ def resolver_chamado_rapido(request, pk):
             return redirect(chamado)
         chamado.solucao_aplicada = solucao
         chamado.status = Chamado.Status.RESOLVIDO
+        if not chamado.primeira_resposta_em:
+            chamado.primeira_resposta_em = timezone.now()
         chamado.save()
         ComentarioChamado.objects.create(
             chamado=chamado,
@@ -1425,6 +1442,9 @@ def responder_chamado(request, pk):
             )
             messages.success(request, "Resposta registrada com sucesso.")
             if comentario.publico:
+                if not chamado.primeira_resposta_em:
+                    chamado.primeira_resposta_em = timezone.now()
+                    chamado.save(update_fields=["primeira_resposta_em", "atualizado_em"])
                 notificar_chamado(chamado, "Nova resposta no chamado", comentario.mensagem)
         else:
             messages.error(request, "Não foi possível registrar a resposta.")

@@ -66,12 +66,16 @@
     <div class="side-panel">
       <dl class="row mb-0">
         <dt class="col-5">Status</dt><dd class="col-7">{{ chamado.get_status_display }}</dd>
+        <dt class="col-5">Tipo</dt><dd class="col-7">{{ chamado.get_tipo_display }}</dd>
         <dt class="col-5">Prioridade</dt><dd class="col-7">{{ chamado.get_prioridade_display }}</dd>
+        <dt class="col-5">Impacto</dt><dd class="col-7">{{ chamado.get_impacto_display }}</dd>
+        <dt class="col-5">Urgência</dt><dd class="col-7">{{ chamado.get_urgencia_display }}</dd>
         <dt class="col-5">Categoria</dt><dd class="col-7">{{ chamado.categoria }}</dd>
         <dt class="col-5">Tópico</dt><dd class="col-7">{{ chamado.topico_ajuda|default:"-" }}</dd>
         <dt class="col-5">Origem</dt><dd class="col-7">{{ chamado.get_origem_display }}</dd>
         <dt class="col-5">Atendente</dt><dd class="col-7">{{ chamado.tecnico_responsavel|default:"Não atribuído" }}</dd>
         <dt class="col-5">SLA</dt><dd class="col-7">{% if chamado.atrasado %}<span class="badge text-bg-danger">Atrasado</span>{% elif chamado.vencimento_em %}{{ chamado.vencimento_em|date:"d/m/Y H:i" }}{% else %}-{% endif %}</dd>
+        <dt class="col-5">1ª resposta</dt><dd class="col-7">{{ chamado.primeira_resposta_em|date:"d/m/Y H:i"|default:"-" }}</dd>
         <dt class="col-5">Telefone</dt><dd class="col-7">{{ chamado.telefone|default:"-" }}</dd>
         <dt class="col-5">E-mail</dt><dd class="col-7">{{ chamado.email|default:"-" }}</dd>
       </dl>
