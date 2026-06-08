@@ -297,7 +297,7 @@ http://127.0.0.1:8000/
 - Consulta de chamado: `/consultar/`
 - Catalogo de servicos: `/catalogo/`
 - Base de conhecimento: `/conhecimento/`
-- Governanca: `/governanca/`
+- Governanca: centralizada no catalogo de servicos (`/catalogo/`); `/governanca/` redireciona para o catalogo.
 - Login interno: `/login/`
 - Gestao: `/gestao/`
 - Chamados: `/gestao/chamados/`

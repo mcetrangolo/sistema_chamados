@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.views.generic import TemplateView, ListView
+from django.views.generic import ListView, RedirectView, TemplateView
 from django.shortcuts import redirect
 
 from chamados.models import Categoria, Chamado, HistoricoChamado, Setor, TopicoAjuda
@@ -61,8 +61,9 @@ def criar_chamado_governanca(solicitacao):
     return chamado
 
 
-class GovernancaPortalView(TemplateView):
-    template_name = "governanca/portal.html"
+class GovernancaPortalView(RedirectView):
+    pattern_name = "chamados:catalogo"
+    permanent = False
 
 
 class UsuarioAcessoCreateView(TemplateView):
