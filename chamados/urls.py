@@ -27,6 +27,7 @@ urlpatterns = [
     path("gestao/chamados/<int:pk>/editar/", views.ChamadoUpdateView.as_view(), name="editar"),
     path("gestao/chamados/<int:pk>/encerrar/", views.encerrar_chamado, name="encerrar"),
     path("gestao/chamados/<int:pk>/atribuir-mim/", views.atribuir_chamado_mim, name="atribuir_mim"),
+    path("gestao/chamados/<int:pk>/atribuir/", views.atribuir_chamado, name="atribuir"),
     path("gestao/chamados/<int:pk>/resolver-rapido/", views.resolver_chamado_rapido, name="resolver_rapido"),
     path("gestao/chamados/<int:pk>/tarefas/nova/", views.criar_tarefa_chamado, name="tarefa_nova"),
     path("gestao/chamados/<int:pk>/responder/", views.responder_chamado, name="responder"),

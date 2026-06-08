@@ -6,6 +6,7 @@ from . import views
 app_name = "inventario"
 
 urlpatterns = [
+    path("agente/coleta/", views.receber_coleta_agente, name="agente_coleta"),
     path("", views.InventarioPainelView.as_view(), name="painel"),
     path("ativos/", views.AtivoRedeListView.as_view(), name="ativos"),
     path("ativos/exportar/xls/", views.exportar_ativos_xls, name="ativos_xls"),

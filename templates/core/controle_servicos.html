@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Controle de servicos | Sistema{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">Controle de servicos</h1>
+    <p class="text-secondary mb-0">Acoes administrativas para reiniciar, parar ou solicitar energia do servidor.</p>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="detail-section">
+      <h2 class="h5">Servicos da aplicacao</h2>
+      {% if not docker_disponivel %}
+        <div class="alert alert-warning">
+          Docker Compose nao foi encontrado no ambiente atual. Os botoes de servico precisam que o comando docker esteja disponivel para o processo web.
+        </div>
+      {% endif %}
+      <div class="row g-3">
+        <div class="col-md-6">
+          <form method="post" class="service-action">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="reiniciar_servicos">
+            <label class="form-label" for="confirmacao-reiniciar">Reiniciar servicos</label>
+            <input class="form-control" id="confirmacao-reiniciar" name="confirmacao" placeholder="Digite REINICIAR" required>
+            <button class="btn btn-primary mt-2" type="submit">Reiniciar servicos</button>
+          </form>
+        </div>
+        <div class="col-md-6">
+          <form method="post" class="service-action">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="parar_servicos">
+            <label class="form-label" for="confirmacao-parar">Parar servicos</label>
+            <input class="form-control" id="confirmacao-parar" name="confirmacao" placeholder="Digite PARAR" required>
+            <button class="btn btn-outline-danger mt-2" type="submit">Parar servicos</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="detail-section">
+      <h2 class="h5">Servidor</h2>
+      {% if not power_actions_habilitadas %}
+        <div class="alert alert-info">
+          Reboot e desligamento do servidor estao bloqueados. Para habilitar, defina <code>ALLOW_SERVER_POWER_ACTIONS=True</code> no <code>.env</code>.
+        </div>
+      {% endif %}
+      <div class="row g-3">
+        <div class="col-md-6">
+          <form method="post" class="service-action">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="reboot_servidor">
+            <label class="form-label" for="confirmacao-reboot">Reiniciar servidor</label>
+            <input class="form-control" id="confirmacao-reboot" name="confirmacao" placeholder="Digite REBOOT" required>
+            <button class="btn btn-outline-primary mt-2" type="submit" {% if not power_actions_habilitadas %}disabled{% endif %}>Reboot</button>
+          </form>
+        </div>
+        <div class="col-md-6">
+          <form method="post" class="service-action">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="desligar_servidor">
+            <label class="form-label" for="confirmacao-desligar">Desligar servidor</label>
+            <input class="form-control" id="confirmacao-desligar" name="confirmacao" placeholder="Digite DESLIGAR" required>
+            <button class="btn btn-danger mt-2" type="submit" {% if not power_actions_habilitadas %}disabled{% endif %}>Desligar</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    {% if ultimo_resultado %}
+      <section class="detail-section">
+        <h2 class="h5">Ultimo resultado</h2>
+        <pre class="backup-command">{{ ultimo_resultado }}</pre>
+      </section>
+    {% endif %}
+  </div>
+
+  <aside class="col-lg-4">
+    <section class="side-panel">
+      <h2 class="h6">Observacao</h2>
+      <p class="text-secondary mb-0">
+        Em instalacoes Docker, o processo web precisa ter acesso ao Docker Compose do host para reiniciar ou parar containers pela tela.
+      </p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

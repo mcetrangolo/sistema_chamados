@@ -68,7 +68,6 @@
             </a>
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="{% url 'chamados:relatorio' %}">Relatórios de chamados</a></li>
-              <li><a class="dropdown-item" href="{% url 'chamados:aprovacoes' %}">Aprovações</a></li>
               <li><a class="dropdown-item" href="{% url 'governanca:solicitacoes' %}">Solicitações de governança</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="{% url 'governanca:portal' %}">Portal de governança</a></li>
@@ -83,6 +82,10 @@
               <li><a class="dropdown-item" href="{% url 'core:configuracao' %}">Instituição e tema visual</a></li>
               <li><a class="dropdown-item" href="{% url 'core:backup' %}">Backup e restauração</a></li>
               <li><a class="dropdown-item" href="{% url 'core:atualizacoes' %}">Atualizações</a></li>
+              <li><a class="dropdown-item" href="{% url 'password_change' %}">Alterar minha senha</a></li>
+              {% if user.is_superuser %}
+                <li><a class="dropdown-item" href="{% url 'core:servicos' %}">Controle de serviços</a></li>
+              {% endif %}
               <li><a class="dropdown-item" href="{% url 'admin:auth_user_changelist' %}">Usuários do sistema</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><h6 class="dropdown-header">Helpdesk</h6></li>
@@ -101,11 +104,23 @@
           </li>
         </ul>
         {% if user.is_authenticated %}
-          <form method="post" action="{% url 'logout' %}" class="d-flex align-items-center gap-3">
-            {% csrf_token %}
-            <span class="navbar-user">{{ user.get_username }}</span>
-            <button class="btn btn-outline-light btn-sm" type="submit">Sair</button>
-          </form>
+          <div class="nav-item dropdown user-menu">
+            <button class="btn user-menu-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              {{ user.get_full_name|default:user.get_username }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><h6 class="dropdown-header">{{ user.get_username }}</h6></li>
+              <li><a class="dropdown-item" href="{% url 'core:perfil' %}">Minhas informações</a></li>
+              <li><a class="dropdown-item" href="{% url 'password_change' %}">Alterar senha</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <form method="post" action="{% url 'logout' %}">
+                  {% csrf_token %}
+                  <button class="dropdown-item" type="submit">Sair</button>
+                </form>
+              </li>
+            </ul>
+          </div>
         {% endif %}
       </div>
     </div>

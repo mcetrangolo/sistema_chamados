@@ -50,6 +50,7 @@ class ChamadoForm(BootstrapFormMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["setor"].label = "Setor solicitante"
         self.fields["categoria"].required = False
         self.fields["topico_ajuda"].queryset = TopicoAjuda.objects.filter(ativo=True)
 
@@ -115,12 +116,16 @@ class AtualizacaoChamadoForm(BootstrapFormMixin, forms.ModelForm):
         fields = [
             "status",
             "prioridade",
+            "topico_ajuda",
+            "categoria",
             "tecnico_responsavel",
             "registro_atendimento",
         ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["topico_ajuda"].queryset = TopicoAjuda.objects.filter(ativo=True)
+        self.fields["categoria"].required = False
         self.fields["tecnico_responsavel"].label = "Atendente responsável"
         grupo = Group.objects.filter(name="Técnicos de TI").first()
         if grupo:
@@ -133,6 +138,17 @@ class AtualizacaoChamadoForm(BootstrapFormMixin, forms.ModelForm):
         cleaned_data = super().clean()
         status = cleaned_data.get("status")
         registro = cleaned_data.get("registro_atendimento", "").strip()
+        topico = cleaned_data.get("topico_ajuda")
+        categoria = cleaned_data.get("categoria")
+
+        if topico:
+            cleaned_data["categoria"] = topico.categoria
+            self.instance.categoria = topico.categoria
+            if topico.atendente_padrao_id and not cleaned_data.get("tecnico_responsavel"):
+                cleaned_data["tecnico_responsavel"] = topico.atendente_padrao
+                self.instance.tecnico_responsavel = topico.atendente_padrao
+        elif not categoria:
+            self.add_error("categoria", "Informe uma categoria ou selecione um tópico de ajuda.")
 
         if status in {Chamado.Status.RESOLVIDO, Chamado.Status.ENCERRADO}:
             if not registro and not self.instance.solucao_aplicada.strip():
@@ -153,6 +169,23 @@ class HistoricoChamadoForm(BootstrapFormMixin, forms.ModelForm):
         widgets = {
             "comentario": forms.Textarea(attrs={"rows": 4}),
         }
+
+
+class AtribuicaoChamadoForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = Chamado
+        fields = ["tecnico_responsavel"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["tecnico_responsavel"].label = "Encaminhar para atendente"
+        grupo = Group.objects.filter(name="Técnicos de TI").first()
+        users = get_user_model().objects.filter(is_active=True)
+        if grupo:
+            users = users.filter(groups=grupo)
+        else:
+            users = users.filter(is_staff=True)
+        self.fields["tecnico_responsavel"].queryset = users.order_by("first_name", "username")
 
 
 class AnexoChamadoForm(BootstrapFormMixin, forms.ModelForm):

@@ -1,7 +1,10 @@
+from pathlib import Path
 from html import escape
+from io import BytesIO
 import socket
 
 from django.contrib import messages
+from django.core.files import File
 from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
@@ -19,6 +22,7 @@ from .forms import (
     AtualizacaoChamadoForm,
     AnexoChamadoForm,
     ArtigoConhecimentoForm,
+    AtribuicaoChamadoForm,
     AvaliacaoChamadoForm,
     CategoriaForm,
     ChamadoForm,
@@ -273,6 +277,8 @@ class ChamadoListView(LoginRequiredMixin, ListView):
         setor = self.request.GET.get("setor", "")
         prioridade = self.request.GET.get("prioridade", "")
         categoria = self.request.GET.get("categoria", "")
+        data_inicio = self.request.GET.get("data_inicio", "")
+        data_fim = self.request.GET.get("data_fim", "")
 
         if q:
             queryset = queryset.filter(
@@ -289,6 +295,10 @@ class ChamadoListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(prioridade=prioridade)
         if categoria:
             queryset = queryset.filter(categoria_id=categoria)
+        if data_inicio:
+            queryset = queryset.filter(criado_em__date__gte=data_inicio)
+        if data_fim:
+            queryset = queryset.filter(criado_em__date__lte=data_fim)
         fila = self.kwargs.get("fila")
         if fila == "meus":
             queryset = queryset.filter(tecnico_responsavel=self.request.user)
@@ -352,10 +362,10 @@ class ChamadoDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["respostas_prontas"] = RespostaPronta.objects.filter(ativo=True)
         context["tarefa_form"] = TarefaChamadoForm()
         context["comentario_form"] = ComentarioInternoForm(initial={"publico": True})
         context["anexo_form"] = AnexoChamadoForm()
+        context["atribuicao_form"] = AtribuicaoChamadoForm(instance=self.object)
         return context
 
 
@@ -655,18 +665,33 @@ class BuscaGlobalView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         q = self.request.GET.get("q", "").strip()
+        data_inicio = self.request.GET.get("data_inicio", "")
+        data_fim = self.request.GET.get("data_fim", "")
         context["q"] = q
+        context["data_inicio"] = data_inicio
+        context["data_fim"] = data_fim
         context["chamados"] = []
         context["ativos"] = []
         context["artigos"] = []
         context["servicos"] = []
+        if q or data_inicio or data_fim:
+            chamados = Chamado.objects.select_related("setor", "categoria", "tecnico_responsavel")
+            if q:
+                chamados = chamados.filter(
+                    Q(numero__icontains=q)
+                    | Q(nome_solicitante__icontains=q)
+                    | Q(email__icontains=q)
+                    | Q(descricao__icontains=q)
+                    | Q(setor__nome__icontains=q)
+                    | Q(categoria__nome__icontains=q)
+                    | Q(status__icontains=q)
+                )
+            if data_inicio:
+                chamados = chamados.filter(criado_em__date__gte=data_inicio)
+            if data_fim:
+                chamados = chamados.filter(criado_em__date__lte=data_fim)
+            context["chamados"] = chamados[:25]
         if q:
-            context["chamados"] = Chamado.objects.filter(
-                Q(numero__icontains=q)
-                | Q(nome_solicitante__icontains=q)
-                | Q(email__icontains=q)
-                | Q(descricao__icontains=q)
-            ).select_related("setor", "categoria")[:10]
             try:
                 from inventario.models import AtivoRede
 
@@ -706,9 +731,18 @@ def decidir_aprovacao(request, pk, decisao):
             aprovacao.status = AprovacaoSolicitacao.Status.APROVADA
             if aprovacao.solicitacao_servico and not aprovacao.solicitacao_servico.chamado:
                 criar_chamado_de_solicitacao(aprovacao.solicitacao_servico)
+            elif aprovacao.origem == AprovacaoSolicitacao.Origem.GOVERNANCA and aprovacao.governanca_id:
+                criar_chamado_de_governanca(aprovacao.governanca_id)
             messages.success(request, "Solicitação aprovada.")
         else:
             aprovacao.status = AprovacaoSolicitacao.Status.REJEITADA
+            if aprovacao.origem == AprovacaoSolicitacao.Origem.GOVERNANCA and aprovacao.governanca_id:
+                from governanca.models import SolicitacaoGovernanca
+
+                SolicitacaoGovernanca.objects.filter(pk=aprovacao.governanca_id).update(
+                    status=SolicitacaoGovernanca.Status.NEGADA,
+                    atualizado_em=timezone.now(),
+                )
             messages.success(request, "Solicitação rejeitada.")
         aprovacao.save()
     return redirect("chamados:aprovacoes")
@@ -736,6 +770,58 @@ def criar_chamado_de_solicitacao(solicitacao):
         comentario=f"Chamado criado pelo catálogo de serviços ({solicitacao.protocolo}).",
     )
     notificar_chamado(chamado, "Chamado aberto", "Sua solicitação foi convertida em chamado.")
+    return chamado
+
+
+def criar_chamado_de_governanca(governanca_id):
+    from governanca.models import SolicitacaoGovernanca
+
+    solicitacao = get_object_or_404(SolicitacaoGovernanca, pk=governanca_id)
+    setor, _ = Setor.objects.get_or_create(nome=solicitacao.setor, defaults={"ativo": True})
+    categoria, _ = Categoria.objects.get_or_create(nome="Governança", defaults={"ativo": True})
+    detalhes = [
+        f"Solicitação de governança: {solicitacao.get_tipo_display()}",
+        f"Protocolo: {solicitacao.protocolo}",
+        f"Matrícula: {solicitacao.matricula}",
+        f"Cargo: {solicitacao.cargo or '-'}",
+        "",
+    ]
+    if solicitacao.acessos_solicitados:
+        detalhes.extend(["Acessos solicitados:", solicitacao.acessos_solicitados, ""])
+    if solicitacao.aparelhos:
+        detalhes.extend(["Aparelhos:", solicitacao.aparelhos, ""])
+    detalhes.extend(["Justificativa:", solicitacao.justificativa or "-"])
+
+    chamado = Chamado.objects.create(
+        nome_solicitante=solicitacao.nome,
+        email=solicitacao.email,
+        telefone=solicitacao.telefone,
+        setor=setor,
+        categoria=categoria,
+        prioridade=Chamado.Prioridade.MEDIA,
+        descricao="\n".join(detalhes),
+        origem=Chamado.Origem.PORTAL,
+    )
+    solicitacao.status = SolicitacaoGovernanca.Status.EM_ANALISE
+    solicitacao.save(update_fields=["status", "atualizado_em"])
+
+    pdf_path = Path(solicitacao.documento_caminho or "")
+    if pdf_path.is_file():
+        with pdf_path.open("rb") as arquivo:
+            anexo = AnexoChamado(
+                chamado=chamado,
+                descricao=f"Formulário {solicitacao.protocolo}",
+                nome_enviado_por=solicitacao.nome,
+                publico=True,
+            )
+            anexo.arquivo.save(pdf_path.name, File(arquivo), save=True)
+
+    HistoricoChamado.objects.create(
+        chamado=chamado,
+        status=chamado.status,
+        comentario=f"Chamado criado a partir da solicitação de governança {solicitacao.protocolo}.",
+    )
+    notificar_chamado(chamado, "Chamado aberto", "Sua solicitação de governança foi aprovada e convertida em chamado.")
     return chamado
 
 
@@ -812,6 +898,49 @@ def nome_atendente(chamado):
     return "Não atribuído"
 
 
+def dados_inventario_relatorio():
+    try:
+        from inventario.models import AtivoRede
+    except Exception:
+        return {
+            "disponivel": False,
+            "total": 0,
+            "por_status": [],
+            "por_tipo": [],
+            "por_so": [],
+            "por_office": [],
+            "ativos": [],
+        }
+
+    ativos = AtivoRede.objects.select_related("tipo", "setor").order_by("nome")
+    return {
+        "disponivel": True,
+        "total": ativos.count(),
+        "por_status": ativos.values("status").annotate(total=Count("id")).order_by("status"),
+        "por_tipo": ativos.values("tipo__nome").annotate(total=Count("id")).order_by("tipo__nome"),
+        "por_so": (
+            ativos.exclude(sistema_operacional="")
+            .values("sistema_operacional")
+            .annotate(total=Count("id"))
+            .order_by("sistema_operacional")
+        ),
+        "por_office": (
+            ativos.exclude(office="")
+            .values("office")
+            .annotate(total=Count("id"))
+            .order_by("office")
+        ),
+        "ativos": ativos[:500],
+    }
+
+
+def chart_data(linhas, label_field):
+    return {
+        "labels": [linha.get(label_field) or "Nao informado" for linha in linhas],
+        "data": [linha["total"] for linha in linhas],
+    }
+
+
 class RelatorioChamadosView(LoginRequiredMixin, TemplateView):
     template_name = "chamados/relatorio.html"
 
@@ -845,16 +974,12 @@ class RelatorioChamadosView(LoginRequiredMixin, TemplateView):
             .annotate(total=Count("id"))
             .order_by("-total")[:10]
         )
-        try:
-            from inventario.models import AtivoRede
-
-            context["inventario_por_status"] = (
-                AtivoRede.objects.values("status")
-                .annotate(total=Count("id"))
-                .order_by("status")
-            )
-        except Exception:
-            context["inventario_por_status"] = []
+        inventario = dados_inventario_relatorio()
+        context["inventario"] = inventario
+        context["inventario_so_chart"] = chart_data(inventario["por_so"], "sistema_operacional")
+        context["inventario_office_chart"] = chart_data(inventario["por_office"], "office")
+        context["inventario_tipo_chart"] = chart_data(inventario["por_tipo"], "tipo__nome")
+        context["inventario_status_chart"] = chart_data(inventario["por_status"], "status")
         context["querystring"] = self.request.GET.urlencode()
         return context
 
@@ -866,11 +991,15 @@ def exportar_relatorio_xls(request):
     campo_agrupamento, titulo_agrupamento, resumo = resumo_relatorio(
         chamados, agrupamento or "status"
     )
+    inventario = dados_inventario_relatorio()
 
     response = HttpResponse(content_type="application/vnd.ms-excel; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="relatorio_chamados.xls"'
     response.write("<html><head><meta charset='utf-8'></head><body>")
     config = ConfiguracaoInstitucional.atual()
+    if config.logo:
+        logo_url = request.build_absolute_uri(config.logo.url)
+        response.write(f"<p><img src='{escape(logo_url)}' style='max-height:80px;max-width:220px'></p>")
     response.write(f"<h1>{escape(config.nome_instituicao)}</h1>")
     response.write(f"<p>{escape(config.cnpj)} {escape(config.endereco)}</p>")
     response.write("<h1>Relatório de chamados</h1>")
@@ -905,6 +1034,60 @@ def exportar_relatorio_xls(request):
             chamado.get_prioridade_display(),
             chamado.get_status_display(),
             nome_atendente(chamado),
+        ]
+        response.write("<tr>")
+        for valor in valores:
+            response.write(f"<td>{escape(str(valor))}</td>")
+        response.write("</tr>")
+    response.write("</table><br>")
+
+    response.write("<h1>Inventario</h1>")
+    response.write(f"<p>Total de ativos: {inventario['total']}</p>")
+    for titulo, linhas, campo in [
+        ("Inventario por status", inventario["por_status"], "status"),
+        ("Inventario por tipo", inventario["por_tipo"], "tipo__nome"),
+        ("Sistemas operacionais instalados", inventario["por_so"], "sistema_operacional"),
+        ("Office / Microsoft 365", inventario["por_office"], "office"),
+    ]:
+        response.write(f"<h2>{escape(titulo)}</h2>")
+        response.write("<table border='1'><tr><th>Grupo</th><th>Total</th></tr>")
+        for linha in linhas:
+            response.write(f"<tr><td>{escape(str(linha.get(campo) or 'Nao informado'))}</td><td>{linha['total']}</td></tr>")
+        response.write("</table><br>")
+
+    response.write("<h2>Equipamentos inventariados</h2>")
+    cabecalhos_inventario = [
+        "Equipamento",
+        "IP",
+        "Tipo",
+        "Setor",
+        "SO",
+        "Office",
+        "CPU",
+        "Memoria GB",
+        "Disco GB",
+        "Serial",
+        "Usuario",
+        "Ultima coleta",
+    ]
+    response.write("<table border='1'><tr>")
+    for cabecalho in cabecalhos_inventario:
+        response.write(f"<th>{escape(cabecalho)}</th>")
+    response.write("</tr>")
+    for ativo in inventario["ativos"]:
+        valores = [
+            ativo.nome,
+            ativo.ip or "",
+            ativo.tipo.nome if ativo.tipo else "",
+            ativo.setor.nome if ativo.setor else "",
+            ativo.sistema_operacional,
+            ativo.office,
+            ativo.processador,
+            ativo.memoria_total_gb or "",
+            ativo.disco_total_gb or "",
+            ativo.numero_serie,
+            ativo.usuario_logado,
+            ativo.ultima_coleta_em.strftime("%d/%m/%Y %H:%M") if ativo.ultima_coleta_em else "",
         ]
         response.write("<tr>")
         for valor in valores:
@@ -958,29 +1141,159 @@ def exportar_relatorio_pdf(request):
     )
 
     config = ConfiguracaoInstitucional.atual()
-    linhas = [
-        config.nome_instituicao,
-        f"CNPJ: {config.cnpj or '-'}",
-        f"Endereco: {config.endereco or '-'}",
-        "",
-        "Relatório de chamados",
-        f"Total: {chamados.count()}",
-        f"Agrupamento por {titulo_agrupamento}",
-        "",
+    inventario = dados_inventario_relatorio()
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import mm
+        from reportlab.lib.utils import ImageReader
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.pdfgen import canvas
+    except Exception:
+        linhas = [
+            config.nome_instituicao,
+            f"CNPJ: {config.cnpj or '-'}",
+            f"Endereco: {config.endereco or '-'}",
+            "",
+            "Relatorio de chamados",
+            f"Total: {chamados.count()}",
+            f"Agrupamento por {titulo_agrupamento}",
+            f"Total de ativos inventariados: {inventario['total']}",
+            "",
+        ]
+        for linha in resumo:
+            valor = linha.get(campo_agrupamento) or "Nao informado"
+            linhas.append(f"{valor}: {linha['total']}")
+
+        response = HttpResponse(montar_pdf_simples(linhas), content_type="application/pdf")
+        response["Content-Disposition"] = 'attachment; filename="relatorio_chamados.pdf"'
+        return response
+
+    fonte_regular = "Helvetica"
+    fonte_negrito = "Helvetica-Bold"
+    fontes_candidatas = [
+        (
+            Path("C:/Windows/Fonts/arial.ttf"),
+            Path("C:/Windows/Fonts/arialbd.ttf"),
+            "ArialUnicodeApp",
+            "ArialUnicodeAppBold",
+        ),
+        (
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+            "DejaVuSansApp",
+            "DejaVuSansAppBold",
+        ),
     ]
+    for regular, negrito, nome_regular, nome_negrito in fontes_candidatas:
+        if regular.exists() and negrito.exists():
+            try:
+                pdfmetrics.registerFont(TTFont(nome_regular, str(regular)))
+                pdfmetrics.registerFont(TTFont(nome_negrito, str(negrito)))
+                fonte_regular = nome_regular
+                fonte_negrito = nome_negrito
+                break
+            except Exception:
+                continue
+
+    buffer = BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=A4)
+    largura, altura = A4
+    margem = 18 * mm
+    y = altura - margem
+
+    def nova_pagina():
+        nonlocal y
+        pdf.showPage()
+        y = altura - margem
+
+    def escrever_linha(texto, x=margem, tamanho=9, negrito=False, cor=colors.black):
+        nonlocal y
+        if y < margem:
+            nova_pagina()
+        pdf.setFillColor(cor)
+        pdf.setFont(fonte_negrito if negrito else fonte_regular, tamanho)
+        pdf.drawString(x, y, str(texto)[:120])
+        y -= 5 * mm
+
+    logo_path = ""
+    if config.logo:
+        try:
+            logo_path = config.logo.path
+        except Exception:
+            logo_path = ""
+    if logo_path:
+        try:
+            pdf.drawImage(ImageReader(logo_path), margem, y - 18 * mm, width=38 * mm, height=18 * mm, preserveAspectRatio=True, mask="auto")
+        except Exception:
+            pass
+
+    texto_x = margem + (45 * mm if config.logo else 0)
+    pdf.setFillColor(colors.HexColor(config.cor_primaria or "#155eef"))
+    pdf.setFont(fonte_negrito, 16)
+    pdf.drawString(texto_x, y - 2 * mm, config.nome_instituicao[:70])
+    pdf.setFillColor(colors.black)
+    pdf.setFont(fonte_regular, 9)
+    detalhes = " | ".join(parte for parte in [config.cnpj, config.endereco, config.telefone, config.email] if parte)
+    pdf.drawString(texto_x, y - 8 * mm, detalhes[:110] if detalhes else "Sistema de chamados")
+    y -= 26 * mm
+    pdf.setStrokeColor(colors.HexColor(config.cor_primaria or "#155eef"))
+    pdf.line(margem, y, largura - margem, y)
+    y -= 8 * mm
+
+    escrever_linha("Relatorio de chamados", tamanho=14, negrito=True)
+    escrever_linha(f"Total filtrado: {chamados.count()} | Agrupamento por {titulo_agrupamento}", tamanho=10)
+    y -= 3 * mm
+
+    escrever_linha("Resumo", tamanho=11, negrito=True)
     for linha in resumo:
-        valor = linha.get(campo_agrupamento) or "Não informado"
-        linhas.append(f"{valor}: {linha['total']}")
-    linhas.append("")
-    linhas.append("Chamados")
-    for chamado in linhas_analiticas(chamados)[:25]:
-        linhas.append(
+        valor = linha.get(campo_agrupamento) or "Nao informado"
+        escrever_linha(f"{valor}: {linha['total']}")
+
+    y -= 3 * mm
+    escrever_linha("Chamados", tamanho=11, negrito=True)
+    escrever_linha("Numero | Abertura | Solicitante | Status | Atendente", tamanho=8, negrito=True)
+    for chamado in linhas_analiticas(chamados)[:120]:
+        escrever_linha(
             f"{chamado.numero} | {chamado.criado_em:%d/%m/%Y} | "
             f"{chamado.nome_solicitante} | {chamado.get_status_display()} | "
-            f"{nome_atendente(chamado)}"
+            f"{nome_atendente(chamado)}",
+            tamanho=8,
         )
 
-    response = HttpResponse(montar_pdf_simples(linhas), content_type="application/pdf")
+    y -= 3 * mm
+    escrever_linha("Inventario", tamanho=11, negrito=True)
+    escrever_linha(f"Total de ativos: {inventario['total']}", tamanho=9)
+
+    escrever_linha("Sistemas operacionais", tamanho=9, negrito=True)
+    for item in inventario["por_so"][:20]:
+        escrever_linha(f"{item.get('sistema_operacional') or 'Nao informado'}: {item['total']}", tamanho=8)
+
+    escrever_linha("Office / Microsoft 365", tamanho=9, negrito=True)
+    for item in inventario["por_office"][:20]:
+        escrever_linha(f"{item.get('office') or 'Nao informado'}: {item['total']}", tamanho=8)
+
+    escrever_linha("Equipamentos inventariados", tamanho=9, negrito=True)
+    escrever_linha("Nome | IP | SO | Office | Memoria | Serial", tamanho=8, negrito=True)
+    for ativo in inventario["ativos"][:80]:
+        memoria = f"{ativo.memoria_total_gb} GB" if ativo.memoria_total_gb else "-"
+        escrever_linha(
+            f"{ativo.nome} | {ativo.ip or '-'} | {ativo.sistema_operacional or '-'} | "
+            f"{ativo.office or '-'} | {memoria} | {ativo.numero_serie or '-'}",
+            tamanho=7,
+        )
+
+    if config.texto_rodape:
+        if y < margem + 8 * mm:
+            nova_pagina()
+        pdf.setFillColor(colors.grey)
+        pdf.setFont(fonte_regular, 8)
+        pdf.drawString(margem, margem / 2, config.texto_rodape[:120])
+
+    pdf.save()
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
     response["Content-Disposition"] = 'attachment; filename="relatorio_chamados.pdf"'
     return response
 
@@ -1022,6 +1335,28 @@ def atribuir_chamado_mim(request, pk):
             comentario="Chamado atribuído ao atendente logado.",
         )
         messages.success(request, "Chamado atribuído a você.")
+    return redirect(chamado)
+
+
+@login_required
+def atribuir_chamado(request, pk):
+    chamado = get_object_or_404(Chamado, pk=pk)
+    if request.method == "POST":
+        form = AtribuicaoChamadoForm(request.POST, instance=chamado)
+        if form.is_valid():
+            chamado = form.save(commit=False)
+            if chamado.tecnico_responsavel_id and chamado.status == Chamado.Status.ABERTO:
+                chamado.status = Chamado.Status.EM_ATENDIMENTO
+            chamado.save()
+            HistoricoChamado.objects.create(
+                chamado=chamado,
+                usuario=request.user,
+                status=chamado.status,
+                comentario="Chamado encaminhado/reatribuído.",
+            )
+            messages.success(request, "Chamado encaminhado com sucesso.")
+        else:
+            messages.error(request, "Não foi possível encaminhar o chamado.")
     return redirect(chamado)
 
 

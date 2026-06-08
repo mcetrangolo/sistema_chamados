@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib.auth import get_user_model
 
 from .models import ConfiguracaoInstitucional
 
@@ -25,6 +26,10 @@ class ConfiguracaoInstitucionalForm(BootstrapFormMixin, forms.ModelForm):
             "email",
             "site",
             "logo",
+            "portal_rotulo",
+            "portal_titulo",
+            "portal_subtitulo",
+            "portal_texto_apoio",
             "tema_visual",
             "cor_primaria",
             "cor_secundaria",
@@ -35,7 +40,20 @@ class ConfiguracaoInstitucionalForm(BootstrapFormMixin, forms.ModelForm):
             "cor_primaria": forms.TextInput(attrs={"type": "color"}),
             "cor_secundaria": forms.TextInput(attrs={"type": "color"}),
             "cor_fundo": forms.TextInput(attrs={"type": "color"}),
+            "portal_subtitulo": forms.Textarea(attrs={"rows": 3}),
+            "portal_texto_apoio": forms.Textarea(attrs={"rows": 3}),
         }
         help_texts = {
             "tema_visual": "Escolha Personalizado para liberar o uso manual das cores abaixo.",
+        }
+
+
+class PerfilUsuarioForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = get_user_model()
+        fields = ["first_name", "last_name", "email"]
+        labels = {
+            "first_name": "Nome",
+            "last_name": "Sobrenome",
+            "email": "E-mail",
         }

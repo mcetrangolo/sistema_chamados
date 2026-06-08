@@ -54,9 +54,9 @@ class MetodoDescobertaAdmin(admin.ModelAdmin):
 
 @admin.register(AtivoRede)
 class AtivoRedeAdmin(admin.ModelAdmin):
-    list_display = ("nome", "tipo", "ip", "hostname", "setor", "status", "origem", "ultima_coleta_em")
-    list_filter = ("tipo", "status", "origem", "setor")
-    search_fields = ("nome", "ip", "mac", "hostname", "fabricante", "modelo", "numero_serie")
+    list_display = ("nome", "tipo", "ip", "hostname", "sistema_operacional", "office", "status", "origem", "ultima_coleta_em")
+    list_filter = ("tipo", "status", "origem", "setor", "sistema_operacional", "office")
+    search_fields = ("nome", "ip", "mac", "hostname", "fabricante", "modelo", "numero_serie", "processador", "office")
     inlines = [InterfaceInline, OcorrenciaInline]
 
 

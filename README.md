@@ -150,6 +150,12 @@ AD_PASSWORD=senha
 AD_BASE_DN=DC=seudominio,DC=local
 ```
 
+Agente de inventario:
+
+```env
+INVENTARIO_AGENT_TOKEN=gere-um-token-grande-e-secreto
+```
+
 Aplicar alteracoes:
 
 ```bash
@@ -273,8 +279,11 @@ Execute:
 ```bash
 python manage.py migrate
 python manage.py seed_chamados
+python manage.py createsuperuser
 python manage.py runserver 0.0.0.0:8000
 ```
+
+O comando `createsuperuser` cria o administrador inicial para acessar a area interna, cadastros, configuracoes e relatorios.
 
 Acesse:
 
@@ -297,7 +306,88 @@ http://127.0.0.1:8000/
 - Configuracao institucional: `/configuracoes/institucional/`
 - Backup e restauracao: `/configuracoes/backup/`
 - Atualizacoes: `/configuracoes/atualizacoes/`
+- Controle de servicos: `/configuracoes/servicos/`
 - Inventario: `/inventario/`
+
+## Controle de servicos pela interface
+
+Superusuarios podem acessar:
+
+```text
+Configuracoes > Controle de servicos
+```
+
+A tela possui botoes para:
+
+- reiniciar servicos da aplicacao;
+- parar servicos da aplicacao;
+- solicitar reboot do servidor;
+- solicitar desligamento do servidor.
+
+Reiniciar/parar servicos depende de Docker Compose estar disponivel para o processo web. Reboot e desligamento do servidor ficam bloqueados por padrao; para habilitar, defina no `.env`:
+
+```env
+ALLOW_SERVER_POWER_ACTIONS=True
+```
+
+Use essa opcao apenas em servidor interno administrado, porque a acao pode interromper o acesso ao sistema.
+
+## Agente de inventario para Windows
+
+O projeto inclui um agente inicial em PowerShell para coletar dados de computadores Windows e enviar para o servidor.
+
+No servidor, configure no `.env`:
+
+```env
+INVENTARIO_AGENT_TOKEN=gere-um-token-grande-e-secreto
+```
+
+Reinicie a aplicacao depois de alterar o `.env`.
+
+No computador Windows que sera inventariado, abra PowerShell como Administrador na pasta do projeto ou onde os arquivos foram copiados e execute:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+.\scripts\agent\windows\install.ps1
+```
+
+Durante a instalacao, informe o IP ou URL do servidor, por exemplo:
+
+```text
+192.168.0.10:8000
+```
+
+ou:
+
+```text
+https://chamados.seudominio.local
+```
+
+O instalador:
+
+- pergunta o servidor e o token;
+- permite informar um numero de serie manual/patrimonio opcional;
+- copia o agente para `C:\ProgramData\SistemaChamadosAgent`;
+- grava `config.json`;
+- cria a tarefa agendada `SistemaChamadosAgent`;
+- executa a primeira coleta.
+
+Dados coletados pelo agente Windows:
+
+- hostname, IP principal e MAC;
+- usuario logado, dominio/grupo de trabalho;
+- fabricante, modelo e numero de serie;
+- versao/build do Windows e arquitetura;
+- processador, memoria total e disco total;
+- Microsoft Office/Microsoft 365 instalado, quando detectado;
+- lista resumida de softwares instalados;
+- interfaces de rede ativas.
+
+O endpoint usado pelo agente e:
+
+```text
+POST /inventario/agente/coleta/
+```
 
 ## Observacoes
 

@@ -98,6 +98,7 @@ class AtivoRede(models.Model):
         MANUAL = "manual", "Manual"
         SNMP = "snmp", "SNMP"
         AD = "ad", "Active Directory"
+        AGENTE = "agente", "Agente"
         IMPORTACAO = "importacao", "Importação"
 
     nome = models.CharField(max_length=150)
@@ -116,6 +117,14 @@ class AtivoRede(models.Model):
     modelo = models.CharField(max_length=120, blank=True)
     numero_serie = models.CharField("número de série", max_length=120, blank=True)
     sistema_operacional = models.CharField(max_length=150, blank=True)
+    arquitetura = models.CharField(max_length=40, blank=True)
+    processador = models.CharField(max_length=180, blank=True)
+    memoria_total_gb = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    disco_total_gb = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    office = models.CharField(max_length=180, blank=True)
+    softwares_instalados = models.TextField(blank=True)
+    usuario_logado = models.CharField(max_length=150, blank=True)
+    dominio = models.CharField(max_length=150, blank=True)
     localizacao = models.CharField(max_length=150, blank=True)
     responsavel = models.CharField(max_length=150, blank=True)
     funcao = models.CharField("função", max_length=150, blank=True)

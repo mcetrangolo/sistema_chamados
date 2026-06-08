@@ -4,11 +4,13 @@
 <h1 class="h3 mb-3">Busca global</h1>
 <form method="get" class="filters mb-4">
   <div class="row g-2">
-    <div class="col-md-10"><input class="form-control" name="q" value="{{ q }}" placeholder="Buscar chamado, solicitante, ativo, IP, serial, artigo ou serviço"></div>
+    <div class="col-md-6"><input class="form-control" name="q" value="{{ q }}" placeholder="Buscar chamado, solicitante, ativo, IP, serial, artigo ou serviço"></div>
+    <div class="col-md-2"><input class="form-control" type="date" name="data_inicio" value="{{ data_inicio }}" title="Data inicial"></div>
+    <div class="col-md-2"><input class="form-control" type="date" name="data_fim" value="{{ data_fim }}" title="Data final"></div>
     <div class="col-md-2 d-grid"><button class="btn btn-primary" type="submit">Buscar</button></div>
   </div>
 </form>
-{% if q %}
+{% if q or data_inicio or data_fim %}
 <div class="row g-4">
   <div class="col-xl-6">
     <section class="detail-section"><h2 class="h5">Chamados</h2>

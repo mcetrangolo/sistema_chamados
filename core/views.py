@@ -1,12 +1,15 @@
 from datetime import datetime
+import os
 from pathlib import Path
+import platform
 from re import sub
+import shutil
 import subprocess
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connections
@@ -16,8 +19,13 @@ from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import TemplateView, UpdateView
 
-from .forms import ConfiguracaoInstitucionalForm
+from .forms import ConfiguracaoInstitucionalForm, PerfilUsuarioForm
 from .models import ConfiguracaoInstitucional
+
+
+class SuperuserRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_superuser
 
 
 class ConfiguracaoInstitucionalView(LoginRequiredMixin, UpdateView):
@@ -31,6 +39,19 @@ class ConfiguracaoInstitucionalView(LoginRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         messages.success(self.request, "Configuração institucional atualizada com sucesso.")
+        return super().form_valid(form)
+
+
+class PerfilUsuarioView(LoginRequiredMixin, UpdateView):
+    form_class = PerfilUsuarioForm
+    template_name = "core/perfil_usuario.html"
+    success_url = reverse_lazy("core:perfil")
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def form_valid(self, form):
+        messages.success(self.request, "Suas informações pessoais foram atualizadas.")
         return super().form_valid(form)
 
 
@@ -296,6 +317,112 @@ class AtualizacaoSistemaView(LoginRequiredMixin, TemplateView):
         request.session["ultimo_resultado_atualizacao"] = "\n\n".join(saidas)
         messages.success(request, "Atualização concluída. Reinicie o serviço se estiver em produção.")
         return redirect("core:atualizacoes")
+
+
+class ControleServicosView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateView):
+    template_name = "core/controle_servicos.html"
+
+    ACOES = {
+        "reiniciar_servicos": {
+            "titulo": "Reiniciar servicos",
+            "confirmacao": "REINICIAR",
+        },
+        "parar_servicos": {
+            "titulo": "Parar servicos",
+            "confirmacao": "PARAR",
+        },
+        "reboot_servidor": {
+            "titulo": "Reiniciar servidor",
+            "confirmacao": "REBOOT",
+            "power_action": True,
+        },
+        "desligar_servidor": {
+            "titulo": "Desligar servidor",
+            "confirmacao": "DESLIGAR",
+            "power_action": True,
+        },
+    }
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["acoes"] = self.ACOES
+        context["ultimo_resultado"] = self.request.session.pop("ultimo_resultado_servicos", "")
+        context["power_actions_habilitadas"] = self._power_actions_habilitadas()
+        context["docker_disponivel"] = bool(self._docker_compose_command("ps"))
+        return context
+
+    def post(self, request, *args, **kwargs):
+        acao_id = request.POST.get("acao", "")
+        acao = self.ACOES.get(acao_id)
+        if not acao:
+            messages.error(request, "Acao invalida.")
+            return redirect("core:servicos")
+
+        if request.POST.get("confirmacao", "").strip().upper() != acao["confirmacao"]:
+            messages.error(request, f"Digite {acao['confirmacao']} para confirmar.")
+            return redirect("core:servicos")
+
+        if acao.get("power_action") and not self._power_actions_habilitadas():
+            messages.error(
+                request,
+                "Reboot/desligamento do servidor esta bloqueado. Defina ALLOW_SERVER_POWER_ACTIONS=True no .env para habilitar.",
+            )
+            return redirect("core:servicos")
+
+        comando = self._comando_para_acao(acao_id)
+        if not comando:
+            messages.error(request, "Nao foi possivel encontrar um comando compativel neste ambiente.")
+            return redirect("core:servicos")
+
+        codigo, saida = self._rodar(comando, timeout=60)
+        request.session["ultimo_resultado_servicos"] = f"$ {' '.join(comando)}\n{saida or '(sem saida)'}"
+        if codigo == 0:
+            messages.success(request, f"{acao['titulo']} solicitado com sucesso.")
+        else:
+            messages.error(request, f"{acao['titulo']} falhou. Veja o resultado na tela.")
+        return redirect("core:servicos")
+
+    def _power_actions_habilitadas(self):
+        return os.getenv("ALLOW_SERVER_POWER_ACTIONS", "False").lower() in {"1", "true", "yes", "on"}
+
+    def _docker_compose_command(self, subcomando):
+        if shutil.which("docker"):
+            return ["docker", "compose", subcomando]
+        if shutil.which("docker-compose"):
+            return ["docker-compose", subcomando]
+        return None
+
+    def _comando_para_acao(self, acao_id):
+        if acao_id in {"reiniciar_servicos", "parar_servicos"}:
+            subcomando = "restart" if acao_id == "reiniciar_servicos" else "down"
+            return self._docker_compose_command(subcomando)
+
+        sistema = platform.system().lower()
+        if acao_id == "reboot_servidor":
+            return ["shutdown", "/r", "/t", "5"] if sistema == "windows" else ["sudo", "systemctl", "reboot"]
+        if acao_id == "desligar_servidor":
+            return ["shutdown", "/s", "/t", "5"] if sistema == "windows" else ["sudo", "systemctl", "poweroff"]
+        return None
+
+    def _rodar(self, comando, timeout=60):
+        try:
+            resultado = subprocess.run(
+                comando,
+                cwd=settings.BASE_DIR,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
+        except Exception as exc:
+            return 1, str(exc)
+
+        saida = "\n".join(
+            parte.strip()
+            for parte in [resultado.stdout, resultado.stderr]
+            if parte and parte.strip()
+        )
+        return resultado.returncode, saida
 
 
 @login_required

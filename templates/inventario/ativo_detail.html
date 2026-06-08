@@ -29,6 +29,28 @@
       </dl>
     </section>
     <section class="detail-section">
+      <h2 class="h5">Hardware e software</h2>
+      <dl class="row mb-0">
+        <dt class="col-sm-3">Sistema operacional</dt><dd class="col-sm-9">{{ ativo.sistema_operacional|default:"-" }}</dd>
+        <dt class="col-sm-3">Arquitetura</dt><dd class="col-sm-9">{{ ativo.arquitetura|default:"-" }}</dd>
+        <dt class="col-sm-3">Processador</dt><dd class="col-sm-9">{{ ativo.processador|default:"-" }}</dd>
+        <dt class="col-sm-3">Memória</dt><dd class="col-sm-9">{% if ativo.memoria_total_gb %}{{ ativo.memoria_total_gb }} GB{% else %}-{% endif %}</dd>
+        <dt class="col-sm-3">Disco</dt><dd class="col-sm-9">{% if ativo.disco_total_gb %}{{ ativo.disco_total_gb }} GB{% else %}-{% endif %}</dd>
+        <dt class="col-sm-3">Office</dt><dd class="col-sm-9">{{ ativo.office|default:"-" }}</dd>
+        <dt class="col-sm-3">Usuário logado</dt><dd class="col-sm-9">{{ ativo.usuario_logado|default:"-" }}</dd>
+        <dt class="col-sm-3">Domínio</dt><dd class="col-sm-9">{{ ativo.dominio|default:"-" }}</dd>
+        <dt class="col-sm-3">Última coleta</dt><dd class="col-sm-9">{{ ativo.ultima_coleta_em|date:"d/m/Y H:i"|default:"-" }}</dd>
+      </dl>
+    </section>
+    <section class="detail-section">
+      <h2 class="h5">Softwares instalados</h2>
+      {% if ativo.softwares_instalados %}
+        <pre class="asset-software-list">{{ ativo.softwares_instalados }}</pre>
+      {% else %}
+        <p class="text-secondary mb-0">Nenhum software coletado.</p>
+      {% endif %}
+    </section>
+    <section class="detail-section">
       <h2 class="h5">Interfaces</h2>
       <table class="table table-sm mb-0">
         <thead><tr><th>Nome</th><th>IP</th><th>MAC</th><th>Status</th></tr></thead>

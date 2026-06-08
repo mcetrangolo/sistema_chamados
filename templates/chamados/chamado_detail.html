@@ -13,11 +13,6 @@
       <button class="btn btn-outline-primary" type="submit">Atribuir a mim</button>
     </form>
     <a class="btn btn-primary" href="{% url 'chamados:editar' chamado.pk %}">Atualizar</a>
-    <form method="post" action="{% url 'chamados:resolver_rapido' chamado.pk %}" onsubmit="return confirm('Resolver este chamado usando a resposta informada?');">
-      {% csrf_token %}
-      <input type="hidden" name="solucao_aplicada" id="quick-solution">
-      <button class="btn btn-success" type="submit">Resolver</button>
-    </form>
   </div>
 </div>
 
@@ -81,6 +76,12 @@
         <dt class="col-5">E-mail</dt><dd class="col-7">{{ chamado.email|default:"-" }}</dd>
       </dl>
     </div>
+    <form class="side-panel mt-3" method="post" action="{% url 'chamados:atribuir' chamado.pk %}">
+      {% csrf_token %}
+      <h2 class="h6">Encaminhar chamado</h2>
+      {% include "chamados/partials/form_fields.html" with form=atribuicao_form %}
+      <button class="btn btn-outline-primary w-100" type="submit">Salvar encaminhamento</button>
+    </form>
     <div class="side-panel mt-3">
       <h2 class="h6">Anexos</h2>
       <ul class="task-list">
@@ -98,16 +99,6 @@
         {% include "chamados/partials/form_fields.html" with form=anexo_form %}
         <button class="btn btn-outline-primary w-100" type="submit">Enviar anexo</button>
       </form>
-    </div>
-    <div class="side-panel mt-3">
-      <h2 class="h6">Respostas prontas</h2>
-      <select class="form-select" id="resposta-pronta">
-        <option value="">Selecionar resposta</option>
-        {% for resposta in respostas_prontas %}
-          <option value="{{ resposta.conteudo }}">{{ resposta.titulo }}</option>
-        {% endfor %}
-      </select>
-      <p class="text-secondary small mt-2 mb-0">Ao selecionar, o texto será colocado no campo de resposta.</p>
     </div>
     <div class="side-panel mt-3">
       <h2 class="h6">Tarefas</h2>
@@ -137,23 +128,4 @@
     {% endif %}
   </aside>
 </div>
-<script>
-  const respostaPronta = document.getElementById("resposta-pronta");
-  if (respostaPronta) {
-    respostaPronta.addEventListener("change", () => {
-      const campo = document.getElementById("id_mensagem");
-      if (campo && respostaPronta.value) {
-        campo.value = respostaPronta.value;
-        document.getElementById("quick-solution").value = respostaPronta.value;
-      }
-    });
-  }
-  const campoMensagem = document.getElementById("id_mensagem");
-  if (campoMensagem) {
-    campoMensagem.addEventListener("input", () => {
-      const quick = document.getElementById("quick-solution");
-      if (quick) quick.value = campoMensagem.value;
-    });
-  }
-</script>
 {% endblock %}

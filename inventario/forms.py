@@ -45,6 +45,14 @@ class AtivoRedeForm(BootstrapFormMixin, forms.ModelForm):
             "modelo",
             "numero_serie",
             "sistema_operacional",
+            "arquitetura",
+            "processador",
+            "memoria_total_gb",
+            "disco_total_gb",
+            "office",
+            "softwares_instalados",
+            "usuario_logado",
+            "dominio",
             "localizacao",
             "responsavel",
             "funcao",
@@ -54,6 +62,7 @@ class AtivoRedeForm(BootstrapFormMixin, forms.ModelForm):
         ]
         widgets = {
             "observacoes": forms.Textarea(attrs={"rows": 4}),
+            "softwares_instalados": forms.Textarea(attrs={"rows": 8}),
         }
 
 

@@ -1,11 +1,16 @@
+import json
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Q
-from django.http import HttpResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 from core.models import ConfiguracaoInstitucional
 
@@ -18,8 +23,155 @@ from .forms import (
     TipoAtivoForm,
     VarreduraRedeForm,
 )
-from .models import AgendamentoVarredura, AtivoRede, CredencialSNMP, FaixaRede, MetodoDescoberta, OcorrenciaAtivo, TipoAtivo, VarreduraRede
+from .models import AgendamentoVarredura, AtivoRede, CredencialSNMP, FaixaRede, InterfaceRede, MetodoDescoberta, OcorrenciaAtivo, TipoAtivo, VarreduraRede
 from .services import descobrir_por_faixa
+
+
+def _normalizar_texto(valor, limite=250):
+    if valor is None:
+        return ""
+    return str(valor).strip()[:limite]
+
+
+def _decimal_ou_none(valor):
+    try:
+        if valor in ("", None):
+            return None
+        return round(float(valor), 2)
+    except (TypeError, ValueError):
+        return None
+
+
+@csrf_exempt
+@require_POST
+def receber_coleta_agente(request):
+    token_configurado = settings.INVENTARIO_AGENT_TOKEN
+    token_recebido = request.headers.get("Authorization", "").replace("Bearer ", "", 1).strip()
+    if not token_configurado or token_recebido != token_configurado:
+        return JsonResponse({"erro": "Token invalido ou nao configurado."}, status=403)
+
+    try:
+        dados = json.loads(request.body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return JsonResponse({"erro": "JSON invalido."}, status=400)
+
+    hostname = _normalizar_texto(dados.get("hostname"), 150)
+    ip = _normalizar_texto(dados.get("ip"), 45) or None
+    serial = _normalizar_texto(dados.get("numero_serie") or dados.get("serial"), 120)
+    mac = _normalizar_texto(dados.get("mac"), 30)
+
+    if not any([hostname, ip, serial, mac]):
+        return JsonResponse({"erro": "Informe hostname, IP, serial ou MAC."}, status=400)
+
+    tipo_padrao, _ = TipoAtivo.objects.get_or_create(nome="Computador")
+    filtros = []
+    if serial:
+        filtros.append(Q(numero_serie__iexact=serial))
+    if hostname:
+        filtros.append(Q(hostname__iexact=hostname) | Q(nome__iexact=hostname))
+    if ip:
+        filtros.append(Q(ip=ip))
+    if mac:
+        filtros.append(Q(mac__iexact=mac))
+
+    consulta = filtros[0]
+    for filtro in filtros[1:]:
+        consulta |= filtro
+
+    ativo = AtivoRede.objects.filter(consulta).order_by("id").first()
+    criado = ativo is None
+    if criado:
+        ativo = AtivoRede(tipo=tipo_padrao)
+
+    interfaces = dados.get("interfaces") or []
+    interfaces_txt = []
+    for interface in interfaces[:10]:
+        interfaces_txt.append(
+            " / ".join(
+                parte
+                for parte in [
+                    _normalizar_texto(interface.get("nome"), 80),
+                    _normalizar_texto(interface.get("ip"), 45),
+                    _normalizar_texto(interface.get("mac"), 30),
+                ]
+                if parte
+            )
+        )
+
+    observacoes = [
+        "Coleta recebida pelo agente de inventario.",
+        f"Usuario logado: {_normalizar_texto(dados.get('usuario_logado'), 120) or '-'}",
+        f"Dominio/grupo: {_normalizar_texto(dados.get('dominio'), 120) or '-'}",
+        f"CPU: {_normalizar_texto(dados.get('processador'), 180) or '-'}",
+        f"Memoria: {_normalizar_texto(dados.get('memoria_total_gb'), 40) or '-'} GB",
+        f"Disco: {_normalizar_texto(dados.get('disco_total_gb'), 40) or '-'} GB",
+        f"Office: {_normalizar_texto(dados.get('office'), 180) or '-'}",
+    ]
+    if interfaces_txt:
+        observacoes.append("Interfaces: " + " | ".join(interfaces_txt))
+
+    softwares = dados.get("softwares_instalados") or []
+    if isinstance(softwares, list):
+        softwares_texto = "\n".join(_normalizar_texto(item, 220) for item in softwares if _normalizar_texto(item, 220))
+    else:
+        softwares_texto = _normalizar_texto(softwares, 12000)
+
+    ativo.nome = hostname or ativo.nome or f"Ativo {ip or serial or mac}"
+    ativo.hostname = hostname or ativo.hostname
+    ativo.ip = ip or ativo.ip
+    ativo.mac = mac or ativo.mac
+    ativo.fabricante = _normalizar_texto(dados.get("fabricante"), 120) or ativo.fabricante
+    ativo.modelo = _normalizar_texto(dados.get("modelo"), 120) or ativo.modelo
+    ativo.numero_serie = serial or ativo.numero_serie
+    ativo.sistema_operacional = _normalizar_texto(dados.get("sistema_operacional"), 150) or ativo.sistema_operacional
+    ativo.arquitetura = _normalizar_texto(dados.get("arquitetura"), 40) or ativo.arquitetura
+    ativo.processador = _normalizar_texto(dados.get("processador"), 180) or ativo.processador
+    ativo.memoria_total_gb = _decimal_ou_none(dados.get("memoria_total_gb")) or ativo.memoria_total_gb
+    ativo.disco_total_gb = _decimal_ou_none(dados.get("disco_total_gb")) or ativo.disco_total_gb
+    ativo.office = _normalizar_texto(dados.get("office"), 180) or ativo.office
+    ativo.softwares_instalados = softwares_texto or ativo.softwares_instalados
+    ativo.usuario_logado = _normalizar_texto(dados.get("usuario_logado"), 150) or ativo.usuario_logado
+    ativo.dominio = _normalizar_texto(dados.get("dominio"), 150) or ativo.dominio
+    ativo.responsavel = _normalizar_texto(dados.get("usuario_logado"), 150) or ativo.responsavel
+    ativo.status = AtivoRede.Status.ONLINE
+    ativo.origem = AtivoRede.Origem.AGENTE
+    ativo.observacoes = "\n".join(observacoes)
+    ativo.ultima_coleta_em = timezone.now()
+    ativo.save()
+
+    for interface in interfaces[:20]:
+        nome_interface = _normalizar_texto(interface.get("nome"), 120)
+        mac_interface = _normalizar_texto(interface.get("mac"), 30)
+        ip_interface = _normalizar_texto(interface.get("ip"), 45) or None
+        if not nome_interface and not mac_interface and not ip_interface:
+            continue
+        filtro_interface = {"ativo": ativo}
+        if mac_interface:
+            filtro_interface["mac__iexact"] = mac_interface
+        elif nome_interface:
+            filtro_interface["nome__iexact"] = nome_interface
+        else:
+            filtro_interface["ip"] = ip_interface
+
+        registro = InterfaceRede.objects.filter(**filtro_interface).first()
+        if not registro:
+            registro = InterfaceRede(ativo=ativo)
+        registro.nome = nome_interface or registro.nome or "Interface"
+        registro.mac = mac_interface or registro.mac
+        registro.ip = ip_interface or registro.ip
+        registro.status = _normalizar_texto(interface.get("status"), 80) or registro.status
+        registro.velocidade = _normalizar_texto(interface.get("velocidade"), 80) or registro.velocidade
+        registro.save()
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "criado": criado,
+            "ativo_id": ativo.pk,
+            "ativo": ativo.nome,
+            "ultima_coleta_em": ativo.ultima_coleta_em.isoformat(),
+        }
+    )
 
 
 class InventarioPainelView(LoginRequiredMixin, TemplateView):
@@ -85,7 +237,28 @@ def exportar_ativos_xls(request):
     response.write(f"<p>{config.cnpj} {config.endereco}</p>")
     response.write("<h1>Inventário de ativos</h1>")
     response.write("<table border='1'><tr>")
-    cabecalhos = ["Nome", "Tipo", "IP", "MAC", "Hostname", "Setor", "Fabricante", "Modelo", "Serial", "Status", "Origem"]
+    cabecalhos = [
+        "Nome",
+        "Tipo",
+        "IP",
+        "MAC",
+        "Hostname",
+        "Setor",
+        "Fabricante",
+        "Modelo",
+        "Serial",
+        "Sistema operacional",
+        "Arquitetura",
+        "Processador",
+        "Memoria GB",
+        "Disco GB",
+        "Office",
+        "Softwares instalados",
+        "Usuario logado",
+        "Dominio",
+        "Status",
+        "Origem",
+    ]
     for cabecalho in cabecalhos:
         response.write(f"<th>{cabecalho}</th>")
     response.write("</tr>")
@@ -100,6 +273,15 @@ def exportar_ativos_xls(request):
             ativo.fabricante,
             ativo.modelo,
             ativo.numero_serie,
+            ativo.sistema_operacional,
+            ativo.arquitetura,
+            ativo.processador,
+            ativo.memoria_total_gb or "",
+            ativo.disco_total_gb or "",
+            ativo.office,
+            ativo.softwares_instalados,
+            ativo.usuario_logado,
+            ativo.dominio,
             ativo.get_status_display(),
             ativo.get_origem_display(),
         ]

@@ -43,6 +43,8 @@
       {% for categoria in categorias %}<option value="{{ categoria.id }}" {% if filtros.categoria == categoria.id|stringformat:"s" %}selected{% endif %}>{{ categoria.nome }}</option>{% endfor %}
     </select>
   </div>
+  <div class="col-md-2"><input class="form-control" type="date" name="data_inicio" value="{{ filtros.data_inicio }}" title="Data inicial"></div>
+  <div class="col-md-2"><input class="form-control" type="date" name="data_fim" value="{{ filtros.data_fim }}" title="Data final"></div>
   <div class="col-md-1 d-grid"><button class="btn btn-outline-primary" type="submit">Filtrar</button></div>
 </form>
 

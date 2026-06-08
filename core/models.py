@@ -52,6 +52,16 @@ class ConfiguracaoInstitucional(models.Model):
     email = models.EmailField(blank=True)
     site = models.URLField(blank=True)
     logo = models.ImageField(upload_to="institucional/logo/", blank=True)
+    portal_rotulo = models.CharField(max_length=80, default="Service desk")
+    portal_titulo = models.CharField(max_length=120, default="Abrir chamado de TI")
+    portal_subtitulo = models.TextField(
+        blank=True,
+        default="Registre sua solicitacao para a equipe tecnica acompanhar, priorizar e documentar o atendimento.",
+    )
+    portal_texto_apoio = models.TextField(
+        blank=True,
+        default="Informe o setor correto, descreva mensagens de erro, equipamento afetado e impacto no trabalho.",
+    )
     tema_visual = models.CharField(
         max_length=20,
         choices=TemaVisual.choices,

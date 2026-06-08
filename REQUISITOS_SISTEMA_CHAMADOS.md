@@ -174,6 +174,14 @@ Permitir registrar:
 - Status do equipamento.
 - Histórico de manutenção.
 
+Diretriz revisada:
+
+- Usar descoberta por Nmap/SNMP para mapear ativos de rede, portas e equipamentos de infraestrutura.
+- Manter integração com Active Directory para localizar computadores cadastrados no domínio.
+- Criar um agente leve para estações Windows quando a descoberta de rede não for suficiente.
+- O agente pode iniciar como script `.bat` ou `.vbs`, coletando hostname, IP, usuário logado, sistema operacional, patrimônio, fabricante/modelo e enviando os dados para uma rota autenticada no servidor.
+- Evitar depender apenas de Ping/ICMP, pois redes corporativas frequentemente bloqueiam ICMP, descoberta remota e consulta de portas.
+
 ### 9.3 Fluxo de Processos / BPM
 
 Permitir criar fluxos internos, como:

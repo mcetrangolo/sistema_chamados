@@ -2,6 +2,11 @@
 {% load chamados_extras %}
 {% block title %}Relatórios | Sistema de Chamados{% endblock %}
 {% block content %}
+{{ inventario_so_chart|json_script:"inventario-so-chart-data" }}
+{{ inventario_office_chart|json_script:"inventario-office-chart-data" }}
+{{ inventario_tipo_chart|json_script:"inventario-tipo-chart-data" }}
+{{ inventario_status_chart|json_script:"inventario-status-chart-data" }}
+
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
     <h1 class="h3 mb-0">Relatórios de chamados</h1>
@@ -12,6 +17,21 @@
     <a class="btn btn-outline-danger" href="{% url 'chamados:relatorio_pdf' %}{% if querystring %}?{{ querystring }}{% endif %}">Exportar PDF</a>
   </div>
 </div>
+
+<section class="institution-report-header mb-4">
+  {% if config_institucional.logo %}
+    <img src="{{ config_institucional.logo.url }}" alt="{{ config_institucional.nome_instituicao }}">
+  {% else %}
+    <span class="brand-mark">{{ config_institucional.sigla|default:"TI" }}</span>
+  {% endif %}
+  <div>
+    <strong>{{ config_institucional.nome_instituicao }}</strong>
+    <span>
+      {% if config_institucional.cnpj %}CNPJ: {{ config_institucional.cnpj }}{% endif %}
+      {% if config_institucional.endereco %}{% if config_institucional.cnpj %} | {% endif %}{{ config_institucional.endereco }}{% endif %}
+    </span>
+  </div>
+</section>
 
 <form method="get" class="filters report-filters mb-4">
   <div class="row g-3">
@@ -41,6 +61,40 @@
 </div>
 
 <div class="row g-4">
+  <div class="col-12">
+    <section class="report-block">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h5 mb-0">Graficos do inventario</h2>
+        <span class="text-secondary small">{{ inventario.total }} ativo(s)</span>
+      </div>
+      <div class="row g-3">
+        <div class="col-lg-6 col-xl-3">
+          <div class="report-chart">
+            <h3>Sistemas operacionais</h3>
+            <canvas id="inventarioSoChart" height="220"></canvas>
+          </div>
+        </div>
+        <div class="col-lg-6 col-xl-3">
+          <div class="report-chart">
+            <h3>Office / Microsoft 365</h3>
+            <canvas id="inventarioOfficeChart" height="220"></canvas>
+          </div>
+        </div>
+        <div class="col-lg-6 col-xl-3">
+          <div class="report-chart">
+            <h3>Tipos de ativo</h3>
+            <canvas id="inventarioTipoChart" height="220"></canvas>
+          </div>
+        </div>
+        <div class="col-lg-6 col-xl-3">
+          <div class="report-chart">
+            <h3>Status dos ativos</h3>
+            <canvas id="inventarioStatusChart" height="220"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
   <div class="col-xl-4">
     <section class="report-block">
       <h2 class="h5">Resumo por {{ titulo_agrupamento|lower }}</h2>
@@ -114,7 +168,7 @@
       <h2 class="h5">Inventário por status</h2>
       <table class="table table-sm mb-0">
         <tbody>
-          {% for item in inventario_por_status %}
+          {% for item in inventario.por_status %}
             <tr><td>{{ item.status }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>
           {% empty %}
             <tr><td class="text-secondary">Sem ativos inventariados.</td><td></td></tr>
@@ -123,5 +177,123 @@
       </table>
     </section>
   </div>
+  <div class="col-xl-6">
+    <section class="report-block">
+      <h2 class="h5">Inventario por tipo</h2>
+      <table class="table table-sm mb-0">
+        <tbody>
+          {% for item in inventario.por_tipo %}
+            <tr><td>{{ item.tipo__nome|default:"Sem tipo" }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>
+          {% empty %}
+            <tr><td class="text-secondary">Sem ativos inventariados.</td><td></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="report-block">
+      <h2 class="h5">Sistemas operacionais instalados</h2>
+      <table class="table table-sm mb-0">
+        <tbody>
+          {% for item in inventario.por_so %}
+            <tr><td>{{ item.sistema_operacional }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>
+          {% empty %}
+            <tr><td class="text-secondary">Nenhum SO coletado pelo inventario.</td><td></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <div class="col-xl-6">
+    <section class="report-block">
+      <h2 class="h5">Office / Microsoft 365</h2>
+      <table class="table table-sm mb-0">
+        <tbody>
+          {% for item in inventario.por_office %}
+            <tr><td>{{ item.office }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>
+          {% empty %}
+            <tr><td class="text-secondary">Nenhuma instalacao de Office coletada.</td><td></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <div class="col-12">
+    <section class="report-block">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h5 mb-0">Equipamentos inventariados</h2>
+        <span class="text-secondary small">Mostrando ate 500 ativos</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Equipamento</th>
+              <th>IP</th>
+              <th>Tipo</th>
+              <th>SO</th>
+              <th>Office</th>
+              <th>CPU</th>
+              <th>Memoria</th>
+              <th>Serial</th>
+              <th>Coleta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ativo in inventario.ativos %}
+              <tr>
+                <td><a href="{{ ativo.get_absolute_url }}">{{ ativo.nome }}</a></td>
+                <td>{{ ativo.ip|default:"-" }}</td>
+                <td>{{ ativo.tipo|default:"-" }}</td>
+                <td>{{ ativo.sistema_operacional|default:"-" }}</td>
+                <td>{{ ativo.office|default:"-" }}</td>
+                <td>{{ ativo.processador|default:"-" }}</td>
+                <td>{% if ativo.memoria_total_gb %}{{ ativo.memoria_total_gb }} GB{% else %}-{% endif %}</td>
+                <td>{{ ativo.numero_serie|default:"-" }}</td>
+                <td>{{ ativo.ultima_coleta_em|date:"d/m/Y H:i"|default:"-" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="9" class="text-center text-secondary py-4">Nenhum ativo inventariado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const reportChartColors = ["#155eef", "#16875d", "#b7791f", "#c2413d", "#0f766e", "#7c3aed", "#64748b", "#f97316"];
+  const reportChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: "bottom" } }
+  };
+  function loadReportChartData(id) {
+    const element = document.getElementById(id);
+    return element ? JSON.parse(element.textContent) : { labels: [], data: [] };
+  }
+  function buildReportChart(canvasId, dataId, type) {
+    const canvas = document.getElementById(canvasId);
+    const data = loadReportChartData(dataId);
+    if (!canvas || !data.labels.length) return;
+    new Chart(canvas, {
+      type,
+      data: {
+        labels: data.labels,
+        datasets: [{
+          data: data.data,
+          backgroundColor: reportChartColors,
+          borderWidth: 1
+        }]
+      },
+      options: reportChartOptions
+    });
+  }
+  buildReportChart("inventarioSoChart", "inventario-so-chart-data", "pie");
+  buildReportChart("inventarioOfficeChart", "inventario-office-chart-data", "doughnut");
+  buildReportChart("inventarioTipoChart", "inventario-tipo-chart-data", "bar");
+  buildReportChart("inventarioStatusChart", "inventario-status-chart-data", "doughnut");
+</script>
 {% endblock %}

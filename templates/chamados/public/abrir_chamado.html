@@ -3,9 +3,9 @@
 {% block content %}
 <div class="public-header">
   <div>
-    <span class="section-label">Service desk</span>
-    <h1>Abrir chamado de TI</h1>
-    <p>Registre sua solicitação para a equipe técnica acompanhar, priorizar e documentar o atendimento.</p>
+    <span class="section-label">{{ config_institucional.portal_rotulo|default:"Service desk" }}</span>
+    <h1>{{ config_institucional.portal_titulo|default:"Abrir chamado de TI" }}</h1>
+    <p>{{ config_institucional.portal_subtitulo|default:"Registre sua solicitacao para a equipe tecnica acompanhar, priorizar e documentar o atendimento." }}</p>
   </div>
   <div class="public-actions">
     <a class="btn btn-outline-primary" href="{% url 'chamados:portal_consultar' %}">Consultar chamado</a>
@@ -57,11 +57,7 @@
   <div class="col-xl-4">
     <aside class="support-panel">
       <h2>Antes de abrir</h2>
-      <ul>
-        <li>Informe o setor correto para agilizar a triagem.</li>
-        <li>Descreva mensagens de erro, equipamento afetado e impacto no trabalho.</li>
-        <li>Use prioridade crítica apenas quando houver paralisação de serviço essencial.</li>
-      </ul>
+      <p>{{ config_institucional.portal_texto_apoio|linebreaksbr }}</p>
     </aside>
     <aside class="support-panel mt-3">
       <h2>Acompanhamento</h2>
