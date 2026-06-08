@@ -1,15 +1,11 @@
-from pathlib import Path
-
 from django.contrib import messages
-from django.core.files import File
 from django.views.generic import TemplateView, ListView
 from django.shortcuts import redirect
 
-from chamados.models import AnexoChamado, Categoria, Chamado, HistoricoChamado, Setor, TopicoAjuda
+from chamados.models import Categoria, Chamado, HistoricoChamado, Setor, TopicoAjuda
 
 from .forms import UsuarioAcessoForm, WifiCorporativoForm
 from .models import SolicitacaoGovernanca
-from .pdf import gerar_documento_solicitacao
 
 
 def criar_chamado_governanca(solicitacao):
@@ -57,17 +53,6 @@ def criar_chamado_governanca(solicitacao):
         origem=Chamado.Origem.PORTAL,
     )
 
-    pdf_path = Path(solicitacao.documento_caminho or "")
-    if pdf_path.is_file():
-        with pdf_path.open("rb") as arquivo:
-            anexo = AnexoChamado(
-                chamado=chamado,
-                descricao=f"Formulário {solicitacao.protocolo}",
-                nome_enviado_por=solicitacao.nome,
-                publico=True,
-            )
-            anexo.arquivo.save(pdf_path.name, File(arquivo), save=True)
-
     HistoricoChamado.objects.create(
         chamado=chamado,
         status=chamado.status,
@@ -94,8 +79,6 @@ class UsuarioAcessoCreateView(TemplateView):
             solicitacao = form.save(commit=False)
             solicitacao.tipo = SolicitacaoGovernanca.Tipo.USUARIO_ACESSO
             solicitacao.save()
-            solicitacao.documento_caminho = gerar_documento_solicitacao(solicitacao)
-            solicitacao.save(update_fields=["documento_caminho"])
             chamado = criar_chamado_governanca(solicitacao)
             solicitacao.status = SolicitacaoGovernanca.Status.EM_ANALISE
             solicitacao.save(update_fields=["status", "atualizado_em"])
@@ -118,8 +101,6 @@ class WifiCorporativoCreateView(TemplateView):
             solicitacao = form.save(commit=False)
             solicitacao.tipo = SolicitacaoGovernanca.Tipo.WIFI_CORPORATIVO
             solicitacao.save()
-            solicitacao.documento_caminho = gerar_documento_solicitacao(solicitacao)
-            solicitacao.save(update_fields=["documento_caminho"])
             chamado = criar_chamado_governanca(solicitacao)
             solicitacao.status = SolicitacaoGovernanca.Status.EM_ANALISE
             solicitacao.save(update_fields=["status", "atualizado_em"])
