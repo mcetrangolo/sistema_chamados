@@ -35,7 +35,24 @@ function Show-Message {
     }
 }
 
-$installScript = Join-Path $PSScriptRoot "install.ps1"
+function Copy-SetupFiles {
+    $stageDir = Join-Path $env:TEMP "SistemaChamadosAgentSetup"
+    if (Test-Path $stageDir) {
+        Remove-Item -Path $stageDir -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
+    foreach ($file in @("agent.ps1", "install.ps1", "uninstall.ps1")) {
+        Copy-Item -Path (Join-Path $PSScriptRoot $file) -Destination (Join-Path $stageDir $file) -Force
+    }
+    return $stageDir
+}
+
+$scriptRootForInstall = $PSScriptRoot
+if (-not (Test-Admin)) {
+    $scriptRootForInstall = Copy-SetupFiles
+}
+
+$installScript = Join-Path $scriptRootForInstall "install.ps1"
 if (-not (Test-Path $installScript)) {
     try {
         Add-Type -AssemblyName System.Windows.Forms

@@ -1,10 +1,12 @@
 param(
     [string]$OutputDir = ".\dist",
-    [string]$OutputName = "SistemaChamadosAgentSetup.exe"
+    [string]$OutputName = "SistemaChamadosAgentSetup.exe",
+    [string]$AgentToken = ""
 )
 
 $ErrorActionPreference = "Stop"
 $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectDir = Resolve-Path (Join-Path $baseDir "..\..\..")
 $outputDirFull = (New-Item -ItemType Directory -Path $OutputDir -Force).FullName
 $packageDir = Join-Path $outputDirFull "SistemaChamadosAgentPackage"
 $sedPath = Join-Path $outputDirFull "SistemaChamadosAgentSetup.sed"
@@ -17,6 +19,27 @@ New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
 
 foreach ($file in @("agent.ps1", "install.ps1", "install_gui.ps1", "install.cmd", "uninstall.ps1")) {
     Copy-Item -Path (Join-Path $baseDir $file) -Destination (Join-Path $packageDir $file) -Force
+}
+
+if (-not $AgentToken) {
+    $envPath = Join-Path $projectDir ".env"
+    if (Test-Path $envPath) {
+        $tokenLine = Get-Content $envPath | Where-Object { $_ -match "^INVENTARIO_AGENT_TOKEN=" } | Select-Object -First 1
+        if ($tokenLine) {
+            $AgentToken = ($tokenLine -replace "^INVENTARIO_AGENT_TOKEN=", "").Trim().Trim('"').Trim("'")
+        }
+    }
+}
+if (-not $AgentToken) {
+    $AgentToken = "sistema-chamados-agent-local"
+}
+
+$escapedToken = $AgentToken.Replace("\", "\\").Replace('"', '\"')
+foreach ($script in @("install.ps1", "install_gui.ps1")) {
+    $scriptPath = Join-Path $packageDir $script
+    $content = Get-Content $scriptPath -Raw
+    $content = $content -replace '\[string\]\$Token = ".*?"', "[string]`$Token = `"$escapedToken`""
+    $content | Out-File -FilePath $scriptPath -Encoding UTF8 -Force
 }
 
 $iexpress = Join-Path $env:WINDIR "System32\iexpress.exe"
