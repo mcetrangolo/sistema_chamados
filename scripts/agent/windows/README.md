@@ -6,7 +6,7 @@ Agente compatível com Windows 7, 8, 10 e 11. A coleta usa WMI e o agendamento u
 
 - Executar o instalador como Administrador.
 - PowerShell habilitado.
-- O servidor deve ter `INVENTARIO_AGENT_TOKEN` configurado no `.env`.
+- O servidor pode usar o token local padrao ou ter `INVENTARIO_AGENT_TOKEN` configurado no `.env`.
 - O computador cliente precisa acessar o servidor na URL informada, por exemplo `http://192.168.0.10:8000`.
 
 ## Gerar instalador EXE
@@ -34,8 +34,9 @@ powershell.exe -ExecutionPolicy Bypass -File .\install.ps1
 O instalador pergunta:
 
 - IP:porta ou URL do servidor.
-- Token do agente.
 - Número de série/patrimônio manual, opcional.
+
+Por padrao, o token ja vai embutido no instalador local. Se o servidor usar outro token no `.env`, ajuste o valor no script e gere novamente o instalador.
 
 O instalador exibe janelas simples de boas-vindas e configuração. Ao final, o agente fica registrado em **Painel de Controle > Programas e Recursos** como `Sistema Chamados Agent`.
 

@@ -16,14 +16,19 @@ function Show-Message {
 }
 
 $installDir = Join-Path $env:ProgramData "SistemaChamadosAgent"
-$uninstallKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent"
+$uninstallKeys = @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent")
+if ([Environment]::Is64BitOperatingSystem) {
+    $uninstallKeys += "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent"
+}
 
 foreach ($taskName in @("SistemaChamadosAgentStartup", "SistemaChamadosAgentInterval", "SistemaChamadosAgent")) {
     & schtasks.exe /Delete /TN $taskName /F 2>$null | Out-Null
 }
 
-if (Test-Path $uninstallKey) {
-    Remove-Item -Path $uninstallKey -Recurse -Force
+foreach ($uninstallKey in $uninstallKeys) {
+    if (Test-Path $uninstallKey) {
+        Remove-Item -Path $uninstallKey -Recurse -Force
+    }
 }
 
 if (Test-Path $installDir) {

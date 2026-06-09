@@ -1,6 +1,6 @@
 param(
     [string]$ServerUrl = "",
-    [string]$Token = "",
+    [string]$Token = "sistema-chamados-agent-local",
     [string]$NumeroSerieManual = "",
     [int]$IntervalHours = 6
 )
@@ -101,17 +101,26 @@ function Register-UninstallEntry {
         [string]$UninstallScript
     )
 
-    $keyPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent"
-    New-Item -Path $keyPath -Force | Out-Null
-    New-ItemProperty -Path $keyPath -Name "DisplayName" -Value "Sistema Chamados Agent" -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.0.0" -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $keyPath -Name "Publisher" -Value "Sistema de Chamados" -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $keyPath -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $keyPath -Name "DisplayIcon" -Value "powershell.exe" -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $keyPath -Name "UninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`"" -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $keyPath -Name "QuietUninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`" -Silent" -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $keyPath -Name "NoModify" -Value 1 -PropertyType DWord -Force | Out-Null
-    New-ItemProperty -Path $keyPath -Name "NoRepair" -Value 1 -PropertyType DWord -Force | Out-Null
+    $keyPaths = @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent")
+    if ([Environment]::Is64BitOperatingSystem) {
+        $keyPaths += "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent"
+    }
+
+    foreach ($keyPath in $keyPaths) {
+        New-Item -Path $keyPath -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "DisplayName" -Value "Sistema Chamados Agent" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.0.1" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "Publisher" -Value "Sistema de Chamados" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "DisplayIcon" -Value "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "UninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`"" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "QuietUninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`" -Silent" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "InstallDate" -Value (Get-Date -Format "yyyyMMdd") -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "EstimatedSize" -Value 1024 -PropertyType DWord -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "SystemComponent" -Value 0 -PropertyType DWord -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "NoModify" -Value 1 -PropertyType DWord -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "NoRepair" -Value 1 -PropertyType DWord -Force | Out-Null
+    }
 }
 
 Assert-Admin
@@ -122,17 +131,13 @@ if (-not $ServerUrl) {
     $ServerUrl = Read-Input -Prompt "Informe o IP:porta ou URL do servidor.`nExemplos: 192.168.0.10:8000 ou https://chamados.local" -Default "http://"
 }
 
-if (-not $Token) {
-    $Token = Read-Input -Prompt "Informe o token do agente configurado no servidor."
-}
-
 if (-not $NumeroSerieManual) {
     $NumeroSerieManual = Read-Input -Prompt "Numero de serie manual/patrimonio, se houver.`nDeixe em branco para usar o serial da BIOS."
 }
 
 $ServerUrl = Normalize-ServerUrl $ServerUrl
 if (-not $Token.Trim()) {
-    throw "Token do agente e obrigatorio."
+    throw "Token do agente nao foi configurado no instalador."
 }
 if ($IntervalHours -lt 1) {
     $IntervalHours = 6

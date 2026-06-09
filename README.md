@@ -336,13 +336,13 @@ Use essa opcao apenas em servidor interno administrado, porque a acao pode inter
 
 O projeto inclui um agente inicial em PowerShell para coletar dados de computadores Windows e enviar para o servidor.
 
-No servidor, configure no `.env`:
+No servidor, o token local padrao ja permite a coleta. Em producao, voce pode trocar no `.env`:
 
 ```env
 INVENTARIO_AGENT_TOKEN=gere-um-token-grande-e-secreto
 ```
 
-Reinicie a aplicacao depois de alterar o `.env`.
+Reinicie a aplicacao depois de alterar o `.env`. Se trocar esse token, ajuste o mesmo valor no instalador antes de gerar o `.exe`.
 
 No computador Windows que sera inventariado, abra PowerShell como Administrador na pasta do projeto ou onde os arquivos foram copiados e execute:
 
@@ -365,11 +365,11 @@ https://chamados.seudominio.local
 
 O instalador:
 
-- pergunta o servidor e o token;
+- pergunta o servidor;
 - permite informar um numero de serie manual/patrimonio opcional;
 - copia o agente para `C:\ProgramData\SistemaChamadosAgent`;
 - grava `config.json`;
-- cria a tarefa agendada `SistemaChamadosAgent`;
+- cria as tarefas agendadas `SistemaChamadosAgentStartup` e `SistemaChamadosAgentInterval`;
 - executa a primeira coleta.
 
 Dados coletados pelo agente Windows:
