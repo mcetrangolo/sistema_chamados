@@ -430,6 +430,16 @@ a {
   overflow: hidden;
 }
 
+.chart-canvas {
+  flex: 0 0 220px;
+  height: 220px;
+  max-height: 220px;
+  min-height: 220px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
 .institution-report-header {
   align-items: center;
   background: var(--surface);
@@ -495,9 +505,8 @@ a {
 
 .chart-panel canvas {
   display: block;
-  flex: 0 0 220px;
   height: 220px !important;
-  max-height: 220px;
+  max-height: 220px !important;
   width: 100% !important;
 }
 

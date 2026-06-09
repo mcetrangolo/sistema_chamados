@@ -1,4 +1,5 @@
 import json
+import socket
 
 from django.conf import settings
 from django.contrib import messages
@@ -29,6 +30,18 @@ from .services import descobrir_por_faixa
 
 
 AGENTE_WINDOWS_EXE = "SistemaChamadosAgentSetup.exe"
+
+
+def _ips_rede_local():
+    ips = []
+    try:
+        hostname = socket.gethostname()
+        for ip in socket.gethostbyname_ex(hostname)[2]:
+            if ip and not ip.startswith("127.") and ip not in ips:
+                ips.append(ip)
+    except OSError:
+        pass
+    return ips
 
 
 def _normalizar_texto(valor, limite=250):
@@ -66,12 +79,23 @@ def baixar_agente_windows(request):
 @user_passes_test(lambda user: user.is_superuser)
 def configuracao_agente(request):
     caminho = (settings.BASE_DIR / "dist" / AGENTE_WINDOWS_EXE).resolve()
-    endpoint = request.build_absolute_uri("/inventario/agente/coleta/")
-    download_url = request.build_absolute_uri("/inventario/agente/windows/download/")
+    url_detectada = request.build_absolute_uri("/").rstrip("/")
+    base_url = settings.PUBLIC_BASE_URL or url_detectada
+    porta = request.get_port()
+    esquema = "https" if request.is_secure() else "http"
+    ips_rede = _ips_rede_local()
+    bases_sugeridas = [f"{esquema}://{ip}:{porta}" for ip in ips_rede]
+    usa_endereco_local = "localhost" in base_url.lower() or "127.0.0.1" in base_url
+    endpoint = f"{base_url}/inventario/agente/coleta/"
+    download_url = f"{base_url}/inventario/agente/windows/download/"
     contexto = {
         "token": settings.INVENTARIO_AGENT_TOKEN,
         "endpoint": endpoint,
         "download_url": download_url,
+        "url_detectada": url_detectada,
+        "public_base_url": settings.PUBLIC_BASE_URL,
+        "bases_sugeridas": bases_sugeridas,
+        "usa_endereco_local": usa_endereco_local,
         "instalador_existe": caminho.exists(),
         "instalador_nome": AGENTE_WINDOWS_EXE,
         "instalador_tamanho": caminho.stat().st_size if caminho.exists() else None,

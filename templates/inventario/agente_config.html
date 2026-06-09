@@ -17,16 +17,37 @@
   <div class="col-lg-7">
     <section class="detail-section">
       <h2 class="h5">Dados para instalacao</h2>
+      {% if usa_endereco_local %}
+        <div class="alert alert-warning">
+          Esta tela foi aberta por <strong>localhost/127.0.0.1</strong>. Esse endereco so funciona na propria maquina do servidor.
+          Para instalar o agente em outros computadores, informe no instalador o IP ou DNS do servidor na rede.
+        </div>
+      {% endif %}
       <dl class="config-list">
-        <dt>Servidor de coleta</dt>
+        <dt>Endpoint de coleta exibido pelo sistema</dt>
         <dd><code>{{ endpoint }}</code></dd>
         <dt>Token padrao</dt>
         <dd><code>{{ token }}</code></dd>
         <dt>Download do instalador</dt>
         <dd><code>{{ download_url }}</code></dd>
+        <dt>Endereco detectado nesta sessao</dt>
+        <dd><code>{{ url_detectada }}</code></dd>
+        {% if bases_sugeridas %}
+          <dt>Possiveis enderecos para uso na rede</dt>
+          <dd>
+            {% for base in bases_sugeridas %}
+              <code class="d-block">{{ base }}</code>
+            {% endfor %}
+          </dd>
+        {% endif %}
+        <dt>Configuracao fixa opcional</dt>
+        <dd>
+          Defina <code>PUBLIC_BASE_URL=http://IP_DO_SERVIDOR:8000</code> no arquivo <code>.env</code>
+          para esta tela sempre exibir o endereco correto da rede.
+        </dd>
       </dl>
       <p class="text-secondary mb-0">
-        O instalador atual ja leva o token padrao embutido. Na estacao, normalmente basta informar o IP e a porta do servidor.
+        O instalador atual ja leva o token padrao embutido. Na estacao, normalmente basta informar o IP e a porta do servidor, por exemplo <code>192.168.0.10:8000</code>.
       </p>
     </section>
   </div>
