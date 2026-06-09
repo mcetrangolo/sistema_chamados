@@ -21,6 +21,22 @@ foreach ($file in @("agent.ps1", "install.ps1", "install_gui.ps1", "install_laun
     Copy-Item -Path (Join-Path $baseDir $file) -Destination (Join-Path $packageDir $file) -Force
 }
 
+$csc = @(
+    (Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe"),
+    (Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"),
+    (Join-Path $env:WINDIR "Microsoft.NET\Framework\v3.5\csc.exe")
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $csc) {
+    throw "Compilador C# do .NET Framework nao encontrado. Nao foi possivel gerar o launcher grafico."
+}
+
+$launcherSource = Join-Path $baseDir "AgentSetupLauncher.cs"
+$launcherExe = Join-Path $packageDir "AgentSetupLauncher.exe"
+& $csc /nologo /target:winexe /out:$launcherExe /reference:System.Windows.Forms.dll $launcherSource
+if (-not (Test-Path $launcherExe)) {
+    throw "Nao foi possivel compilar AgentSetupLauncher.exe."
+}
+
 if (-not $AgentToken) {
     $envPath = Join-Path $projectDir ".env"
     if (Test-Path $envPath) {
@@ -47,8 +63,6 @@ if (-not (Test-Path $iexpress)) {
     Write-Warning "IExpress nao encontrado. Distribua a pasta: $packageDir"
     exit 0
 }
-$wscript = Join-Path $env:WINDIR "System32\wscript.exe"
-
 $sed = @"
 [Version]
 Class=IEXPRESS
@@ -78,7 +92,7 @@ DisplayLicense=
 FinishMessage=
 TargetName=$exePath
 FriendlyName=Sistema Chamados Agent Setup
-AppLaunched=$wscript install_launcher.vbs
+AppLaunched=AgentSetupLauncher.exe
 PostInstallCmd=<None>
 AdminQuietInstCmd=
 UserQuietInstCmd=
@@ -88,6 +102,7 @@ FILE2=install_gui.ps1
 FILE3=install_launcher.vbs
 FILE4=install.cmd
 FILE5=uninstall.ps1
+FILE6=AgentSetupLauncher.exe
 [SourceFiles]
 SourceFiles0=$packageDir
 [SourceFiles0]
@@ -97,6 +112,7 @@ SourceFiles0=$packageDir
 %FILE3%=
 %FILE4%=
 %FILE5%=
+%FILE6%=
 "@
 
 $sed | Out-File -FilePath $sedPath -Encoding ASCII -Force

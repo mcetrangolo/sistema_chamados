@@ -40,7 +40,7 @@ Por padrao, o token ja vai embutido no instalador local. Se o servidor usar outr
 
 O instalador exibe janelas simples de boas-vindas e configuração. Ao final, o agente fica registrado em **Painel de Controle > Programas e Recursos** como `Sistema Chamados Agent`.
 
-O pacote `.exe` inicia pelo `install_launcher.vbs`, que localiza o `install_gui.ps1` na pasta extraida, solicita permissao de Administrador via UAC e executa o PowerShell oculto para evitar a janela preta de console.
+O pacote `.exe` inicia pelo `AgentSetupLauncher.exe`, um launcher grafico sem console que copia os arquivos para uma pasta temporaria estavel, solicita permissao de Administrador via UAC e executa o PowerShell oculto para evitar a janela preta de console.
 
 ## Tarefas criadas
 
