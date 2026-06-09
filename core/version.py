@@ -1,2 +1,2 @@
-SISTEMA_VERSAO = "v2"
+SISTEMA_VERSAO = "v1.1"
 SISTEMA_VERSAO_NOME = "Service Desk Publico"

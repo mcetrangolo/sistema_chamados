@@ -71,25 +71,25 @@
         <div class="col-lg-6 col-xl-3">
           <div class="report-chart">
             <h3>Sistemas operacionais</h3>
-            <canvas id="inventarioSoChart" height="220"></canvas>
+            <div class="report-chart-canvas"><canvas id="inventarioSoChart"></canvas></div>
           </div>
         </div>
         <div class="col-lg-6 col-xl-3">
           <div class="report-chart">
             <h3>Office / Microsoft 365</h3>
-            <canvas id="inventarioOfficeChart" height="220"></canvas>
+            <div class="report-chart-canvas"><canvas id="inventarioOfficeChart"></canvas></div>
           </div>
         </div>
         <div class="col-lg-6 col-xl-3">
           <div class="report-chart">
             <h3>Tipos de ativo</h3>
-            <canvas id="inventarioTipoChart" height="220"></canvas>
+            <div class="report-chart-canvas"><canvas id="inventarioTipoChart"></canvas></div>
           </div>
         </div>
         <div class="col-lg-6 col-xl-3">
           <div class="report-chart">
             <h3>Status dos ativos</h3>
-            <canvas id="inventarioStatusChart" height="220"></canvas>
+            <div class="report-chart-canvas"><canvas id="inventarioStatusChart"></canvas></div>
           </div>
         </div>
       </div>
@@ -270,6 +270,8 @@
   const reportChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: false,
+    resizeDelay: 150,
     plugins: { legend: { position: "bottom" } }
   };
   function loadReportChartData(id) {
@@ -280,6 +282,8 @@
     const canvas = document.getElementById(canvasId);
     const data = loadReportChartData(dataId);
     if (!canvas || !data.labels.length) return;
+    const existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
     new Chart(canvas, {
       type,
       data: {

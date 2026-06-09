@@ -486,6 +486,7 @@ a {
   height: 280px;
   min-height: 280px;
   overflow: hidden;
+  position: relative;
 }
 
 .report-chart h3 {
@@ -495,11 +496,23 @@ a {
   margin-bottom: .75rem;
 }
 
+.report-chart-canvas {
+  flex: 0 0 220px;
+  height: 220px;
+  max-height: 220px;
+  min-height: 220px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.report-chart-canvas canvas,
 .report-chart canvas {
   display: block;
-  flex: 0 0 220px;
+  inset: 0;
   height: 220px !important;
   max-height: 220px;
+  min-height: 220px;
   width: 100% !important;
 }
 
