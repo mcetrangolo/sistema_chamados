@@ -37,6 +37,8 @@ O instalador pergunta:
 - Token do agente.
 - Número de série/patrimônio manual, opcional.
 
+O instalador exibe janelas simples de boas-vindas e configuração. Ao final, o agente fica registrado em **Painel de Controle > Programas e Recursos** como `Sistema Chamados Agent`.
+
 ## Tarefas criadas
 
 - `SistemaChamadosAgentStartup`: executa ao iniciar o Windows.
@@ -49,3 +51,11 @@ C:\ProgramData\SistemaChamadosAgent\
 ```
 
 Inclui `agent.ps1`, `config.json` e `last-run.log`.
+
+## Desinstalar
+
+Use o Painel de Controle ou execute:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File C:\ProgramData\SistemaChamadosAgent\uninstall.ps1
+```

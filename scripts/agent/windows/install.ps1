@@ -15,6 +15,33 @@ function Assert-Admin {
     }
 }
 
+function Show-Message {
+    param(
+        [string]$Message,
+        [string]$Title = "Sistema Chamados Agent"
+    )
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        [System.Windows.Forms.MessageBox]::Show($Message, $Title, [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+    } catch {
+        Write-Host $Message
+    }
+}
+
+function Read-Input {
+    param(
+        [string]$Prompt,
+        [string]$Title = "Sistema Chamados Agent",
+        [string]$Default = ""
+    )
+    try {
+        Add-Type -AssemblyName Microsoft.VisualBasic
+        return [Microsoft.VisualBasic.Interaction]::InputBox($Prompt, $Title, $Default)
+    } catch {
+        return Read-Host $Prompt
+    }
+}
+
 function Normalize-ServerUrl([string]$value) {
     $value = $value.Trim()
     if (-not $value) {
@@ -68,18 +95,39 @@ function Register-AgentTask {
     }
 }
 
+function Register-UninstallEntry {
+    param(
+        [string]$InstallDir,
+        [string]$UninstallScript
+    )
+
+    $keyPath = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent"
+    New-Item -Path $keyPath -Force | Out-Null
+    New-ItemProperty -Path $keyPath -Name "DisplayName" -Value "Sistema Chamados Agent" -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.0.0" -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $keyPath -Name "Publisher" -Value "Sistema de Chamados" -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $keyPath -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $keyPath -Name "DisplayIcon" -Value "powershell.exe" -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $keyPath -Name "UninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`"" -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $keyPath -Name "QuietUninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`" -Silent" -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $keyPath -Name "NoModify" -Value 1 -PropertyType DWord -Force | Out-Null
+    New-ItemProperty -Path $keyPath -Name "NoRepair" -Value 1 -PropertyType DWord -Force | Out-Null
+}
+
 Assert-Admin
 
+Show-Message "Bem-vindo ao instalador do Agente de Inventario do Sistema de Chamados.`n`nEste assistente vai configurar o servidor, instalar o agente e criar as tarefas de coleta automatica."
+
 if (-not $ServerUrl) {
-    $ServerUrl = Read-Host "Informe o IP:porta ou URL do servidor (ex: 192.168.0.10:8000 ou https://chamados.local)"
+    $ServerUrl = Read-Input -Prompt "Informe o IP:porta ou URL do servidor.`nExemplos: 192.168.0.10:8000 ou https://chamados.local" -Default "http://"
 }
 
 if (-not $Token) {
-    $Token = Read-Host "Informe o token do agente configurado no servidor"
+    $Token = Read-Input -Prompt "Informe o token do agente configurado no servidor."
 }
 
 if (-not $NumeroSerieManual) {
-    $NumeroSerieManual = Read-Host "Numero de serie manual/patrimonio (opcional, Enter para usar o serial da BIOS)"
+    $NumeroSerieManual = Read-Input -Prompt "Numero de serie manual/patrimonio, se houver.`nDeixe em branco para usar o serial da BIOS."
 }
 
 $ServerUrl = Normalize-ServerUrl $ServerUrl
@@ -92,20 +140,27 @@ if ($IntervalHours -lt 1) {
 
 $installDir = Join-Path $env:ProgramData "SistemaChamadosAgent"
 $agentSource = Join-Path $PSScriptRoot "agent.ps1"
+$uninstallSource = Join-Path $PSScriptRoot "uninstall.ps1"
 $agentTarget = Join-Path $installDir "agent.ps1"
+$uninstallTarget = Join-Path $installDir "uninstall.ps1"
 $configPath = Join-Path $installDir "config.json"
 
 if (-not (Test-Path $agentSource)) {
     throw "agent.ps1 nao encontrado junto do instalador."
 }
+if (-not (Test-Path $uninstallSource)) {
+    throw "uninstall.ps1 nao encontrado junto do instalador."
+}
 
 New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 Copy-Item -Path $agentSource -Destination $agentTarget -Force
+Copy-Item -Path $uninstallSource -Destination $uninstallTarget -Force
 Write-ConfigJson -Path $configPath -ServerUrl $ServerUrl -Token $Token.Trim() -NumeroSerieManual $NumeroSerieManual.Trim() -IntervalHours $IntervalHours
 
 $psCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$agentTarget`" -ConfigPath `"$configPath`""
 Register-AgentTask -TaskName "SistemaChamadosAgentStartup" -Schedule "ONSTART" -Modifier 1 -Command $psCommand
 Register-AgentTask -TaskName "SistemaChamadosAgentInterval" -Schedule "HOURLY" -Modifier $IntervalHours -Command $psCommand
+Register-UninstallEntry -InstallDir $installDir -UninstallScript $uninstallTarget
 
 Write-Host ""
 Write-Host "Agente instalado com sucesso." -ForegroundColor Green
@@ -119,3 +174,5 @@ Write-Host ""
 Write-Host "Executando primeira coleta..."
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $agentTarget -ConfigPath $configPath
 Write-Host "Primeira coleta concluida."
+
+Show-Message "Agente instalado com sucesso.`n`nServidor: $ServerUrl`nPasta: $installDir`n`nEle agora aparece no Painel de Controle para desinstalacao."

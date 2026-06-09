@@ -15,7 +15,7 @@ if (Test-Path $packageDir) {
 }
 New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
 
-foreach ($file in @("agent.ps1", "install.ps1", "install.cmd")) {
+foreach ($file in @("agent.ps1", "install.ps1", "install.cmd", "uninstall.ps1")) {
     Copy-Item -Path (Join-Path $baseDir $file) -Destination (Join-Path $packageDir $file) -Force
 }
 
@@ -61,12 +61,14 @@ UserQuietInstCmd=
 FILE0=agent.ps1
 FILE1=install.ps1
 FILE2=install.cmd
+FILE3=uninstall.ps1
 [SourceFiles]
 SourceFiles0=$packageDir
 [SourceFiles0]
 %FILE0%=
 %FILE1%=
 %FILE2%=
+%FILE3%=
 "@
 
 $sed | Out-File -FilePath $sedPath -Encoding ASCII -Force
