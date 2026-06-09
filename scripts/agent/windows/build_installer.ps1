@@ -51,7 +51,7 @@ SourceFiles=SourceFiles
 [Strings]
 InstallPrompt=
 DisplayLicense=
-FinishMessage=Instalacao do agente concluida.
+FinishMessage=
 TargetName=$exePath
 FriendlyName=Sistema Chamados Agent Setup
 AppLaunched=powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File install_gui.ps1

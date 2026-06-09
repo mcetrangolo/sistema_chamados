@@ -17,6 +17,24 @@ function Quote-Arg([string]$value) {
     return '"' + ($value -replace '"', '\"') + '"'
 }
 
+function Show-Message {
+    param(
+        [string]$Message,
+        [string]$Title = "Sistema Chamados Agent"
+    )
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        [System.Windows.Forms.MessageBox]::Show(
+            $Message,
+            $Title,
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Information
+        ) | Out-Null
+    } catch {
+        Write-Host $Message
+    }
+}
+
 $installScript = Join-Path $PSScriptRoot "install.ps1"
 if (-not (Test-Path $installScript)) {
     try {
@@ -50,6 +68,7 @@ if ($NumeroSerieManual) {
 }
 
 if (-not (Test-Admin)) {
+    Show-Message "O Windows vai solicitar permissao de Administrador para instalar o agente.`n`nDepois de confirmar o UAC, aguarde as proximas telas de configuracao."
     Start-Process -FilePath "powershell.exe" -ArgumentList $argsList -Verb RunAs -WindowStyle Hidden
     exit 0
 }

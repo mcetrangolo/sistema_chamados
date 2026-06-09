@@ -109,7 +109,7 @@ function Register-UninstallEntry {
     foreach ($keyPath in $keyPaths) {
         New-Item -Path $keyPath -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayName" -Value "Sistema Chamados Agent" -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.0.2" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.0.3" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "Publisher" -Value "Sistema de Chamados" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayIcon" -Value "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force | Out-Null
