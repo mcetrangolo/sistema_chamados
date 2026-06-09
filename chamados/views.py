@@ -594,7 +594,6 @@ class CatalogoServicoListView(ListView):
     def get_queryset(self):
         queryset = (
             ServicoCatalogo.objects.filter(ativo=True)
-            .exclude(slug__in=["novo-usuario-de-rede", "acesso-a-internetwi-fi"])
             .select_related("categoria", "topico_ajuda")
         )
         q = self.request.GET.get("q", "").strip()
