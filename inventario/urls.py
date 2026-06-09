@@ -9,6 +9,7 @@ urlpatterns = [
     path("agente/coleta/", views.receber_coleta_agente, name="agente_coleta"),
     path("agente/configuracao/", views.configuracao_agente, name="agente_config"),
     path("agente/windows/download/", views.baixar_agente_windows, name="agente_windows_download"),
+    path("agente/linux/download/", views.baixar_agente_linux, name="agente_linux_download"),
     path("", views.InventarioPainelView.as_view(), name="painel"),
     path("ativos/", views.AtivoRedeListView.as_view(), name="ativos"),
     path("ativos/exportar/xls/", views.exportar_ativos_xls, name="ativos_xls"),

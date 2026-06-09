@@ -10,6 +10,7 @@
     {% if user.is_superuser %}
       <a class="btn btn-outline-secondary" href="{% url 'inventario:agente_config' %}">Configurar agente</a>
     {% endif %}
+    <a class="btn btn-outline-primary" href="{% url 'inventario:agente_linux_download' %}">Baixar agente Linux</a>
     <a class="btn btn-outline-primary" href="{% url 'inventario:agente_windows_download' %}">Baixar agente Windows</a>
     <a class="btn btn-primary" href="{% url 'inventario:ativo_novo' %}">Novo ativo</a>
   </div>

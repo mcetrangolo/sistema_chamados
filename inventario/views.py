@@ -30,6 +30,7 @@ from .services import descobrir_por_faixa
 
 
 AGENTE_WINDOWS_EXE = "SistemaChamadosAgentSetup.exe"
+AGENTE_LINUX_INSTALLER = "install.sh"
 
 
 def _ips_rede_local():
@@ -48,6 +49,11 @@ def _normalizar_texto(valor, limite=250):
     if valor is None:
         return ""
     return str(valor).strip()[:limite]
+
+
+def _base_url_agente(request):
+    url_detectada = request.build_absolute_uri("/").rstrip("/")
+    return settings.PUBLIC_BASE_URL or url_detectada
 
 
 def _decimal_ou_none(valor):
@@ -76,11 +82,25 @@ def baixar_agente_windows(request):
 
 
 @login_required
+def baixar_agente_linux(request):
+    caminho = (settings.BASE_DIR / "scripts" / "agent" / "linux" / AGENTE_LINUX_INSTALLER).resolve()
+    base_linux = (settings.BASE_DIR / "scripts" / "agent" / "linux").resolve()
+    if not str(caminho).startswith(str(base_linux)) or not caminho.exists():
+        raise Http404("Instalador Linux do agente nao encontrado.")
+    conteudo = caminho.read_text(encoding="utf-8")
+    conteudo = conteudo.replace("__AGENT_TOKEN_DEFAULT__", settings.INVENTARIO_AGENT_TOKEN)
+    conteudo = conteudo.replace("__SERVER_URL_DEFAULT__", _base_url_agente(request))
+    response = HttpResponse(conteudo, content_type="text/x-shellscript; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="sistema-chamados-agent-linux.sh"'
+    return response
+
+
+@login_required
 @user_passes_test(lambda user: user.is_superuser)
 def configuracao_agente(request):
     caminho = (settings.BASE_DIR / "dist" / AGENTE_WINDOWS_EXE).resolve()
     url_detectada = request.build_absolute_uri("/").rstrip("/")
-    base_url = settings.PUBLIC_BASE_URL or url_detectada
+    base_url = _base_url_agente(request)
     porta = request.get_port()
     esquema = "https" if request.is_secure() else "http"
     ips_rede = _ips_rede_local()
@@ -88,10 +108,12 @@ def configuracao_agente(request):
     usa_endereco_local = "localhost" in base_url.lower() or "127.0.0.1" in base_url
     endpoint = f"{base_url}/inventario/agente/coleta/"
     download_url = f"{base_url}/inventario/agente/windows/download/"
+    linux_download_url = f"{base_url}/inventario/agente/linux/download/"
     contexto = {
         "token": settings.INVENTARIO_AGENT_TOKEN,
         "endpoint": endpoint,
         "download_url": download_url,
+        "linux_download_url": linux_download_url,
         "url_detectada": url_detectada,
         "public_base_url": settings.PUBLIC_BASE_URL,
         "bases_sugeridas": bases_sugeridas,
