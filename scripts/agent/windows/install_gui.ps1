@@ -17,6 +17,14 @@ function Quote-Arg([string]$value) {
     return '"' + ($value -replace '"', '\"') + '"'
 }
 
+function Get-PowerShellPath {
+    $candidate = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+    if (Test-Path $candidate) {
+        return $candidate
+    }
+    return "powershell.exe"
+}
+
 function Show-Message {
     param(
         [string]$Message,
@@ -68,27 +76,22 @@ if (-not (Test-Path $installScript)) {
     exit 1
 }
 
-$argsList = @(
-    "-NoProfile",
-    "-ExecutionPolicy", "Bypass",
-    "-WindowStyle", "Hidden",
-    "-File", (Quote-Arg $installScript),
-    "-Token", (Quote-Arg $Token),
-    "-IntervalHours", $IntervalHours
-)
+$argsList = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File $(Quote-Arg $installScript) -Token $(Quote-Arg $Token) -IntervalHours $IntervalHours"
 
 if ($ServerUrl) {
-    $argsList += @("-ServerUrl", (Quote-Arg $ServerUrl))
+    $argsList += " -ServerUrl $(Quote-Arg $ServerUrl)"
 }
 if ($NumeroSerieManual) {
-    $argsList += @("-NumeroSerieManual", (Quote-Arg $NumeroSerieManual))
+    $argsList += " -NumeroSerieManual $(Quote-Arg $NumeroSerieManual)"
 }
+
+$powershellPath = Get-PowerShellPath
 
 if (-not (Test-Admin)) {
     Show-Message "O Windows vai solicitar permissao de Administrador para instalar o agente.`n`nDepois de confirmar o UAC, aguarde as proximas telas de configuracao."
-    Start-Process -FilePath "powershell.exe" -ArgumentList $argsList -Verb RunAs -WindowStyle Hidden
+    Start-Process -FilePath $powershellPath -ArgumentList $argsList -Verb RunAs -WindowStyle Hidden
     exit 0
 }
 
-$process = Start-Process -FilePath "powershell.exe" -ArgumentList $argsList -WindowStyle Hidden -Wait -PassThru
+$process = Start-Process -FilePath $powershellPath -ArgumentList $argsList -WindowStyle Hidden -Wait -PassThru
 exit $process.ExitCode
