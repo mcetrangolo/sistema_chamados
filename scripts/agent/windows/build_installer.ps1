@@ -9,33 +9,12 @@ $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectDir = Resolve-Path (Join-Path $baseDir "..\..\..")
 $outputDirFull = (New-Item -ItemType Directory -Path $OutputDir -Force).FullName
 $packageDir = Join-Path $outputDirFull "SistemaChamadosAgentPackage"
-$sedPath = Join-Path $outputDirFull "SistemaChamadosAgentSetup.sed"
 $exePath = Join-Path $outputDirFull $OutputName
 
 if (Test-Path $packageDir) {
     Remove-Item -Path $packageDir -Recurse -Force
 }
 New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
-
-foreach ($file in @("agent.ps1", "install.ps1", "install_gui.ps1", "install_launcher.vbs", "install.cmd", "uninstall.ps1")) {
-    Copy-Item -Path (Join-Path $baseDir $file) -Destination (Join-Path $packageDir $file) -Force
-}
-
-$csc = @(
-    (Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe"),
-    (Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"),
-    (Join-Path $env:WINDIR "Microsoft.NET\Framework\v3.5\csc.exe")
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $csc) {
-    throw "Compilador C# do .NET Framework nao encontrado. Nao foi possivel gerar o launcher grafico."
-}
-
-$launcherSource = Join-Path $baseDir "AgentSetupLauncher.cs"
-$launcherExe = Join-Path $packageDir "AgentSetupLauncher.exe"
-& $csc /nologo /target:winexe /out:$launcherExe /reference:System.Windows.Forms.dll $launcherSource
-if (-not (Test-Path $launcherExe)) {
-    throw "Nao foi possivel compilar AgentSetupLauncher.exe."
-}
 
 if (-not $AgentToken) {
     $envPath = Join-Path $projectDir ".env"
@@ -50,80 +29,35 @@ if (-not $AgentToken) {
     $AgentToken = "sistema-chamados-agent-local"
 }
 
-$escapedToken = $AgentToken.Replace("\", "\\").Replace('"', '\"')
-foreach ($script in @("install.ps1", "install_gui.ps1")) {
-    $scriptPath = Join-Path $packageDir $script
-    $content = Get-Content $scriptPath -Raw
-    $content = $content -replace '\[string\]\$Token = ".*?"', "[string]`$Token = `"$escapedToken`""
-    $content | Out-File -FilePath $scriptPath -Encoding UTF8 -Force
+function Convert-ToBase64Utf8([string]$Path) {
+    $text = Get-Content $Path -Raw
+    return [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($text))
 }
 
-$iexpress = Join-Path $env:WINDIR "System32\iexpress.exe"
-if (-not (Test-Path $iexpress)) {
-    Write-Warning "IExpress nao encontrado. Distribua a pasta: $packageDir"
-    exit 0
-}
-$sed = @"
-[Version]
-Class=IEXPRESS
-SEDVersion=3
-[Options]
-PackagePurpose=InstallApp
-ShowInstallProgramWindow=0
-HideExtractAnimation=1
-UseLongFileName=1
-InsideCompressed=0
-CAB_FixedSize=0
-CAB_ResvCodeSigning=0
-RebootMode=N
-InstallPrompt=%InstallPrompt%
-DisplayLicense=%DisplayLicense%
-FinishMessage=%FinishMessage%
-TargetName=%TargetName%
-FriendlyName=%FriendlyName%
-AppLaunched=%AppLaunched%
-PostInstallCmd=%PostInstallCmd%
-AdminQuietInstCmd=%AdminQuietInstCmd%
-UserQuietInstCmd=%UserQuietInstCmd%
-SourceFiles=SourceFiles
-[Strings]
-InstallPrompt=
-DisplayLicense=
-FinishMessage=
-TargetName=$exePath
-FriendlyName=Sistema Chamados Agent Setup
-AppLaunched=AgentSetupLauncher.exe
-PostInstallCmd=<None>
-AdminQuietInstCmd=
-UserQuietInstCmd=
-FILE0=agent.ps1
-FILE1=install.ps1
-FILE2=install_gui.ps1
-FILE3=install_launcher.vbs
-FILE4=install.cmd
-FILE5=uninstall.ps1
-FILE6=AgentSetupLauncher.exe
-[SourceFiles]
-SourceFiles0=$packageDir
-[SourceFiles0]
-%FILE0%=
-%FILE1%=
-%FILE2%=
-%FILE3%=
-%FILE4%=
-%FILE5%=
-%FILE6%=
-"@
+$agentScript = Convert-ToBase64Utf8 (Join-Path $baseDir "agent.ps1")
+$uninstallScript = Convert-ToBase64Utf8 (Join-Path $baseDir "uninstall.ps1")
+$templatePath = Join-Path $baseDir "AgentStandaloneInstaller.template.cs"
+$generatedSource = Join-Path $packageDir "AgentStandaloneInstaller.cs"
 
-$sed | Out-File -FilePath $sedPath -Encoding ASCII -Force
-& $iexpress /N /Q $sedPath
+$source = Get-Content $templatePath -Raw
+$source = $source.Replace("__AGENT_TOKEN__", $AgentToken.Replace("\", "\\").Replace('"', '\"'))
+$source = $source.Replace("__AGENT_SCRIPT_BASE64__", $agentScript)
+$source = $source.Replace("__UNINSTALL_SCRIPT_BASE64__", $uninstallScript)
+$source | Out-File -FilePath $generatedSource -Encoding UTF8 -Force
 
-for ($i = 0; $i -lt 10 -and -not (Test-Path $exePath); $i++) {
-    Start-Sleep -Milliseconds 500
+$csc = @(
+    (Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe"),
+    (Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"),
+    (Join-Path $env:WINDIR "Microsoft.NET\Framework\v3.5\csc.exe")
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $csc) {
+    throw "Compilador C# do .NET Framework nao encontrado. Nao foi possivel gerar o instalador grafico."
 }
+
+& $csc /nologo /target:winexe /out:$exePath /reference:System.Windows.Forms.dll $generatedSource
 
 if (Test-Path $exePath) {
-    Write-Host "Instalador criado: $exePath" -ForegroundColor Green
+    Write-Host "Instalador standalone criado: $exePath" -ForegroundColor Green
 } else {
-    throw "IExpress executou, mas o EXE nao foi encontrado: $exePath"
+    throw "Compilacao executou, mas o EXE nao foi encontrado: $exePath"
 }

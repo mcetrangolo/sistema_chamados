@@ -23,7 +23,7 @@ O arquivo será gerado em:
 dist\SistemaChamadosAgentSetup.exe
 ```
 
-Se o Windows não tiver IExpress, distribua a pasta indicada pelo script e execute `install_gui.ps1`.
+O instalador atual e um `.exe` standalone compilado em C#, sem IExpress. Ele nao depende de arquivos temporarios extraidos pelo Windows para iniciar.
 
 ## Instalar manualmente
 
@@ -40,7 +40,7 @@ Por padrao, o token ja vai embutido no instalador local. Se o servidor usar outr
 
 O instalador exibe janelas simples de boas-vindas e configuração. Ao final, o agente fica registrado em **Painel de Controle > Programas e Recursos** como `Sistema Chamados Agent`.
 
-O pacote `.exe` inicia pelo `AgentSetupLauncher.exe`, um launcher grafico sem console que copia os arquivos para uma pasta temporaria estavel, solicita permissao de Administrador via UAC e executa o PowerShell oculto para evitar a janela preta de console.
+O pacote `.exe` grava os scripts internos em `C:\ProgramData\SistemaChamadosAgent`, solicita permissao de Administrador via UAC, cria as tarefas agendadas e executa a primeira coleta sem janela preta de console.
 
 ## Tarefas criadas
 
