@@ -212,6 +212,17 @@ class PainelView(LoginRequiredMixin, TemplateView):
                 status__in=[Chamado.Status.RESOLVIDO, Chamado.Status.ENCERRADO, Chamado.Status.CANCELADO]
             ).count(),
             "reabertos": chamados.filter(comentarios__mensagem__icontains="reabertura").distinct().count(),
+            "nao_atribuidos": abertos.filter(tecnico_responsavel__isnull=True).count(),
+            "criticos": abertos.filter(prioridade=Chamado.Prioridade.CRITICA).count(),
+            "sem_primeira_resposta": abertos.filter(primeira_resposta_em__isnull=True).count(),
+        }
+        total_com_sla = abertos.filter(vencimento_em__isnull=False).count()
+        dentro_sla = abertos.filter(vencimento_em__gte=timezone.now()).count()
+        context["sla_operacional"] = {
+            "total_com_sla": total_com_sla,
+            "dentro": dentro_sla,
+            "fora": context["contadores"]["atrasados"],
+            "percentual": round((dentro_sla / total_com_sla) * 100, 1) if total_com_sla else None,
         }
         context["ultimos_chamados"] = Chamado.objects.select_related(
             "setor", "categoria", "tecnico_responsavel"
@@ -249,6 +260,10 @@ class PainelView(LoginRequiredMixin, TemplateView):
                 .annotate(total=Count("id"))
                 .order_by("tecnico_responsavel__username")
             ],
+        }
+        context["tipo_chart"] = {
+            "labels": [label for _, label in Chamado.Tipo.choices],
+            "data": [chamados.filter(tipo=value).count() for value, _ in Chamado.Tipo.choices],
         }
         context["avaliacao_media"] = chamados.filter(avaliacao__isnull=False).aggregate(
             media=Avg("avaliacao__nota")

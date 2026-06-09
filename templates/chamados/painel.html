@@ -1,14 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Gestão | Sistema de Chamados{% endblock %}
+{% load chamados_extras %}
+{% block title %}Gestao | Sistema de Chamados{% endblock %}
 {% block content %}
 {{ status_chart|json_script:"status-chart-data" }}
 {{ categoria_chart|json_script:"categoria-chart-data" }}
 {{ tecnico_chart|json_script:"tecnico-chart-data" }}
+{{ tipo_chart|json_script:"tipo-chart-data" }}
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="page-heading mb-4">
   <div>
-    <h1 class="h3 mb-0">Gestão de chamados</h1>
-    <p class="text-secondary mb-0">Visão operacional no estilo service desk.</p>
+    <span class="section-label">Service desk</span>
+    <h1>Gestao de chamados</h1>
+    <p>Visao operacional com filas, SLA, criticidade e produtividade.</p>
   </div>
   <div class="d-flex gap-2">
     <a class="btn btn-outline-primary" href="{% url 'chamados:lista' %}">Fila de chamados</a>
@@ -24,29 +27,37 @@
   <div class="col-6 col-xl-2"><div class="metric"><span>Resolvidos</span><strong>{{ contadores.resolvidos }}</strong></div></div>
   <div class="col-6 col-xl-2"><div class="metric"><span>Encerrados</span><strong>{{ contadores.encerrados }}</strong></div></div>
 </div>
+
 <div class="row g-3 mb-4">
-  <div class="col-md-4"><div class="metric"><span>Atrasados</span><strong>{{ contadores.atrasados }}</strong></div></div>
-  <div class="col-md-4"><div class="metric"><span>Reabertos</span><strong>{{ contadores.reabertos }}</strong></div></div>
-  <div class="col-md-4"><div class="metric"><span>Avaliação média</span><strong>{% if avaliacao_media %}{{ avaliacao_media|floatformat:1 }}{% else %}-{% endif %}</strong></div></div>
+  <div class="col-md-3"><a class="metric metric-link metric-danger" href="{% url 'chamados:fila' 'atrasados' %}"><span>SLA vencido</span><strong>{{ contadores.atrasados }}</strong></a></div>
+  <div class="col-md-3"><a class="metric metric-link metric-warning" href="{% url 'chamados:fila' 'nao-atribuidos' %}"><span>Nao atribuidos</span><strong>{{ contadores.nao_atribuidos }}</strong></a></div>
+  <div class="col-md-3"><div class="metric metric-danger"><span>Criticos abertos</span><strong>{{ contadores.criticos }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Sem 1a resposta</span><strong>{{ contadores.sem_primeira_resposta }}</strong></div></div>
 </div>
 
 <div class="row g-4 mb-4">
-  <div class="col-lg-4">
+  <div class="col-lg-3">
     <section class="chart-panel">
       <h2 class="h6">Chamados por status</h2>
       <canvas id="statusChart" height="220"></canvas>
     </section>
   </div>
-  <div class="col-lg-4">
+  <div class="col-lg-3">
     <section class="chart-panel">
       <h2 class="h6">Chamados por categoria</h2>
       <canvas id="categoriaChart" height="220"></canvas>
     </section>
   </div>
-  <div class="col-lg-4">
+  <div class="col-lg-3">
     <section class="chart-panel">
       <h2 class="h6">Chamados por atendente</h2>
       <canvas id="tecnicoChart" height="220"></canvas>
+    </section>
+  </div>
+  <div class="col-lg-3">
+    <section class="chart-panel">
+      <h2 class="h6">Tipos de chamado</h2>
+      <canvas id="tipoChart" height="220"></canvas>
     </section>
   </div>
 </div>
@@ -55,18 +66,19 @@
   <div class="col-xl-8">
     <section class="detail-section">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h2 class="h5 mb-0">Últimos chamados</h2>
+        <h2 class="h5 mb-0">Ultimos chamados</h2>
         <a href="{% url 'chamados:lista' %}">Ver todos</a>
       </div>
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
           <thead>
             <tr>
-              <th>Número</th>
+              <th>Numero</th>
               <th>Solicitante</th>
               <th>Setor</th>
               <th>Prioridade</th>
               <th>Status</th>
+              <th>SLA</th>
               <th>Atendente</th>
             </tr>
           </thead>
@@ -76,12 +88,13 @@
                 <td><a href="{{ chamado.get_absolute_url }}">{{ chamado.numero }}</a></td>
                 <td>{{ chamado.nome_solicitante }}</td>
                 <td>{{ chamado.setor }}</td>
-                <td>{{ chamado.get_prioridade_display }}</td>
-                <td><span class="badge text-bg-light">{{ chamado.get_status_display }}</span></td>
-                <td>{{ chamado.tecnico_responsavel|default:"Não atribuído" }}</td>
+                <td><span class="badge {{ chamado.prioridade|prioridade_badge }}">{{ chamado.get_prioridade_display }}</span></td>
+                <td><span class="badge {{ chamado.status|status_badge }}">{{ chamado.get_status_display }}</span></td>
+                <td><span class="badge {{ chamado|sla_badge }}">{{ chamado|sla_estado }}</span></td>
+                <td>{{ chamado.tecnico_responsavel|default:"Nao atribuido" }}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="6" class="text-center text-secondary py-4">Nenhum chamado cadastrado.</td></tr>
+              <tr><td colspan="7" class="text-center text-secondary py-4">Nenhum chamado cadastrado.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -89,6 +102,20 @@
     </section>
   </div>
   <div class="col-xl-4">
+    <section class="detail-section">
+      <h2 class="h5">SLA operacional</h2>
+      <div class="sla-summary">
+        <strong>{% if sla_operacional.percentual != None %}{{ sla_operacional.percentual }}%{% else %}-{% endif %}</strong>
+        <span>dentro do prazo em chamados abertos com SLA</span>
+      </div>
+      <div class="progress mt-3" role="progressbar" aria-label="SLA operacional">
+        <div class="progress-bar" style="width: {% if sla_operacional.percentual != None %}{{ sla_operacional.percentual|stringformat:'s' }}{% else %}0{% endif %}%"></div>
+      </div>
+      <div class="d-flex justify-content-between text-secondary small mt-2">
+        <span>No prazo: {{ sla_operacional.dentro }}</span>
+        <span>Fora: {{ sla_operacional.fora }}</span>
+      </div>
+    </section>
     <section class="detail-section">
       <h2 class="h5">Backlog por prioridade</h2>
       <table class="table table-sm mb-0">
@@ -121,7 +148,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-  const chartOptions = { responsive: true, plugins: { legend: { position: "bottom" } } };
+  const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } };
+  const palette = ["#155eef", "#16875d", "#b7791f", "#c2413d", "#6f42c1", "#0f766e", "#64748b", "#ea580c"];
   function loadChartData(id) {
     return JSON.parse(document.getElementById(id).textContent);
   }
@@ -129,18 +157,13 @@
     const data = loadChartData(dataId);
     new Chart(document.getElementById(canvasId), {
       type,
-      data: {
-        labels: data.labels,
-        datasets: [{
-          data: data.data,
-          backgroundColor: ["#0d6efd", "#20c997", "#ffc107", "#dc3545", "#6f42c1", "#198754", "#fd7e14", "#6c757d"]
-        }]
-      },
+      data: { labels: data.labels, datasets: [{ data: data.data, backgroundColor: palette }] },
       options: chartOptions
     });
   }
   buildChart("statusChart", "status-chart-data", "doughnut");
   buildChart("categoriaChart", "categoria-chart-data", "bar");
   buildChart("tecnicoChart", "tecnico-chart-data", "bar");
+  buildChart("tipoChart", "tipo-chart-data", "doughnut");
 </script>
 {% endblock %}

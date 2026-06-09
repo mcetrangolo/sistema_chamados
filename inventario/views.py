@@ -3,6 +3,7 @@ import json
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Q
 from django.http import FileResponse, Http404, JsonResponse, HttpResponse
@@ -59,6 +60,29 @@ def baixar_agente_windows(request):
         filename=AGENTE_WINDOWS_EXE,
         content_type="application/vnd.microsoft.portable-executable",
     )
+
+
+@login_required
+@user_passes_test(lambda user: user.is_superuser)
+def configuracao_agente(request):
+    caminho = (settings.BASE_DIR / "dist" / AGENTE_WINDOWS_EXE).resolve()
+    endpoint = request.build_absolute_uri("/inventario/agente/coleta/")
+    download_url = request.build_absolute_uri("/inventario/agente/windows/download/")
+    contexto = {
+        "token": settings.INVENTARIO_AGENT_TOKEN,
+        "endpoint": endpoint,
+        "download_url": download_url,
+        "instalador_existe": caminho.exists(),
+        "instalador_nome": AGENTE_WINDOWS_EXE,
+        "instalador_tamanho": caminho.stat().st_size if caminho.exists() else None,
+        "instalador_atualizado_em": timezone.datetime.fromtimestamp(
+            caminho.stat().st_mtime,
+            tz=timezone.get_current_timezone(),
+        )
+        if caminho.exists()
+        else None,
+    }
+    return TemplateView.as_view(template_name="inventario/agente_config.html")(request, **contexto)
 
 
 @csrf_exempt

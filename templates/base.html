@@ -58,6 +58,9 @@
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="{% url 'inventario:painel' %}">Painel</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:ativos' %}">Ativos</a></li>
+              {% if user.is_superuser %}
+                <li><a class="dropdown-item" href="{% url 'inventario:agente_config' %}">Agente Windows</a></li>
+              {% endif %}
               <li><a class="dropdown-item" href="{% url 'inventario:faixas' %}">Faixas de rede</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:agendamentos' %}">Agendamentos</a></li>
             </ul>

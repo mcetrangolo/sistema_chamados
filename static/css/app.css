@@ -289,6 +289,26 @@ a {
   text-align: center;
 }
 
+.page-heading {
+  align-items: flex-end;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.page-heading h1 {
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.1;
+  margin: .2rem 0 .35rem;
+}
+
+.page-heading p {
+  color: var(--muted);
+  margin: 0;
+}
+
 .login-page {
   min-height: 100vh;
   display: grid;
@@ -332,6 +352,27 @@ a {
 
 .metric {
   border-top: 3px solid var(--primary);
+}
+
+.metric-link {
+  color: var(--text);
+  display: block;
+  transition: border-color .15s ease, transform .15s ease;
+}
+
+.metric-link:hover,
+.metric-link:focus {
+  border-color: var(--primary);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.metric-warning {
+  border-top-color: var(--warning);
+}
+
+.metric-danger {
+  border-top-color: var(--danger);
 }
 
 .metric span {
@@ -446,6 +487,65 @@ a {
 
 .chart-panel canvas {
   max-height: 260px;
+}
+
+.sla-summary {
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .9rem;
+}
+
+.sla-summary strong,
+.sla-summary span {
+  display: block;
+}
+
+.sla-summary strong {
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.sla-summary span {
+  color: var(--muted);
+  margin-top: .25rem;
+}
+
+.config-list {
+  display: grid;
+  gap: .75rem;
+  margin: 0 0 1rem;
+}
+
+.config-list dt {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.config-list dd {
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: .25rem 0 0;
+  overflow: auto;
+  padding: .75rem;
+}
+
+.agent-package-ok {
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  color: #14532d;
+  display: grid;
+  gap: .2rem;
+  padding: .9rem;
+}
+
+.agent-package-ok strong,
+.agent-package-ok span {
+  display: block;
 }
 
 .public-page {
@@ -777,6 +877,7 @@ a {
   }
 
   .public-header,
+  .page-heading,
   .form-footer,
   .ticket-title {
     align-items: stretch;
@@ -784,6 +885,7 @@ a {
   }
 
   .public-actions,
+  .page-heading .btn,
   .form-footer .btn {
     width: 100%;
   }

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load chamados_extras %}
 {% block title %}Chamados | Sistema de Chamados{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -78,10 +79,15 @@
           <td>{{ chamado.nome_solicitante }}</td>
           <td>{{ chamado.setor }}</td>
           <td>{{ chamado.topico_ajuda|default:"-" }}</td>
-          <td>{{ chamado.get_prioridade_display }}</td>
-          <td><span class="badge text-bg-light">{{ chamado.get_status_display }}</span></td>
+          <td><span class="badge {{ chamado.prioridade|prioridade_badge }}">{{ chamado.get_prioridade_display }}</span></td>
+          <td><span class="badge {{ chamado.status|status_badge }}">{{ chamado.get_status_display }}</span></td>
           <td>{{ chamado.tecnico_responsavel|default:"-" }}</td>
-          <td>{% if chamado.atrasado %}<span class="badge text-bg-danger">Atrasado</span>{% elif chamado.vencimento_em %}{{ chamado.vencimento_em|date:"d/m/Y H:i" }}{% else %}-{% endif %}</td>
+          <td>
+            <span class="badge {{ chamado|sla_badge }}">{{ chamado|sla_estado }}</span>
+            {% if chamado.vencimento_em %}
+              <span class="d-block small text-secondary mt-1">{{ chamado.vencimento_em|date:"d/m/Y H:i" }}</span>
+            {% endif %}
+          </td>
           <td>{{ chamado.criado_em|date:"d/m/Y H:i" }}</td>
         </tr>
       {% empty %}
