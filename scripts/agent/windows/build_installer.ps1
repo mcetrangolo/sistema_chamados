@@ -15,7 +15,7 @@ if (Test-Path $packageDir) {
 }
 New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
 
-foreach ($file in @("agent.ps1", "install.ps1", "install.cmd", "uninstall.ps1")) {
+foreach ($file in @("agent.ps1", "install.ps1", "install_gui.ps1", "install.cmd", "uninstall.ps1")) {
     Copy-Item -Path (Join-Path $baseDir $file) -Destination (Join-Path $packageDir $file) -Force
 }
 
@@ -31,8 +31,8 @@ Class=IEXPRESS
 SEDVersion=3
 [Options]
 PackagePurpose=InstallApp
-ShowInstallProgramWindow=1
-HideExtractAnimation=0
+ShowInstallProgramWindow=0
+HideExtractAnimation=1
 UseLongFileName=1
 InsideCompressed=0
 CAB_FixedSize=0
@@ -54,14 +54,15 @@ DisplayLicense=
 FinishMessage=Instalacao do agente concluida.
 TargetName=$exePath
 FriendlyName=Sistema Chamados Agent Setup
-AppLaunched=install.cmd
+AppLaunched=powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File install_gui.ps1
 PostInstallCmd=<None>
 AdminQuietInstCmd=
 UserQuietInstCmd=
 FILE0=agent.ps1
 FILE1=install.ps1
-FILE2=install.cmd
-FILE3=uninstall.ps1
+FILE2=install_gui.ps1
+FILE3=install.cmd
+FILE4=uninstall.ps1
 [SourceFiles]
 SourceFiles0=$packageDir
 [SourceFiles0]
@@ -69,6 +70,7 @@ SourceFiles0=$packageDir
 %FILE1%=
 %FILE2%=
 %FILE3%=
+%FILE4%=
 "@
 
 $sed | Out-File -FilePath $sedPath -Encoding ASCII -Force

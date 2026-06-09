@@ -109,7 +109,7 @@ function Register-UninstallEntry {
     foreach ($keyPath in $keyPaths) {
         New-Item -Path $keyPath -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayName" -Value "Sistema Chamados Agent" -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.0.1" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.0.2" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "Publisher" -Value "Sistema de Chamados" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayIcon" -Value "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force | Out-Null
@@ -175,9 +175,14 @@ if ($NumeroSerieManual.Trim()) {
 }
 Write-Host "Pasta: $installDir"
 Write-Host "Tarefas agendadas: SistemaChamadosAgentStartup e SistemaChamadosAgentInterval"
-Write-Host ""
-Write-Host "Executando primeira coleta..."
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $agentTarget -ConfigPath $configPath
-Write-Host "Primeira coleta concluida."
+$coletaMensagem = "Primeira coleta concluida."
+try {
+    Write-Host ""
+    Write-Host "Executando primeira coleta..."
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $agentTarget -ConfigPath $configPath
+    Write-Host "Primeira coleta concluida."
+} catch {
+    $coletaMensagem = "Agente instalado, mas a primeira coleta nao conseguiu enviar dados ao servidor. Verifique endereco, porta, firewall e se o sistema esta acessivel pela rede."
+}
 
-Show-Message "Agente instalado com sucesso.`n`nServidor: $ServerUrl`nPasta: $installDir`n`nEle agora aparece no Painel de Controle para desinstalacao."
+Show-Message "Agente instalado com sucesso.`n`nServidor: $ServerUrl`nPasta: $installDir`n`n$coletaMensagem`n`nEle agora aparece no Painel de Controle para desinstalacao."

@@ -23,12 +23,12 @@ O arquivo será gerado em:
 dist\SistemaChamadosAgentSetup.exe
 ```
 
-Se o Windows não tiver IExpress, distribua a pasta indicada pelo script e execute `install.cmd`.
+Se o Windows não tiver IExpress, distribua a pasta indicada pelo script e execute `install_gui.ps1`.
 
 ## Instalar manualmente
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File .\install.ps1
+powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File .\install_gui.ps1
 ```
 
 O instalador pergunta:
@@ -39,6 +39,8 @@ O instalador pergunta:
 Por padrao, o token ja vai embutido no instalador local. Se o servidor usar outro token no `.env`, ajuste o valor no script e gere novamente o instalador.
 
 O instalador exibe janelas simples de boas-vindas e configuração. Ao final, o agente fica registrado em **Painel de Controle > Programas e Recursos** como `Sistema Chamados Agent`.
+
+O pacote `.exe` inicia pelo `install_gui.ps1`, solicita permissao de Administrador via UAC e executa o PowerShell oculto para evitar a janela preta de console.
 
 ## Tarefas criadas
 
