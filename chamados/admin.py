@@ -85,11 +85,12 @@ class ChamadoAdmin(admin.ModelAdmin):
         "prioridade",
         "status",
         "tecnico_responsavel",
+        "aprovacao_necessaria",
         "criado_em",
     )
     list_filter = ("status", "prioridade", "setor", "categoria", "equipe_responsavel", "tecnico_responsavel")
     search_fields = ("numero", "nome_solicitante", "email", "descricao")
-    readonly_fields = ("numero", "criado_em", "atualizado_em", "concluido_em")
+    readonly_fields = ("numero", "criado_em", "atualizado_em", "concluido_em", "aprovado_em")
     inlines = [HistoricoInline, ComentarioInline, AnexoInline, TarefaInline]
 
 
@@ -163,7 +164,7 @@ class AvaliacaoChamadoAdmin(admin.ModelAdmin):
 
 @admin.register(ServicoCatalogo)
 class ServicoCatalogoAdmin(admin.ModelAdmin):
-    list_display = ("nome", "categoria", "prioridade_padrao", "requer_aprovacao", "ativo")
+    list_display = ("nome", "categoria", "prioridade_padrao", "equipe_padrao", "requer_aprovacao", "ativo")
     list_filter = ("ativo", "categoria", "prioridade_padrao", "requer_aprovacao")
     search_fields = ("nome", "descricao", "instrucoes")
     prepopulated_fields = {"slug": ("nome",)}

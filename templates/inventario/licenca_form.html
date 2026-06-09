@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Licenca | Inventario{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Licenca de software</h1>
+  <a class="btn btn-outline-secondary" href="{% url 'inventario:licencas' %}">Cancelar</a>
+</div>
+<form method="post" class="detail-section">
+  {% csrf_token %}
+  {% include "chamados/partials/form_fields.html" %}
+  <button class="btn btn-primary" type="submit">Salvar</button>
+</form>
+{% endblock %}

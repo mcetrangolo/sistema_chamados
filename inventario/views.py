@@ -21,11 +21,25 @@ from .forms import (
     AgendamentoVarreduraForm,
     CredencialSNMPForm,
     FaixaRedeForm,
+    LicencaSoftwareForm,
     OcorrenciaAtivoForm,
+    RelacionamentoAtivoForm,
     TipoAtivoForm,
     VarreduraRedeForm,
 )
-from .models import AgendamentoVarredura, AtivoRede, CredencialSNMP, FaixaRede, InterfaceRede, MetodoDescoberta, OcorrenciaAtivo, TipoAtivo, VarreduraRede
+from .models import (
+    AgendamentoVarredura,
+    AtivoRede,
+    CredencialSNMP,
+    FaixaRede,
+    InterfaceRede,
+    LicencaSoftware,
+    MetodoDescoberta,
+    OcorrenciaAtivo,
+    RelacionamentoAtivo,
+    TipoAtivo,
+    VarreduraRede,
+)
 from .services import descobrir_por_faixa
 
 
@@ -274,6 +288,8 @@ class InventarioPainelView(LoginRequiredMixin, TemplateView):
             "online": ativos.filter(status=AtivoRede.Status.ONLINE).count(),
             "offline": ativos.filter(status=AtivoRede.Status.OFFLINE).count(),
             "snmp": ativos.filter(origem=AtivoRede.Origem.SNMP).count(),
+            "licencas": LicencaSoftware.objects.count(),
+            "relacoes": RelacionamentoAtivo.objects.count(),
         }
         context["por_tipo"] = ativos.values("tipo__nome").annotate(total=Count("id")).order_by("tipo__nome")
         context["ultimos_ativos"] = ativos.order_by("-atualizado_em")[:10]
@@ -409,13 +425,59 @@ class AtivoRedeDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return AtivoRede.objects.select_related("tipo", "setor").prefetch_related(
-            "interfaces", "ocorrencias", "chamados"
+            "interfaces", "ocorrencias", "chamados", "relacoes_origem__destino", "relacoes_destino__origem", "licencas"
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["ocorrencia_form"] = OcorrenciaAtivoForm()
+        context["relacionamento_form"] = RelacionamentoAtivoForm()
         return context
+
+
+class LicencaSoftwareListView(LoginRequiredMixin, ListView):
+    model = LicencaSoftware
+    template_name = "inventario/licenca_list.html"
+    context_object_name = "licencas"
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = LicencaSoftware.objects.prefetch_related("ativos")
+        q = self.request.GET.get("q", "").strip()
+        status = self.request.GET.get("status", "")
+        if q:
+            queryset = queryset.filter(Q(nome__icontains=q) | Q(fabricante__icontains=q) | Q(chave__icontains=q))
+        if status:
+            queryset = queryset.filter(status=status)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["status_choices"] = LicencaSoftware.Status.choices
+        context["filtros"] = self.request.GET
+        return context
+
+
+class LicencaSoftwareCreateView(LoginRequiredMixin, CreateView):
+    model = LicencaSoftware
+    form_class = LicencaSoftwareForm
+    template_name = "inventario/licenca_form.html"
+    success_url = reverse_lazy("inventario:licencas")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Licenca cadastrada com sucesso.")
+        return super().form_valid(form)
+
+
+class LicencaSoftwareUpdateView(LoginRequiredMixin, UpdateView):
+    model = LicencaSoftware
+    form_class = LicencaSoftwareForm
+    template_name = "inventario/licenca_form.html"
+    success_url = reverse_lazy("inventario:licencas")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Licenca atualizada com sucesso.")
+        return super().form_valid(form)
 
 
 @login_required
@@ -540,6 +602,21 @@ def registrar_ocorrencia(request, pk):
             messages.success(request, "Ocorrência registrada com sucesso.")
         else:
             messages.error(request, "Não foi possível registrar a ocorrência.")
+    return redirect(ativo)
+
+
+@login_required
+def registrar_relacionamento(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk)
+    if request.method == "POST":
+        form = RelacionamentoAtivoForm(request.POST)
+        if form.is_valid():
+            relacao = form.save(commit=False)
+            relacao.origem = ativo
+            relacao.save()
+            messages.success(request, "Relacionamento CMDB registrado.")
+        else:
+            messages.error(request, "Nao foi possivel registrar o relacionamento.")
     return redirect(ativo)
 
 

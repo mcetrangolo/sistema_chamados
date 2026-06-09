@@ -64,6 +64,22 @@
     </section>
   </div>
   <aside class="col-lg-4">
+    {% if aprovacao_pendente %}
+      <div class="side-panel mb-3">
+        <h2 class="h6">Aprovacao pendente</h2>
+        <p class="text-secondary small">Este chamado foi aberto pelo catalogo e aguarda decisao para seguir atendimento.</p>
+        <form method="post" action="{% url 'chamados:decidir_aprovacao' aprovacao_pendente.pk 'aprovar' %}" class="mb-2">
+          {% csrf_token %}
+          <textarea class="form-control mb-2" name="observacao" rows="2" placeholder="Observacao da aprovacao"></textarea>
+          <button class="btn btn-success w-100" type="submit">Aprovar</button>
+        </form>
+        <form method="post" action="{% url 'chamados:decidir_aprovacao' aprovacao_pendente.pk 'rejeitar' %}">
+          {% csrf_token %}
+          <textarea class="form-control mb-2" name="observacao" rows="2" placeholder="Motivo da rejeicao"></textarea>
+          <button class="btn btn-outline-danger w-100" type="submit">Rejeitar</button>
+        </form>
+      </div>
+    {% endif %}
     <div class="side-panel">
       <dl class="row mb-0">
         <dt class="col-5">Status</dt><dd class="col-7"><span class="badge {{ chamado.status|status_badge }}">{{ chamado.get_status_display }}</span></dd>

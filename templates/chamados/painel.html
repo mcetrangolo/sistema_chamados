@@ -35,6 +35,13 @@
   <div class="col-md-3"><div class="metric"><span>Sem 1a resposta</span><strong>{{ contadores.sem_primeira_resposta }}</strong></div></div>
 </div>
 
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><a class="metric metric-link metric-warning" href="{% url 'contratos:lista' %}?alerta=a_vencer"><span>Contratos a vencer</span><strong>{{ indicadores_executivos.contratos_a_vencer|default:0 }}</strong></a></div>
+  <div class="col-md-3"><a class="metric metric-link metric-danger" href="{% url 'contratos:lista' %}?alerta=vencidos"><span>Contratos vencidos</span><strong>{{ indicadores_executivos.contratos_vencidos|default:0 }}</strong></a></div>
+  <div class="col-md-3"><a class="metric metric-link" href="{% url 'inventario:ativos' %}"><span>Agentes sem coleta</span><strong>{{ indicadores_executivos.agentes_sem_coleta|default:0 }}</strong></a></div>
+  <div class="col-md-3"><a class="metric metric-link metric-danger" href="{% url 'inventario:licencas' %}?status=vencida"><span>Licencas vencidas</span><strong>{{ indicadores_executivos.licencas_vencidas|default:0 }}</strong></a></div>
+</div>
+
 <div class="row g-4 mb-4">
   <div class="col-lg-3">
     <section class="chart-panel">

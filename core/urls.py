@@ -12,4 +12,5 @@ urlpatterns = [
     path("backup/<str:nome>/baixar/", views.baixar_backup, name="backup_baixar"),
     path("atualizacoes/", views.AtualizacaoSistemaView.as_view(), name="atualizacoes"),
     path("servicos/", views.ControleServicosView.as_view(), name="servicos"),
+    path("auditoria/", views.AuditoriaListView.as_view(), name="auditoria"),
 ]

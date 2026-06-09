@@ -47,6 +47,8 @@
               <li><a class="dropdown-item" href="{% url 'chamados:fila' 'meus' %}">Meus chamados</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:fila' 'nao-atribuidos' %}">Não atribuídos</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:fila' 'atrasados' %}">Atrasados</a></li>
+              <li><a class="dropdown-item" href="{% url 'chamados:fila' 'problemas' %}">Problemas</a></li>
+              <li><a class="dropdown-item" href="{% url 'chamados:fila' 'mudancas' %}">Mudancas</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="{% url 'chamados:busca_global' %}">Busca global</a></li>
             </ul>
@@ -58,6 +60,7 @@
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="{% url 'inventario:painel' %}">Painel</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:ativos' %}">Ativos</a></li>
+              <li><a class="dropdown-item" href="{% url 'inventario:licencas' %}">Licencas de software</a></li>
               {% if user.is_superuser %}
                 <li><a class="dropdown-item" href="{% url 'inventario:agente_config' %}">Agente Windows</a></li>
               {% endif %}
@@ -71,7 +74,6 @@
             </a>
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="{% url 'chamados:relatorio' %}">Relatórios de chamados</a></li>
-              <li><a class="dropdown-item" href="{% url 'governanca:solicitacoes' %}">Solicitações de governança</a></li>
               <li><a class="dropdown-item" href="{% url 'contratos:lista' %}">Contratos públicos</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:catalogo' %}">Catálogo público de serviços</a></li>
             </ul>
@@ -88,6 +90,7 @@
               <li><a class="dropdown-item" href="{% url 'password_change' %}">Alterar minha senha</a></li>
               {% if user.is_superuser %}
                 <li><a class="dropdown-item" href="{% url 'core:servicos' %}">Controle de serviços</a></li>
+                <li><a class="dropdown-item" href="{% url 'core:auditoria' %}">Auditoria</a></li>
               {% endif %}
               <li><a class="dropdown-item" href="{% url 'admin:auth_user_changelist' %}">Usuários do sistema</a></li>
               <li><hr class="dropdown-divider"></li>
@@ -108,6 +111,7 @@
               <li><h6 class="dropdown-header">Inventário</h6></li>
               <li><a class="dropdown-item" href="{% url 'inventario:tipos' %}">Tipos de ativo</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:snmp' %}">Credenciais SNMP</a></li>
+              <li><a class="dropdown-item" href="{% url 'inventario:licencas' %}">Licencas de software</a></li>
             </ul>
           </li>
         </ul>

@@ -147,6 +147,64 @@ class AtivoRede(models.Model):
         return reverse("inventario:ativo_detalhe", kwargs={"pk": self.pk})
 
 
+class RelacionamentoAtivo(models.Model):
+    class Tipo(models.TextChoices):
+        DEPENDE_DE = "depende_de", "Depende de"
+        CONECTADO_A = "conectado_a", "Conectado a"
+        HOSPEDA = "hospeda", "Hospeda"
+        USA_SERVICO = "usa_servico", "Usa servico"
+        IMPACTA = "impacta", "Impacta"
+
+    origem = models.ForeignKey(AtivoRede, on_delete=models.CASCADE, related_name="relacoes_origem")
+    destino = models.ForeignKey(AtivoRede, on_delete=models.CASCADE, related_name="relacoes_destino")
+    tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.DEPENDE_DE)
+    descricao = models.CharField(max_length=250, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["origem__nome", "destino__nome"]
+        verbose_name = "relacionamento de ativo"
+        verbose_name_plural = "relacionamentos de ativos"
+
+    def __str__(self):
+        return f"{self.origem} {self.get_tipo_display()} {self.destino}"
+
+
+class LicencaSoftware(models.Model):
+    class Status(models.TextChoices):
+        ATIVA = "ativa", "Ativa"
+        A_VENCER = "a_vencer", "A vencer"
+        VENCIDA = "vencida", "Vencida"
+        SUSPENSA = "suspensa", "Suspensa"
+
+    nome = models.CharField(max_length=180)
+    fabricante = models.CharField(max_length=120, blank=True)
+    chave = models.CharField(max_length=180, blank=True)
+    quantidade_total = models.PositiveIntegerField(default=1)
+    validade = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ATIVA)
+    ativos = models.ManyToManyField(AtivoRede, related_name="licencas", blank=True)
+    observacoes = models.TextField(blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["nome", "fabricante"]
+        verbose_name = "licenca de software"
+        verbose_name_plural = "licencas de software"
+
+    def __str__(self):
+        return self.nome
+
+    @property
+    def quantidade_em_uso(self):
+        return self.ativos.count()
+
+    @property
+    def saldo(self):
+        return self.quantidade_total - self.quantidade_em_uso
+
+
 class InterfaceRede(models.Model):
     ativo = models.ForeignKey(AtivoRede, on_delete=models.CASCADE, related_name="interfaces")
     nome = models.CharField(max_length=120)

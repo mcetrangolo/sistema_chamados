@@ -116,6 +116,7 @@ class Chamado(models.Model):
         ABERTO = "aberto", "Aberto"
         EM_ANALISE = "em_analise", "Em análise"
         EM_ATENDIMENTO = "em_atendimento", "Em atendimento"
+        AGUARDANDO_APROVACAO = "aguardando_aprovacao", "Aguardando aprovação"
         AGUARDANDO_USUARIO = "aguardando_usuario", "Aguardando usuário"
         AGUARDANDO_FORNECEDOR = "aguardando_fornecedor", "Aguardando fornecedor"
         RESOLVIDO = "resolvido", "Resolvido"
@@ -195,6 +196,15 @@ class Chamado(models.Model):
     criado_em = models.DateTimeField("data e hora de abertura", auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
     primeira_resposta_em = models.DateTimeField("primeira resposta", null=True, blank=True)
+    aprovacao_necessaria = models.BooleanField(default=False)
+    aprovado_em = models.DateTimeField("aprovado em", null=True, blank=True)
+    aprovado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="chamados_aprovados",
+        null=True,
+        blank=True,
+    )
     concluido_em = models.DateTimeField("data de conclusão", null=True, blank=True)
     vencimento_em = models.DateTimeField("vencimento SLA", null=True, blank=True)
     sla_pausado_em = models.DateTimeField("SLA pausado em", null=True, blank=True)
@@ -570,8 +580,30 @@ class ServicoCatalogo(models.Model):
         choices=Chamado.Prioridade.choices,
         default=Chamado.Prioridade.MEDIA,
     )
+    equipe_padrao = models.ForeignKey(
+        EquipeAtendimento,
+        on_delete=models.SET_NULL,
+        related_name="servicos_padrao",
+        null=True,
+        blank=True,
+    )
+    aprovador_padrao = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="servicos_aprovador_padrao",
+        null=True,
+        blank=True,
+    )
     requer_matricula = models.BooleanField(default=True)
     requer_aprovacao = models.BooleanField(default=False)
+    campos_personalizados = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Lista JSON de campos. Exemplo: "
+            "[{\"nome\":\"cpf\",\"rotulo\":\"CPF\",\"tipo\":\"texto\",\"obrigatorio\":true}]"
+        ),
+    )
     instrucoes = models.TextField(blank=True)
     ativo = models.BooleanField(default=True)
 
@@ -619,6 +651,7 @@ class SolicitacaoServico(models.Model):
     setor = models.ForeignKey(Setor, on_delete=models.PROTECT, related_name="solicitacoes_servico")
     telefone = models.CharField(max_length=50, blank=True)
     detalhes = models.TextField()
+    dados_personalizados = models.JSONField(default=dict, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.RECEBIDA)
     criado_em = models.DateTimeField(auto_now_add=True)
 

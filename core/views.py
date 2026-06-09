@@ -21,7 +21,7 @@ from django.utils import timezone
 from django.views.generic import TemplateView, UpdateView
 
 from .forms import ConfiguracaoInstitucionalForm, PerfilUsuarioForm
-from .models import ConfiguracaoInstitucional
+from .models import ConfiguracaoInstitucional, RegistroAuditoria
 
 
 class SuperuserRequiredMixin(UserPassesTestMixin):
@@ -54,6 +54,20 @@ class PerfilUsuarioView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, "Suas informações pessoais foram atualizadas.")
         return super().form_valid(form)
+
+
+class AuditoriaListView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateView):
+    template_name = "core/auditoria.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        registros = RegistroAuditoria.objects.select_related("usuario")
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            registros = registros.filter(modelo__icontains=q) | registros.filter(objeto__icontains=q)
+        context["registros"] = registros[:200]
+        context["q"] = q
+        return context
 
 
 class BackupConfiguracaoView(LoginRequiredMixin, TemplateView):

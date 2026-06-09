@@ -1,6 +1,16 @@
 from django import forms
 
-from .models import AgendamentoVarredura, AtivoRede, CredencialSNMP, FaixaRede, MetodoDescoberta, OcorrenciaAtivo, TipoAtivo
+from .models import (
+    AgendamentoVarredura,
+    AtivoRede,
+    CredencialSNMP,
+    FaixaRede,
+    LicencaSoftware,
+    MetodoDescoberta,
+    OcorrenciaAtivo,
+    RelacionamentoAtivo,
+    TipoAtivo,
+)
 
 
 class BootstrapFormMixin:
@@ -72,6 +82,23 @@ class OcorrenciaAtivoForm(BootstrapFormMixin, forms.ModelForm):
         fields = ["tipo", "titulo", "descricao"]
         widgets = {
             "descricao": forms.Textarea(attrs={"rows": 4}),
+        }
+
+
+class RelacionamentoAtivoForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = RelacionamentoAtivo
+        fields = ["destino", "tipo", "descricao"]
+
+
+class LicencaSoftwareForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = LicencaSoftware
+        fields = ["nome", "fabricante", "chave", "quantidade_total", "validade", "status", "ativos", "observacoes"]
+        widgets = {
+            "validade": forms.DateInput(attrs={"type": "date"}),
+            "ativos": forms.SelectMultiple(attrs={"size": 10}),
+            "observacoes": forms.Textarea(attrs={"rows": 4}),
         }
 
 

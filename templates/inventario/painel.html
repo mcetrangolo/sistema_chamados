@@ -12,6 +12,7 @@
     {% endif %}
     <a class="btn btn-outline-primary" href="{% url 'inventario:agente_linux_download' %}">Baixar agente Linux</a>
     <a class="btn btn-outline-primary" href="{% url 'inventario:agente_windows_download' %}">Baixar agente Windows</a>
+    <a class="btn btn-outline-primary" href="{% url 'inventario:licencas' %}">Licencas</a>
     <a class="btn btn-primary" href="{% url 'inventario:ativo_novo' %}">Novo ativo</a>
   </div>
 </div>
@@ -19,7 +20,7 @@
   <div class="col-md-3"><div class="metric"><span>Total</span><strong>{{ contadores.total }}</strong></div></div>
   <div class="col-md-3"><div class="metric"><span>Online</span><strong>{{ contadores.online }}</strong></div></div>
   <div class="col-md-3"><div class="metric"><span>Offline</span><strong>{{ contadores.offline }}</strong></div></div>
-  <div class="col-md-3"><div class="metric"><span>Origem SNMP</span><strong>{{ contadores.snmp }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Licencas</span><strong>{{ contadores.licencas }}</strong></div></div>
 </div>
 <div class="row g-4">
   <div class="col-xl-8">

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Auditoria | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">Auditoria</h1>
+    <p class="text-secondary mb-0">Ultimos registros de criacao, alteracao e exclusao.</p>
+  </div>
+</div>
+<form method="get" class="filters mb-3">
+  <div class="row g-2">
+    <div class="col-md-10"><input class="form-control" name="q" value="{{ q }}" placeholder="Buscar modelo ou objeto"></div>
+    <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" type="submit">Buscar</button></div>
+  </div>
+</form>
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>Data</th><th>Usuario</th><th>Acao</th><th>Modelo</th><th>Objeto</th><th>Caminho</th></tr></thead>
+    <tbody>
+      {% for registro in registros %}
+        <tr>
+          <td>{{ registro.criado_em|date:"d/m/Y H:i" }}</td>
+          <td>{{ registro.usuario|default:"Sistema" }}</td>
+          <td>{{ registro.get_acao_display }}</td>
+          <td>{{ registro.app_label }}.{{ registro.modelo }}</td>
+          <td>{{ registro.objeto }}</td>
+          <td>{{ registro.caminho|default:"-" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-center text-secondary py-4">Nenhum registro encontrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

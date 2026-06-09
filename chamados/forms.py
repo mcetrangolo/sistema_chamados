@@ -474,13 +474,17 @@ class ServicoCatalogoForm(BootstrapFormMixin, forms.ModelForm):
             "categoria",
             "tipo_chamado",
             "prioridade_padrao",
+            "equipe_padrao",
+            "aprovador_padrao",
             "requer_matricula",
             "requer_aprovacao",
+            "campos_personalizados",
             "instrucoes",
             "ativo",
         ]
         widgets = {
             "descricao": forms.Textarea(attrs={"rows": 4}),
+            "campos_personalizados": forms.Textarea(attrs={"rows": 8}),
             "instrucoes": forms.Textarea(attrs={"rows": 4}),
         }
 
@@ -500,3 +504,43 @@ class SolicitacaoServicoForm(BootstrapFormMixin, forms.ModelForm):
             self.fields["matricula"].required = False
         else:
             self.fields["matricula"].required = True
+        self.campos_dinamicos = []
+        for campo in (getattr(servico, "campos_personalizados", None) or []):
+            nome = str(campo.get("nome", "")).strip()
+            if not nome:
+                continue
+            field_name = f"extra_{nome}"
+            rotulo = campo.get("rotulo") or campo.get("label") or nome.replace("_", " ").title()
+            tipo = campo.get("tipo", "texto")
+            obrigatorio = bool(campo.get("obrigatorio", False))
+            if tipo == "texto_longo":
+                field = forms.CharField(label=rotulo, required=obrigatorio, widget=forms.Textarea(attrs={"rows": 4}))
+            elif tipo == "numero":
+                field = forms.DecimalField(label=rotulo, required=obrigatorio)
+            elif tipo == "data":
+                field = forms.DateField(label=rotulo, required=obrigatorio, widget=forms.DateInput(attrs={"type": "date"}))
+            elif tipo == "email":
+                field = forms.EmailField(label=rotulo, required=obrigatorio)
+            elif tipo == "checkbox":
+                field = forms.BooleanField(label=rotulo, required=False)
+            elif tipo == "selecao":
+                opcoes = campo.get("opcoes") or campo.get("choices") or []
+                choices = [("", "Selecione")] + [(str(item), str(item)) for item in opcoes]
+                field = forms.ChoiceField(label=rotulo, required=obrigatorio, choices=choices)
+            else:
+                field = forms.CharField(label=rotulo, required=obrigatorio)
+            self.fields[field_name] = field
+            self.campos_dinamicos.append((field_name, nome, rotulo))
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        dados = {}
+        for field_name, nome, rotulo in getattr(self, "campos_dinamicos", []):
+            valor = self.cleaned_data.get(field_name)
+            if hasattr(valor, "isoformat"):
+                valor = valor.isoformat()
+            dados[nome] = {"rotulo": rotulo, "valor": valor}
+        instance.dados_personalizados = dados
+        if commit:
+            instance.save()
+        return instance

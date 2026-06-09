@@ -6,8 +6,10 @@ from .models import (
     CredencialSNMP,
     FaixaRede,
     InterfaceRede,
+    LicencaSoftware,
     MetodoDescoberta,
     OcorrenciaAtivo,
+    RelacionamentoAtivo,
     TipoAtivo,
     VarreduraRede,
 )
@@ -22,6 +24,12 @@ class OcorrenciaInline(admin.TabularInline):
     model = OcorrenciaAtivo
     extra = 0
     readonly_fields = ("registrado_por", "criado_em")
+
+
+class RelacionamentoOrigemInline(admin.TabularInline):
+    model = RelacionamentoAtivo
+    fk_name = "origem"
+    extra = 0
 
 
 @admin.register(TipoAtivo)
@@ -57,7 +65,7 @@ class AtivoRedeAdmin(admin.ModelAdmin):
     list_display = ("nome", "tipo", "ip", "hostname", "sistema_operacional", "office", "status", "origem", "ultima_coleta_em")
     list_filter = ("tipo", "status", "origem", "setor", "sistema_operacional", "office")
     search_fields = ("nome", "ip", "mac", "hostname", "fabricante", "modelo", "numero_serie", "processador", "office")
-    inlines = [InterfaceInline, OcorrenciaInline]
+    inlines = [InterfaceInline, RelacionamentoOrigemInline, OcorrenciaInline]
 
 
 @admin.register(VarreduraRede)
@@ -79,3 +87,18 @@ class OcorrenciaAtivoAdmin(admin.ModelAdmin):
     list_display = ("titulo", "ativo", "tipo", "registrado_por", "criado_em")
     list_filter = ("tipo", "registrado_por")
     search_fields = ("titulo", "descricao", "ativo__nome")
+
+
+@admin.register(RelacionamentoAtivo)
+class RelacionamentoAtivoAdmin(admin.ModelAdmin):
+    list_display = ("origem", "tipo", "destino", "descricao")
+    list_filter = ("tipo",)
+    search_fields = ("origem__nome", "destino__nome", "descricao")
+
+
+@admin.register(LicencaSoftware)
+class LicencaSoftwareAdmin(admin.ModelAdmin):
+    list_display = ("nome", "fabricante", "quantidade_total", "quantidade_em_uso", "saldo", "validade", "status")
+    list_filter = ("status", "fabricante", "validade")
+    search_fields = ("nome", "fabricante", "chave")
+    filter_horizontal = ("ativos",)

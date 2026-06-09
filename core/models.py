@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -93,3 +94,33 @@ class ConfiguracaoInstitucional(models.Model):
     def atual(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class RegistroAuditoria(models.Model):
+    class Acao(models.TextChoices):
+        CRIACAO = "criacao", "Criacao"
+        ALTERACAO = "alteracao", "Alteracao"
+        EXCLUSAO = "exclusao", "Exclusao"
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="registros_auditoria",
+    )
+    acao = models.CharField(max_length=20, choices=Acao.choices)
+    app_label = models.CharField(max_length=80)
+    modelo = models.CharField(max_length=120)
+    objeto_id = models.CharField(max_length=80, blank=True)
+    objeto = models.CharField(max_length=250, blank=True)
+    caminho = models.CharField(max_length=250, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+        verbose_name = "registro de auditoria"
+        verbose_name_plural = "registros de auditoria"
+
+    def __str__(self):
+        return f"{self.get_acao_display()} - {self.modelo} - {self.objeto}"

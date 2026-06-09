@@ -81,9 +81,43 @@
         </tbody>
       </table>
     </section>
+    <section class="detail-section">
+      <h2 class="h5">Relacionamentos CMDB</h2>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Relacao</th><th>Ativo</th><th>Descricao</th></tr></thead>
+        <tbody>
+          {% for relacao in ativo.relacoes_origem.all %}
+            <tr><td>{{ relacao.get_tipo_display }}</td><td><a href="{{ relacao.destino.get_absolute_url }}">{{ relacao.destino }}</a></td><td>{{ relacao.descricao|default:"-" }}</td></tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-secondary">Nenhum relacionamento cadastrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    <section class="detail-section">
+      <h2 class="h5">Licencas vinculadas</h2>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Software</th><th>Fabricante</th><th>Validade</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for licenca in ativo.licencas.all %}
+            <tr><td>{{ licenca.nome }}</td><td>{{ licenca.fabricante|default:"-" }}</td><td>{{ licenca.validade|date:"d/m/Y"|default:"-" }}</td><td>{{ licenca.get_status_display }}</td></tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-secondary">Nenhuma licenca vinculada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
   </div>
   <aside class="col-xl-4">
     <section class="side-panel">
+      <h2 class="h6">Relacionar ativo</h2>
+      <form method="post" action="{% url 'inventario:relacionamento_novo' ativo.pk %}">
+        {% csrf_token %}
+        {% include "chamados/partials/form_fields.html" with form=relacionamento_form %}
+        <button class="btn btn-outline-primary w-100" type="submit">Adicionar relacionamento</button>
+      </form>
+    </section>
+    <section class="side-panel mt-3">
       <h2 class="h6">Registrar ocorrência</h2>
       <form method="post" action="{% url 'inventario:ocorrencia_nova' ativo.pk %}">
         {% csrf_token %}

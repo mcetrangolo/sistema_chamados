@@ -283,6 +283,23 @@ class PainelView(LoginRequiredMixin, TemplateView):
             .annotate(total=Count("id"))
             .order_by("-total")[:5]
         )
+        try:
+            from contratos.models import ContratoPublico
+            from inventario.models import AtivoRede, LicencaSoftware
+
+            contratos = ContratoPublico.objects.all()
+            limite_coleta = timezone.now() - timezone.timedelta(days=7)
+            context["indicadores_executivos"] = {
+                "contratos_a_vencer": sum(1 for contrato in contratos if contrato.em_alerta),
+                "contratos_vencidos": sum(1 for contrato in contratos if contrato.vencido),
+                "agentes_sem_coleta": AtivoRede.objects.filter(
+                    origem=AtivoRede.Origem.AGENTE,
+                    ultima_coleta_em__lt=limite_coleta,
+                ).count(),
+                "licencas_vencidas": LicencaSoftware.objects.filter(status=LicencaSoftware.Status.VENCIDA).count(),
+            }
+        except Exception:
+            context["indicadores_executivos"] = {}
         return context
 
 
@@ -349,6 +366,10 @@ class ChamadoListView(LoginRequiredMixin, ListView):
             queryset = queryset.exclude(
                 status__in=[Chamado.Status.ENCERRADO, Chamado.Status.CANCELADO]
             )
+        elif fila == "problemas":
+            queryset = queryset.filter(tipo=Chamado.Tipo.PROBLEMA)
+        elif fila == "mudancas":
+            queryset = queryset.filter(tipo=Chamado.Tipo.MUDANCA)
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -399,6 +420,10 @@ class ChamadoDetailView(LoginRequiredMixin, DetailView):
         context["comentario_form"] = ComentarioInternoForm(initial={"publico": True})
         context["anexo_form"] = AnexoChamadoForm()
         context["atribuicao_form"] = AtribuicaoChamadoForm(instance=self.object)
+        context["aprovacao_pendente"] = AprovacaoSolicitacao.objects.filter(
+            solicitacao_servico__chamado=self.object,
+            status=AprovacaoSolicitacao.Status.PENDENTE,
+        ).first()
         return context
 
 
@@ -690,14 +715,6 @@ class CatalogoServicoListView(ListView):
 class CatalogoServicoSolicitarView(TemplateView):
     template_name = "chamados/public/catalogo_solicitar.html"
 
-    def dispatch(self, request, *args, **kwargs):
-        slug = kwargs.get("slug")
-        if slug == "novo-usuario-de-rede":
-            return redirect("governanca:usuario_acesso")
-        if slug == "acesso-a-internetwi-fi":
-            return redirect("governanca:wifi")
-        return super().dispatch(request, *args, **kwargs)
-
     def get_servico(self):
         return get_object_or_404(ServicoCatalogo, slug=self.kwargs["slug"], ativo=True)
 
@@ -715,6 +732,7 @@ class CatalogoServicoSolicitarView(TemplateView):
             solicitacao = form.save(commit=False)
             solicitacao.servico = servico
             solicitacao.save()
+            chamado = criar_chamado_de_solicitacao(solicitacao)
             if servico.requer_aprovacao:
                 AprovacaoSolicitacao.objects.create(
                     origem=AprovacaoSolicitacao.Origem.CATALOGO,
@@ -722,10 +740,8 @@ class CatalogoServicoSolicitarView(TemplateView):
                     titulo=f"Aprovar serviço: {servico.nome}",
                     solicitante=solicitacao.nome,
                 )
-                chamado = None
-                mensagem = f"Solicitação registrada para aprovação. Protocolo {solicitacao.protocolo}."
+                mensagem = f"Solicitação registrada para aprovação. Protocolo {solicitacao.protocolo}; chamado {chamado.numero}."
             else:
-                chamado = criar_chamado_de_solicitacao(solicitacao)
                 mensagem = f"Solicitação registrada. Protocolo {solicitacao.protocolo}; chamado {chamado.numero}."
             messages.success(
                 request,
@@ -828,19 +844,43 @@ class AprovacaoListView(LoginRequiredMixin, ListView):
 @login_required
 def decidir_aprovacao(request, pk, decisao):
     aprovacao = get_object_or_404(AprovacaoSolicitacao, pk=pk)
+    chamado_destino = aprovacao.solicitacao_servico.chamado if aprovacao.solicitacao_servico else None
     if request.method == "POST" and aprovacao.status == AprovacaoSolicitacao.Status.PENDENTE:
         aprovacao.aprovado_por = request.user
         aprovacao.observacao = request.POST.get("observacao", "").strip()
         aprovacao.decidido_em = timezone.now()
         if decisao == "aprovar":
             aprovacao.status = AprovacaoSolicitacao.Status.APROVADA
-            if aprovacao.solicitacao_servico and not aprovacao.solicitacao_servico.chamado:
-                criar_chamado_de_solicitacao(aprovacao.solicitacao_servico)
+            if aprovacao.solicitacao_servico:
+                chamado = aprovacao.solicitacao_servico.chamado
+                if not chamado:
+                    chamado = criar_chamado_de_solicitacao(aprovacao.solicitacao_servico)
+                chamado.aprovacao_necessaria = True
+                chamado.aprovado_por = request.user
+                chamado.aprovado_em = timezone.now()
+                chamado.status = Chamado.Status.ABERTO
+                chamado.save(update_fields=["aprovacao_necessaria", "aprovado_por", "aprovado_em", "status", "atualizado_em"])
+                HistoricoChamado.objects.create(
+                    chamado=chamado,
+                    usuario=request.user,
+                    status=chamado.status,
+                    comentario=f"Solicitacao aprovada. {aprovacao.observacao}",
+                )
             elif aprovacao.origem == AprovacaoSolicitacao.Origem.GOVERNANCA and aprovacao.governanca_id:
                 criar_chamado_de_governanca(aprovacao.governanca_id)
             messages.success(request, "Solicitação aprovada.")
         else:
             aprovacao.status = AprovacaoSolicitacao.Status.REJEITADA
+            if aprovacao.solicitacao_servico and aprovacao.solicitacao_servico.chamado:
+                chamado = aprovacao.solicitacao_servico.chamado
+                chamado.status = Chamado.Status.CANCELADO
+                chamado.save(update_fields=["status", "atualizado_em"])
+                HistoricoChamado.objects.create(
+                    chamado=chamado,
+                    usuario=request.user,
+                    status=chamado.status,
+                    comentario=f"Solicitacao rejeitada. {aprovacao.observacao}",
+                )
             if aprovacao.origem == AprovacaoSolicitacao.Origem.GOVERNANCA and aprovacao.governanca_id:
                 from governanca.models import SolicitacaoGovernanca
 
@@ -850,11 +890,19 @@ def decidir_aprovacao(request, pk, decisao):
                 )
             messages.success(request, "Solicitação rejeitada.")
         aprovacao.save()
+    if chamado_destino:
+        return redirect(chamado_destino)
     return redirect("chamados:aprovacoes")
 
 
 def criar_chamado_de_solicitacao(solicitacao):
     servico = solicitacao.servico
+    detalhes_personalizados = []
+    for item in (solicitacao.dados_personalizados or {}).values():
+        detalhes_personalizados.append(f"{item.get('rotulo')}: {item.get('valor')}")
+    detalhes = solicitacao.detalhes
+    if detalhes_personalizados:
+        detalhes = f"{detalhes}\n\nCampos do formulario:\n" + "\n".join(detalhes_personalizados)
     chamado = Chamado.objects.create(
         nome_solicitante=solicitacao.nome,
         email=solicitacao.email,
@@ -862,10 +910,14 @@ def criar_chamado_de_solicitacao(solicitacao):
         setor=solicitacao.setor,
         categoria=servico.categoria,
         topico_ajuda=servico.topico_ajuda,
+        equipe_responsavel=servico.equipe_padrao,
         tipo=servico.tipo_chamado,
         prioridade=servico.prioridade_padrao,
-        descricao=f"Solicitação de serviço: {servico.nome}\n\n{solicitacao.detalhes}",
+        descricao=f"Solicitação de serviço: {servico.nome}\n\n{detalhes}",
         origem=Chamado.Origem.PORTAL,
+        status=Chamado.Status.AGUARDANDO_APROVACAO if servico.requer_aprovacao else Chamado.Status.ABERTO,
+        aprovacao_necessaria=servico.requer_aprovacao,
+        tecnico_responsavel=servico.aprovador_padrao if servico.requer_aprovacao else None,
     )
     solicitacao.chamado = chamado
     solicitacao.status = SolicitacaoServico.Status.CONVERTIDA

@@ -26,6 +26,7 @@ def status_badge(status):
         "aberto": "text-bg-primary",
         "em_analise": "text-bg-info",
         "em_atendimento": "text-bg-warning",
+        "aguardando_aprovacao": "text-bg-warning",
         "aguardando_usuario": "text-bg-secondary",
         "aguardando_fornecedor": "text-bg-secondary",
         "resolvido": "text-bg-success",
