@@ -6,7 +6,10 @@
     <h1 class="h3 mb-0">Inventário de rede</h1>
     <p class="text-secondary mb-0">Controle de ativos, SNMP, faixas e ocorrências.</p>
   </div>
-  <a class="btn btn-primary" href="{% url 'inventario:ativo_novo' %}">Novo ativo</a>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'inventario:agente_windows_download' %}">Baixar agente Windows</a>
+    <a class="btn btn-primary" href="{% url 'inventario:ativo_novo' %}">Novo ativo</a>
+  </div>
 </div>
 <div class="row g-3 mb-4">
   <div class="col-md-3"><div class="metric"><span>Total</span><strong>{{ contadores.total }}</strong></div></div>

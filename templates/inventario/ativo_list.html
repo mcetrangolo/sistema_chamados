@@ -4,6 +4,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Ativos de rede</h1>
   <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'inventario:agente_windows_download' %}">Baixar agente Windows</a>
     <a class="btn btn-outline-primary" href="{% url 'inventario:ativos_xls' %}">Exportar XLS</a>
     <a class="btn btn-primary" href="{% url 'inventario:ativo_novo' %}">Novo ativo</a>
   </div>

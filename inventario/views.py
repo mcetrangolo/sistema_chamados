@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Q
-from django.http import JsonResponse, HttpResponse
+from django.http import FileResponse, Http404, JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -27,6 +27,9 @@ from .models import AgendamentoVarredura, AtivoRede, CredencialSNMP, FaixaRede, 
 from .services import descobrir_por_faixa
 
 
+AGENTE_WINDOWS_EXE = "SistemaChamadosAgentSetup.exe"
+
+
 def _normalizar_texto(valor, limite=250):
     if valor is None:
         return ""
@@ -40,6 +43,22 @@ def _decimal_ou_none(valor):
         return round(float(valor), 2)
     except (TypeError, ValueError):
         return None
+
+
+@login_required
+def baixar_agente_windows(request):
+    caminho = (settings.BASE_DIR / "dist" / AGENTE_WINDOWS_EXE).resolve()
+    base_dist = (settings.BASE_DIR / "dist").resolve()
+    if not str(caminho).startswith(str(base_dist)) or not caminho.exists():
+        raise Http404(
+            "Instalador do agente nao encontrado. Gere o arquivo com scripts/agent/windows/build_installer.ps1."
+        )
+    return FileResponse(
+        caminho.open("rb"),
+        as_attachment=True,
+        filename=AGENTE_WINDOWS_EXE,
+        content_type="application/vnd.microsoft.portable-executable",
+    )
 
 
 @csrf_exempt
