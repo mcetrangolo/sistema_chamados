@@ -47,6 +47,7 @@ if (-not (Test-Path $iexpress)) {
     Write-Warning "IExpress nao encontrado. Distribua a pasta: $packageDir"
     exit 0
 }
+$wscript = Join-Path $env:WINDIR "System32\wscript.exe"
 
 $sed = @"
 [Version]
@@ -77,7 +78,7 @@ DisplayLicense=
 FinishMessage=
 TargetName=$exePath
 FriendlyName=Sistema Chamados Agent Setup
-AppLaunched=install_launcher.vbs
+AppLaunched=$wscript install_launcher.vbs
 PostInstallCmd=<None>
 AdminQuietInstCmd=
 UserQuietInstCmd=
