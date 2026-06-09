@@ -16,6 +16,11 @@ function Show-Message {
 }
 
 $installDir = Join-Path $env:ProgramData "SistemaChamadosAgent"
+$programsDir = [Environment]::GetFolderPath("CommonPrograms")
+if (-not $programsDir) {
+    $programsDir = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs"
+}
+$menuDir = Join-Path $programsDir "Sistema Chamados Agent"
 $uninstallKeys = @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent")
 if ([Environment]::Is64BitOperatingSystem) {
     $uninstallKeys += "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent"
@@ -29,6 +34,10 @@ foreach ($uninstallKey in $uninstallKeys) {
     if (Test-Path $uninstallKey) {
         Remove-Item -Path $uninstallKey -Recurse -Force
     }
+}
+
+if (Test-Path $menuDir) {
+    Remove-Item -Path $menuDir -Recurse -Force
 }
 
 if (Test-Path $installDir) {

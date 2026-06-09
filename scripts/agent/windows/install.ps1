@@ -114,7 +114,7 @@ function Register-UninstallEntry {
     foreach ($keyPath in $keyPaths) {
         New-Item -Path $keyPath -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayName" -Value "Sistema Chamados Agent" -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.0.4" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.0.5" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "Publisher" -Value "Sistema de Chamados" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayIcon" -Value "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force | Out-Null
@@ -126,6 +126,46 @@ function Register-UninstallEntry {
         New-ItemProperty -Path $keyPath -Name "NoModify" -Value 1 -PropertyType DWord -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "NoRepair" -Value 1 -PropertyType DWord -Force | Out-Null
     }
+}
+
+function Register-StartMenuShortcuts {
+    param(
+        [string]$InstallDir,
+        [string]$UninstallScript,
+        [string]$ConfigPath
+    )
+
+    $programsDir = [Environment]::GetFolderPath("CommonPrograms")
+    if (-not $programsDir) {
+        $programsDir = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs"
+    }
+    $menuDir = Join-Path $programsDir "Sistema Chamados Agent"
+    New-Item -ItemType Directory -Path $menuDir -Force | Out-Null
+
+    $shell = New-Object -ComObject WScript.Shell
+
+    $uninstallShortcut = $shell.CreateShortcut((Join-Path $menuDir "Desinstalar agente.lnk"))
+    $uninstallShortcut.TargetPath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    $uninstallShortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`""
+    $uninstallShortcut.WorkingDirectory = $InstallDir
+    $uninstallShortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll,31"
+    $uninstallShortcut.Description = "Remove o Sistema Chamados Agent deste computador."
+    $uninstallShortcut.Save()
+
+    $folderShortcut = $shell.CreateShortcut((Join-Path $menuDir "Abrir pasta do agente.lnk"))
+    $folderShortcut.TargetPath = $InstallDir
+    $folderShortcut.WorkingDirectory = $InstallDir
+    $folderShortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll,4"
+    $folderShortcut.Description = "Abre a pasta local do Sistema Chamados Agent."
+    $folderShortcut.Save()
+
+    $configShortcut = $shell.CreateShortcut((Join-Path $menuDir "Ver configuracao do agente.lnk"))
+    $configShortcut.TargetPath = "notepad.exe"
+    $configShortcut.Arguments = "`"$ConfigPath`""
+    $configShortcut.WorkingDirectory = $InstallDir
+    $configShortcut.IconLocation = "$env:SystemRoot\System32\notepad.exe"
+    $configShortcut.Description = "Abre a configuracao local do Sistema Chamados Agent."
+    $configShortcut.Save()
 }
 
 Assert-Admin
@@ -171,6 +211,7 @@ $psCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$agentTa
 Register-AgentTask -TaskName "SistemaChamadosAgentStartup" -Schedule "ONSTART" -Modifier 1 -Command $psCommand
 Register-AgentTask -TaskName "SistemaChamadosAgentInterval" -Schedule "HOURLY" -Modifier $IntervalHours -Command $psCommand
 Register-UninstallEntry -InstallDir $installDir -UninstallScript $uninstallTarget
+Register-StartMenuShortcuts -InstallDir $installDir -UninstallScript $uninstallTarget -ConfigPath $configPath
 
 Write-Host ""
 Write-Host "Agente instalado com sucesso." -ForegroundColor Green

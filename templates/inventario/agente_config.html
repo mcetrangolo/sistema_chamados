@@ -76,6 +76,15 @@
         <li>Confirmar a primeira coleta e verificar o ativo na lista de inventario.</li>
       </ol>
     </section>
+    <section class="detail-section">
+      <h2 class="h5">Como desinstalar</h2>
+      <p class="text-secondary">
+        A nova instalacao cria a pasta <strong>Sistema Chamados Agent</strong> no Menu Iniciar com a opcao
+        <strong>Desinstalar agente</strong>. Tambem deve aparecer em Programas e Recursos do Windows.
+      </p>
+      <p class="text-secondary mb-2">Se precisar remover manualmente, execute como Administrador:</p>
+      <pre class="backup-command">powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\ProgramData\SistemaChamadosAgent\uninstall.ps1</pre>
+    </section>
   </div>
 </div>
 {% endblock %}
