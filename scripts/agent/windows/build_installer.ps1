@@ -17,7 +17,7 @@ if (Test-Path $packageDir) {
 }
 New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
 
-foreach ($file in @("agent.ps1", "install.ps1", "install_gui.ps1", "install.cmd", "uninstall.ps1")) {
+foreach ($file in @("agent.ps1", "install.ps1", "install_gui.ps1", "install_launcher.vbs", "install.cmd", "uninstall.ps1")) {
     Copy-Item -Path (Join-Path $baseDir $file) -Destination (Join-Path $packageDir $file) -Force
 }
 
@@ -77,15 +77,16 @@ DisplayLicense=
 FinishMessage=
 TargetName=$exePath
 FriendlyName=Sistema Chamados Agent Setup
-AppLaunched=powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File install_gui.ps1
+AppLaunched=wscript.exe install_launcher.vbs
 PostInstallCmd=<None>
 AdminQuietInstCmd=
 UserQuietInstCmd=
 FILE0=agent.ps1
 FILE1=install.ps1
 FILE2=install_gui.ps1
-FILE3=install.cmd
-FILE4=uninstall.ps1
+FILE3=install_launcher.vbs
+FILE4=install.cmd
+FILE5=uninstall.ps1
 [SourceFiles]
 SourceFiles0=$packageDir
 [SourceFiles0]
@@ -94,6 +95,7 @@ SourceFiles0=$packageDir
 %FILE2%=
 %FILE3%=
 %FILE4%=
+%FILE5%=
 "@
 
 $sed | Out-File -FilePath $sedPath -Encoding ASCII -Force
