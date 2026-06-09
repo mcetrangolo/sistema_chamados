@@ -29,7 +29,9 @@ from .forms import (
     ComentarioInternoForm,
     ComentarioPortalForm,
     ConsultaChamadoForm,
+    EquipeAtendimentoForm,
     PortalChamadoForm,
+    RegraSLAForm,
     RelatorioChamadosForm,
     RespostaProntaForm,
     ServicoCatalogoForm,
@@ -47,7 +49,9 @@ from .models import (
     Categoria,
     Chamado,
     ComentarioChamado,
+    EquipeAtendimento,
     HistoricoChamado,
+    RegraSLA,
     RespostaPronta,
     ServicoCatalogo,
     Setor,
@@ -225,7 +229,7 @@ class PainelView(LoginRequiredMixin, TemplateView):
             "percentual": round((dentro_sla / total_com_sla) * 100, 1) if total_com_sla else None,
         }
         context["ultimos_chamados"] = Chamado.objects.select_related(
-            "setor", "categoria", "tecnico_responsavel"
+            "setor", "categoria", "equipe_responsavel", "tecnico_responsavel"
         )[:10]
         context["backlog_por_prioridade"] = list(
             abertos.values("prioridade").annotate(total=Count("id")).order_by("prioridade")
@@ -290,7 +294,7 @@ class ChamadoListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         queryset = Chamado.objects.select_related(
-            "setor", "categoria", "tecnico_responsavel", "solicitante"
+            "setor", "categoria", "equipe_responsavel", "tecnico_responsavel", "solicitante"
         )
         q = self.request.GET.get("q", "").strip()
         status = self.request.GET.get("status", "")
@@ -298,6 +302,7 @@ class ChamadoListView(LoginRequiredMixin, ListView):
         setor = self.request.GET.get("setor", "")
         prioridade = self.request.GET.get("prioridade", "")
         categoria = self.request.GET.get("categoria", "")
+        equipe = self.request.GET.get("equipe", "")
         data_inicio = self.request.GET.get("data_inicio", "")
         data_fim = self.request.GET.get("data_fim", "")
 
@@ -319,6 +324,8 @@ class ChamadoListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(prioridade=prioridade)
         if categoria:
             queryset = queryset.filter(categoria_id=categoria)
+        if equipe:
+            queryset = queryset.filter(equipe_responsavel_id=equipe)
         if data_inicio:
             queryset = queryset.filter(criado_em__date__gte=data_inicio)
         if data_fim:
@@ -351,6 +358,7 @@ class ChamadoListView(LoginRequiredMixin, ListView):
         context["prioridade_choices"] = Chamado.Prioridade.choices
         context["setores"] = Setor.objects.filter(ativo=True)
         context["categorias"] = Categoria.objects.filter(ativo=True)
+        context["equipes"] = EquipeAtendimento.objects.filter(ativo=True)
         context["filtros"] = self.request.GET
         context["fila"] = self.kwargs.get("fila", "todos")
         return context
@@ -382,7 +390,7 @@ class ChamadoDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return Chamado.objects.select_related(
-            "setor", "categoria", "tecnico_responsavel", "solicitante"
+            "setor", "categoria", "equipe_responsavel", "tecnico_responsavel", "solicitante"
         ).prefetch_related("historico", "anexos", "tarefas", "comentarios")
 
     def get_context_data(self, **kwargs):
@@ -404,6 +412,7 @@ class ChamadoPrintView(LoginRequiredMixin, DetailView):
             "setor",
             "categoria",
             "topico_ajuda",
+            "equipe_responsavel",
             "tecnico_responsavel",
             "solicitante",
             "ativo_rede",
@@ -493,6 +502,62 @@ class CategoriaUpdateView(LoginRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         messages.success(self.request, "Categoria atualizada com sucesso.")
+        return super().form_valid(form)
+
+
+class EquipeAtendimentoListView(LoginRequiredMixin, ListView):
+    model = EquipeAtendimento
+    template_name = "chamados/cadastros/equipe_list.html"
+    context_object_name = "equipes"
+
+
+class EquipeAtendimentoCreateView(LoginRequiredMixin, CreateView):
+    model = EquipeAtendimento
+    form_class = EquipeAtendimentoForm
+    template_name = "chamados/cadastros/equipe_form.html"
+    success_url = reverse_lazy("chamados:equipes")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Equipe cadastrada com sucesso.")
+        return super().form_valid(form)
+
+
+class EquipeAtendimentoUpdateView(LoginRequiredMixin, UpdateView):
+    model = EquipeAtendimento
+    form_class = EquipeAtendimentoForm
+    template_name = "chamados/cadastros/equipe_form.html"
+    success_url = reverse_lazy("chamados:equipes")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Equipe atualizada com sucesso.")
+        return super().form_valid(form)
+
+
+class RegraSLAListView(LoginRequiredMixin, ListView):
+    model = RegraSLA
+    template_name = "chamados/cadastros/sla_list.html"
+    context_object_name = "regras"
+
+
+class RegraSLACreateView(LoginRequiredMixin, CreateView):
+    model = RegraSLA
+    form_class = RegraSLAForm
+    template_name = "chamados/cadastros/sla_form.html"
+    success_url = reverse_lazy("chamados:sla_regras")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Regra de SLA cadastrada com sucesso.")
+        return super().form_valid(form)
+
+
+class RegraSLAUpdateView(LoginRequiredMixin, UpdateView):
+    model = RegraSLA
+    form_class = RegraSLAForm
+    template_name = "chamados/cadastros/sla_form.html"
+    success_url = reverse_lazy("chamados:sla_regras")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Regra de SLA atualizada com sucesso.")
         return super().form_valid(form)
 
 

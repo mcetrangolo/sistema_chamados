@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Pedido de prorrogacao | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">Pedido de prorrogacao</h1>
+    <p class="text-secondary mb-0">Contrato {{ contrato.numero }}/{{ contrato.ano }}</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ contrato.get_absolute_url }}">Cancelar</a>
+</div>
+<form method="post" class="detail-section">
+  {% csrf_token %}
+  {% include "chamados/partials/form_fields.html" %}
+  <button class="btn btn-primary" type="submit">Salvar pedido</button>
+</form>
+{% endblock %}

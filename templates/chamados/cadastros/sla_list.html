@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}SLA | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">Regras de SLA</h1>
+    <p class="text-secondary mb-0">A regra mais especifica e com menor prazo e aplicada quando o chamado e aberto.</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'chamados:sla_nova' %}">Nova regra</a>
+</div>
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>Nome</th><th>Escopo</th><th>1a resposta</th><th>Solucao</th><th>Status</th><th class="text-end">Acoes</th></tr></thead>
+    <tbody>
+      {% for regra in regras %}
+        <tr>
+          <td>{{ regra.nome }}</td>
+          <td>
+            {{ regra.get_tipo_display|default:"Qualquer tipo" }} /
+            {{ regra.get_prioridade_display|default:"Qualquer prioridade" }} /
+            {{ regra.categoria|default:"Qualquer categoria" }} /
+            {{ regra.setor|default:"Qualquer setor" }} /
+            {{ regra.equipe|default:"Qualquer equipe" }}
+          </td>
+          <td>{{ regra.prazo_primeira_resposta_horas }}h</td>
+          <td>{{ regra.prazo_solucao_horas }}h</td>
+          <td>{{ regra.ativo|yesno:"Ativa,Inativa" }}</td>
+          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:sla_editar' regra.pk %}">Editar</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-center text-secondary py-4">Nenhuma regra de SLA cadastrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

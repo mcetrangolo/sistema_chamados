@@ -27,7 +27,7 @@
         {% endif %}
         <span>
           <strong>{{ config_institucional.nome_instituicao }}</strong>
-          <small>Gestão interna</small>
+          <small>{{ sistema_versao_nome }} - {{ sistema_versao }}</small>
         </span>
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu">
@@ -72,6 +72,7 @@
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="{% url 'chamados:relatorio' %}">Relatórios de chamados</a></li>
               <li><a class="dropdown-item" href="{% url 'governanca:solicitacoes' %}">Solicitações de governança</a></li>
+              <li><a class="dropdown-item" href="{% url 'contratos:lista' %}">Contratos públicos</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:catalogo' %}">Catálogo público de serviços</a></li>
             </ul>
           </li>
@@ -94,6 +95,8 @@
               <li><a class="dropdown-item" href="{% url 'chamados:setores' %}">Setores</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:categorias' %}">Categorias</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:topicos' %}">Tópicos de ajuda</a></li>
+              <li><a class="dropdown-item" href="{% url 'chamados:equipes' %}">Equipes de atendimento</a></li>
+              <li><a class="dropdown-item" href="{% url 'chamados:sla_regras' %}">Regras de SLA</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:respostas' %}">Respostas prontas</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:artigos' %}">Base de conhecimento</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:servicos' %}">Catálogo de serviços</a></li>

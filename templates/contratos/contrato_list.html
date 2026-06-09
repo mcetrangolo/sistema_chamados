@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Contratos publicos | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">Contratos publicos</h1>
+    <p class="text-secondary mb-0">Controle de vigencia, prazos, prorrogacoes e alertas.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'contratos:fornecedores' %}">Fornecedores</a>
+    <a class="btn btn-primary" href="{% url 'contratos:novo' %}">Novo contrato</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-2"><div class="metric-card"><span>Total</span><strong>{{ contadores.total }}</strong></div></div>
+  <div class="col-md-2"><div class="metric-card"><span>Vigentes</span><strong>{{ contadores.vigentes }}</strong></div></div>
+  <div class="col-md-2"><div class="metric-card"><span>A vencer</span><strong>{{ contadores.a_vencer }}</strong></div></div>
+  <div class="col-md-2"><div class="metric-card"><span>Vencidos</span><strong>{{ contadores.vencidos }}</strong></div></div>
+  <div class="col-md-2"><div class="metric-card"><span>Prorrogacoes</span><strong>{{ contadores.prorrogacoes }}</strong></div></div>
+</div>
+
+<form method="get" class="row g-2 mb-3 filters">
+  <div class="col-md-3"><input class="form-control" name="q" value="{{ filtros.q }}" placeholder="Buscar por numero, processo, objeto ou fornecedor"></div>
+  <div class="col-md-2">
+    <select class="form-select" name="lei">
+      <option value="">Lei</option>
+      {% for value,label in lei_choices %}<option value="{{ value }}" {% if filtros.lei == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select class="form-select" name="status">
+      <option value="">Status cadastrado</option>
+      {% for value,label in status_choices %}<option value="{{ value }}" {% if filtros.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select class="form-select" name="alerta">
+      <option value="">Alerta</option>
+      <option value="a_vencer" {% if filtros.alerta == "a_vencer" %}selected{% endif %}>A vencer</option>
+      <option value="vencidos" {% if filtros.alerta == "vencidos" %}selected{% endif %}>Vencidos</option>
+    </select>
+  </div>
+  <div class="col-md-1 d-grid"><button class="btn btn-outline-primary" type="submit">Filtrar</button></div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead><tr><th>Contrato</th><th>Fornecedor</th><th>Lei</th><th>Fim da vigencia</th><th>Dias</th><th>Status</th><th>Gestor/Fiscal</th></tr></thead>
+    <tbody>
+      {% for contrato in contratos %}
+        <tr>
+          <td><a href="{{ contrato.get_absolute_url }}">{{ contrato.numero }}/{{ contrato.ano }}</a><span class="d-block small text-secondary">{{ contrato.processo_administrativo|default:"Sem processo informado" }}</span></td>
+          <td>{{ contrato.fornecedor }}</td>
+          <td>{{ contrato.get_lei_regencia_display }}</td>
+          <td>{{ contrato.data_fim|date:"d/m/Y" }}</td>
+          <td>{{ contrato.dias_para_vencimento }}</td>
+          <td>
+            {% if contrato.vencido %}
+              <span class="badge text-bg-danger">Vencido</span>
+            {% elif contrato.em_alerta %}
+              <span class="badge text-bg-warning">A vencer</span>
+            {% else %}
+              <span class="badge text-bg-success">{{ contrato.get_status_display }}</span>
+            {% endif %}
+          </td>
+          <td>{{ contrato.gestor|default:"-" }}<span class="d-block small text-secondary">{{ contrato.fiscal|default:"-" }}</span></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-center text-secondary py-4">Nenhum contrato cadastrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -50,6 +50,12 @@
       {% for categoria in categorias %}<option value="{{ categoria.id }}" {% if filtros.categoria == categoria.id|stringformat:"s" %}selected{% endif %}>{{ categoria.nome }}</option>{% endfor %}
     </select>
   </div>
+  <div class="col-md-2">
+    <select class="form-select" name="equipe">
+      <option value="">Equipe</option>
+      {% for equipe in equipes %}<option value="{{ equipe.id }}" {% if filtros.equipe == equipe.id|stringformat:"s" %}selected{% endif %}>{{ equipe.nome }}</option>{% endfor %}
+    </select>
+  </div>
   <div class="col-md-2"><input class="form-control" type="date" name="data_inicio" value="{{ filtros.data_inicio }}" title="Data inicial"></div>
   <div class="col-md-2"><input class="form-control" type="date" name="data_fim" value="{{ filtros.data_fim }}" title="Data final"></div>
   <div class="col-md-1 d-grid"><button class="btn btn-outline-primary" type="submit">Filtrar</button></div>
@@ -66,6 +72,7 @@
         <th>Tópico</th>
         <th>Prioridade</th>
         <th>Status</th>
+        <th>Equipe</th>
         <th>Atendente</th>
         <th>SLA</th>
         <th>Abertura</th>
@@ -81,6 +88,7 @@
           <td>{{ chamado.topico_ajuda|default:"-" }}</td>
           <td><span class="badge {{ chamado.prioridade|prioridade_badge }}">{{ chamado.get_prioridade_display }}</span></td>
           <td><span class="badge {{ chamado.status|status_badge }}">{{ chamado.get_status_display }}</span></td>
+          <td>{{ chamado.equipe_responsavel|default:"-" }}</td>
           <td>{{ chamado.tecnico_responsavel|default:"-" }}</td>
           <td>
             <span class="badge {{ chamado|sla_badge }}">{{ chamado|sla_estado }}</span>
@@ -91,7 +99,7 @@
           <td>{{ chamado.criado_em|date:"d/m/Y H:i" }}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="10" class="text-center text-secondary py-4">Nenhum chamado encontrado.</td></tr>
+        <tr><td colspan="11" class="text-center text-secondary py-4">Nenhum chamado encontrado.</td></tr>
       {% endfor %}
     </tbody>
   </table>

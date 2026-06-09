@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Contrato {{ contrato.numero }}/{{ contrato.ano }} | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">Contrato {{ contrato.numero }}/{{ contrato.ano }}</h1>
+    <p class="text-secondary mb-0">{{ contrato.fornecedor }} - vigencia ate {{ contrato.data_fim|date:"d/m/Y" }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'contratos:prorrogacao_nova' contrato.pk %}">Pedir prorrogacao</a>
+    <a class="btn btn-outline-primary" href="{% url 'contratos:aditivo_novo' contrato.pk %}">Registrar aditivo</a>
+    <a class="btn btn-primary" href="{% url 'contratos:editar' contrato.pk %}">Editar</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="detail-section">
+      <h2 class="h5">Objeto</h2>
+      {{ contrato.objeto|linebreaks }}
+    </section>
+    <section class="detail-section">
+      <h2 class="h5">Base legal operacional</h2>
+      <p>{{ contrato.base_legal_resumo }}</p>
+    </section>
+    <section class="detail-section">
+      <h2 class="h5">Pedidos de prorrogacao</h2>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Solicitado em</th><th>Novo fim</th><th>Status</th><th>Justificativa</th></tr></thead>
+          <tbody>
+            {% for pedido in contrato.prorrogacoes.all %}
+              <tr><td>{{ pedido.solicitado_em|date:"d/m/Y H:i" }}</td><td>{{ pedido.novo_fim|date:"d/m/Y" }}</td><td>{{ pedido.get_status_display }}</td><td>{{ pedido.justificativa|truncatechars:90 }}</td></tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-secondary">Nenhum pedido registrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="detail-section">
+      <h2 class="h5">Aditivos</h2>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Numero</th><th>Tipo</th><th>Assinatura</th><th>Nova vigencia</th><th>Valor</th></tr></thead>
+          <tbody>
+            {% for aditivo in contrato.aditivos.all %}
+              <tr><td>{{ aditivo.numero }}</td><td>{{ aditivo.get_tipo_display }}</td><td>{{ aditivo.data_assinatura|date:"d/m/Y" }}</td><td>{{ aditivo.nova_data_fim|date:"d/m/Y"|default:"-" }}</td><td>R$ {{ aditivo.valor_acrescimo }}</td></tr>
+            {% empty %}
+              <tr><td colspan="5" class="text-secondary">Nenhum aditivo registrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <aside class="col-lg-4">
+    <div class="side-panel">
+      <dl class="row mb-0">
+        <dt class="col-5">Status</dt><dd class="col-7">{{ contrato.get_status_display }}</dd>
+        <dt class="col-5">Alerta</dt><dd class="col-7">{% if contrato.vencido %}<span class="badge text-bg-danger">Vencido</span>{% elif contrato.em_alerta %}<span class="badge text-bg-warning">A vencer</span>{% else %}<span class="badge text-bg-success">Dentro do prazo</span>{% endif %}</dd>
+        <dt class="col-5">Dias</dt><dd class="col-7">{{ contrato.dias_para_vencimento }}</dd>
+        <dt class="col-5">Inicio</dt><dd class="col-7">{{ contrato.data_inicio|date:"d/m/Y" }}</dd>
+        <dt class="col-5">Fim</dt><dd class="col-7">{{ contrato.data_fim|date:"d/m/Y" }}</dd>
+        <dt class="col-5">Valor</dt><dd class="col-7">R$ {{ contrato.valor_global }}</dd>
+        <dt class="col-5">Lei</dt><dd class="col-7">{{ contrato.get_lei_regencia_display }}</dd>
+        <dt class="col-5">Tipo</dt><dd class="col-7">{{ contrato.get_tipo_display }}</dd>
+        <dt class="col-5">Gestor</dt><dd class="col-7">{{ contrato.gestor|default:"-" }}</dd>
+        <dt class="col-5">Fiscal</dt><dd class="col-7">{{ contrato.fiscal|default:"-" }}</dd>
+        <dt class="col-5">Alerta dias</dt><dd class="col-7">{{ contrato.alerta_dias }}</dd>
+      </dl>
+    </div>
+  </aside>
+</div>
+{% endblock %}

@@ -32,6 +32,32 @@ class Categoria(models.Model):
         return self.nome
 
 
+class EquipeAtendimento(models.Model):
+    nome = models.CharField(max_length=120, unique=True)
+    descricao = models.TextField(blank=True)
+    responsavel = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="equipes_responsaveis",
+        null=True,
+        blank=True,
+    )
+    membros = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="equipes_atendimento",
+        blank=True,
+    )
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["nome"]
+        verbose_name = "equipe de atendimento"
+        verbose_name_plural = "equipes de atendimento"
+
+    def __str__(self):
+        return self.nome
+
+
 class TopicoAjuda(models.Model):
     nome = models.CharField(max_length=150, unique=True)
     descricao = models.TextField(blank=True)
@@ -157,6 +183,13 @@ class Chamado(models.Model):
         null=True,
         blank=True,
     )
+    equipe_responsavel = models.ForeignKey(
+        EquipeAtendimento,
+        on_delete=models.SET_NULL,
+        related_name="chamados",
+        null=True,
+        blank=True,
+    )
     solucao_aplicada = models.TextField("solução aplicada", blank=True)
     observacoes_internas = models.TextField("observações internas", blank=True)
     criado_em = models.DateTimeField("data e hora de abertura", auto_now_add=True)
@@ -214,7 +247,14 @@ class Chamado(models.Model):
                 self.categoria = self.topico_ajuda.categoria
             if not self.tecnico_responsavel_id and self.topico_ajuda.atendente_padrao_id:
                 self.tecnico_responsavel = self.topico_ajuda.atendente_padrao
-            if not self.vencimento_em and self.topico_ajuda.sla_horas:
+
+        if not self.vencimento_em:
+            regra = RegraSLA.encontrar_para(self)
+            if regra:
+                self.vencimento_em = timezone.now() + timezone.timedelta(
+                    hours=regra.prazo_solucao_horas
+                )
+            elif self.topico_ajuda and self.topico_ajuda.sla_horas:
                 self.vencimento_em = timezone.now() + timezone.timedelta(
                     hours=self.topico_ajuda.sla_horas
                 )
@@ -245,6 +285,76 @@ class Chamado(models.Model):
         if self.sla_pausado_em:
             return False
         return self.vencimento_em < timezone.now()
+
+
+class RegraSLA(models.Model):
+    nome = models.CharField(max_length=150)
+    tipo = models.CharField(max_length=20, choices=Chamado.Tipo.choices, blank=True)
+    prioridade = models.CharField(max_length=20, choices=Chamado.Prioridade.choices, blank=True)
+    categoria = models.ForeignKey(
+        Categoria,
+        on_delete=models.CASCADE,
+        related_name="regras_sla",
+        null=True,
+        blank=True,
+    )
+    setor = models.ForeignKey(
+        Setor,
+        on_delete=models.CASCADE,
+        related_name="regras_sla",
+        null=True,
+        blank=True,
+    )
+    equipe = models.ForeignKey(
+        EquipeAtendimento,
+        on_delete=models.CASCADE,
+        related_name="regras_sla",
+        null=True,
+        blank=True,
+    )
+    prazo_solucao_horas = models.PositiveIntegerField(default=48)
+    prazo_primeira_resposta_horas = models.PositiveIntegerField(default=4)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["prazo_solucao_horas", "nome"]
+        verbose_name = "regra de SLA"
+        verbose_name_plural = "regras de SLA"
+
+    def __str__(self):
+        return self.nome
+
+    @classmethod
+    def encontrar_para(cls, chamado):
+        regras = cls.objects.filter(ativo=True)
+        candidatas = []
+        for regra in regras:
+            pontos = 0
+            if regra.tipo:
+                if regra.tipo != chamado.tipo:
+                    continue
+                pontos += 1
+            if regra.prioridade:
+                if regra.prioridade != chamado.prioridade:
+                    continue
+                pontos += 1
+            if regra.categoria_id:
+                if regra.categoria_id != chamado.categoria_id:
+                    continue
+                pontos += 1
+            if regra.setor_id:
+                if regra.setor_id != chamado.setor_id:
+                    continue
+                pontos += 1
+            if regra.equipe_id:
+                if regra.equipe_id != chamado.equipe_responsavel_id:
+                    continue
+                pontos += 1
+            candidatas.append((pontos, regra.prazo_solucao_horas, regra.pk, regra))
+        if not candidatas:
+            return None
+        candidatas.sort(key=lambda item: (-item[0], item[1], item[2]))
+        return candidatas[0][3]
 
 
 class HistoricoChamado(models.Model):

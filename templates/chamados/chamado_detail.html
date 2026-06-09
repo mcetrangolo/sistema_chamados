@@ -74,6 +74,7 @@
         <dt class="col-5">Categoria</dt><dd class="col-7">{{ chamado.categoria }}</dd>
         <dt class="col-5">Tópico</dt><dd class="col-7">{{ chamado.topico_ajuda|default:"-" }}</dd>
         <dt class="col-5">Origem</dt><dd class="col-7">{{ chamado.get_origem_display }}</dd>
+        <dt class="col-5">Equipe</dt><dd class="col-7">{{ chamado.equipe_responsavel|default:"Nao atribuida" }}</dd>
         <dt class="col-5">Atendente</dt><dd class="col-7">{{ chamado.tecnico_responsavel|default:"Não atribuído" }}</dd>
         <dt class="col-5">SLA</dt><dd class="col-7"><span class="badge {{ chamado|sla_badge }}">{{ chamado|sla_estado }}</span>{% if chamado.vencimento_em %}<span class="d-block small text-secondary mt-1">{{ chamado.vencimento_em|date:"d/m/Y H:i" }}</span>{% endif %}</dd>
         <dt class="col-5">1ª resposta</dt><dd class="col-7">{{ chamado.primeira_resposta_em|date:"d/m/Y H:i"|default:"-" }}</dd>

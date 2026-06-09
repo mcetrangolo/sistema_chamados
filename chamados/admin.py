@@ -8,7 +8,9 @@ from .models import (
     Categoria,
     Chamado,
     ComentarioChamado,
+    EquipeAtendimento,
     HistoricoChamado,
+    RegraSLA,
     RespostaPronta,
     ServicoCatalogo,
     Setor,
@@ -30,6 +32,14 @@ class CategoriaAdmin(admin.ModelAdmin):
     list_display = ("nome", "ativo")
     list_filter = ("ativo",)
     search_fields = ("nome",)
+
+
+@admin.register(EquipeAtendimento)
+class EquipeAtendimentoAdmin(admin.ModelAdmin):
+    list_display = ("nome", "responsavel", "ativo")
+    list_filter = ("ativo",)
+    search_fields = ("nome", "descricao")
+    filter_horizontal = ("membros",)
 
 
 @admin.register(TopicoAjuda)
@@ -71,12 +81,13 @@ class ChamadoAdmin(admin.ModelAdmin):
         "nome_solicitante",
         "setor",
         "categoria",
+        "equipe_responsavel",
         "prioridade",
         "status",
         "tecnico_responsavel",
         "criado_em",
     )
-    list_filter = ("status", "prioridade", "setor", "categoria", "tecnico_responsavel")
+    list_filter = ("status", "prioridade", "setor", "categoria", "equipe_responsavel", "tecnico_responsavel")
     search_fields = ("numero", "nome_solicitante", "email", "descricao")
     readonly_fields = ("numero", "criado_em", "atualizado_em", "concluido_em")
     inlines = [HistoricoInline, ComentarioInline, AnexoInline, TarefaInline]
@@ -87,6 +98,13 @@ class HistoricoChamadoAdmin(admin.ModelAdmin):
     list_display = ("chamado", "usuario", "status", "criado_em")
     list_filter = ("status", "criado_em")
     search_fields = ("chamado__numero", "comentario", "usuario__username")
+
+
+@admin.register(RegraSLA)
+class RegraSLAAdmin(admin.ModelAdmin):
+    list_display = ("nome", "tipo", "prioridade", "categoria", "setor", "equipe", "prazo_solucao_horas", "ativo")
+    list_filter = ("ativo", "tipo", "prioridade", "categoria", "setor", "equipe")
+    search_fields = ("nome",)
 
 
 @admin.register(AnexoChamado)

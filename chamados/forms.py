@@ -10,7 +10,9 @@ from .models import (
     Categoria,
     Chamado,
     ComentarioChamado,
+    EquipeAtendimento,
     HistoricoChamado,
+    RegraSLA,
     RespostaPronta,
     ServicoCatalogo,
     Setor,
@@ -41,6 +43,7 @@ class ChamadoForm(BootstrapFormMixin, forms.ModelForm):
             "tipo",
             "topico_ajuda",
             "categoria",
+            "equipe_responsavel",
             "ativo_rede",
             "impacto",
             "urgencia",
@@ -56,6 +59,7 @@ class ChamadoForm(BootstrapFormMixin, forms.ModelForm):
         self.fields["setor"].label = "Setor solicitante"
         self.fields["categoria"].required = False
         self.fields["topico_ajuda"].queryset = TopicoAjuda.objects.filter(ativo=True)
+        self.fields["equipe_responsavel"].queryset = EquipeAtendimento.objects.filter(ativo=True)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -125,6 +129,7 @@ class AtualizacaoChamadoForm(BootstrapFormMixin, forms.ModelForm):
             "prioridade",
             "topico_ajuda",
             "categoria",
+            "equipe_responsavel",
             "tecnico_responsavel",
             "registro_atendimento",
         ]
@@ -133,6 +138,7 @@ class AtualizacaoChamadoForm(BootstrapFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["topico_ajuda"].queryset = TopicoAjuda.objects.filter(ativo=True)
         self.fields["categoria"].required = False
+        self.fields["equipe_responsavel"].queryset = EquipeAtendimento.objects.filter(ativo=True)
         self.fields["tecnico_responsavel"].label = "Atendente responsável"
         grupo = Group.objects.filter(name="Técnicos de TI").first()
         if grupo:
@@ -181,10 +187,12 @@ class HistoricoChamadoForm(BootstrapFormMixin, forms.ModelForm):
 class AtribuicaoChamadoForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Chamado
-        fields = ["tecnico_responsavel"]
+        fields = ["equipe_responsavel", "tecnico_responsavel"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["equipe_responsavel"].label = "Encaminhar para equipe"
+        self.fields["equipe_responsavel"].queryset = EquipeAtendimento.objects.filter(ativo=True)
         self.fields["tecnico_responsavel"].label = "Encaminhar para atendente"
         grupo = Group.objects.filter(name="Técnicos de TI").first()
         users = get_user_model().objects.filter(is_active=True)
@@ -241,6 +249,32 @@ class CategoriaForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = Categoria
         fields = ["nome", "ativo"]
+
+
+class EquipeAtendimentoForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = EquipeAtendimento
+        fields = ["nome", "descricao", "responsavel", "membros", "ativo"]
+        widgets = {
+            "descricao": forms.Textarea(attrs={"rows": 3}),
+            "membros": forms.SelectMultiple(attrs={"size": 8}),
+        }
+
+
+class RegraSLAForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = RegraSLA
+        fields = [
+            "nome",
+            "tipo",
+            "prioridade",
+            "categoria",
+            "setor",
+            "equipe",
+            "prazo_primeira_resposta_horas",
+            "prazo_solucao_horas",
+            "ativo",
+        ]
 
 
 class TopicoAjudaForm(BootstrapFormMixin, forms.ModelForm):

@@ -33,6 +33,7 @@ urlpatterns = [
     path("", include("chamados.urls")),
     path("inventario/", include("inventario.urls")),
     path("governanca/", include("governanca.urls")),
+    path("contratos/", include("contratos.urls")),
 ]
 
 if settings.DEBUG:
