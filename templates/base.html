@@ -94,6 +94,9 @@
               <li><a class="dropdown-item" href="{% url 'chamados:respostas' %}">Respostas prontas</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:artigos' %}">Base de conhecimento</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:servicos' %}">Catálogo de serviços</a></li>
+              {% if user.is_superuser %}
+                <li><a class="dropdown-item" href="{% url 'chamados:servico_novo' %}">Novo serviço do catálogo</a></li>
+              {% endif %}
               <li><a class="dropdown-item" href="{% url 'chamados:tecnicos' %}">Atendentes</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><h6 class="dropdown-header">Inventário</h6></li>

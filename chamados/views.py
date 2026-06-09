@@ -8,7 +8,7 @@ from django.core.files import File
 from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import Group
 from django.db.models import Avg, Count, Q
 from django.http import HttpResponse
@@ -55,6 +55,11 @@ from .models import (
     TarefaChamado,
     TopicoAjuda,
 )
+
+
+class AdminRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_superuser
 
 
 def obter_ip_cliente(request):
@@ -650,13 +655,13 @@ class CatalogoServicoSolicitarView(TemplateView):
         return self.render_to_response(self.get_context_data(form=form))
 
 
-class ServicoCatalogoListView(LoginRequiredMixin, ListView):
+class ServicoCatalogoListView(LoginRequiredMixin, AdminRequiredMixin, ListView):
     model = ServicoCatalogo
     template_name = "chamados/cadastros/servico_list.html"
     context_object_name = "servicos"
 
 
-class ServicoCatalogoCreateView(LoginRequiredMixin, CreateView):
+class ServicoCatalogoCreateView(LoginRequiredMixin, AdminRequiredMixin, CreateView):
     model = ServicoCatalogo
     form_class = ServicoCatalogoForm
     template_name = "chamados/cadastros/servico_form.html"
@@ -667,7 +672,7 @@ class ServicoCatalogoCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class ServicoCatalogoUpdateView(LoginRequiredMixin, UpdateView):
+class ServicoCatalogoUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
     model = ServicoCatalogo
     form_class = ServicoCatalogoForm
     template_name = "chamados/cadastros/servico_form.html"

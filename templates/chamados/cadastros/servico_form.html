@@ -2,7 +2,10 @@
 {% block title %}Serviço | Catálogo{% endblock %}
 {% block content %}
 <div class="content-narrow">
-  <h1 class="h3 mb-3">Serviço do catálogo</h1>
+  <h1 class="h3 mb-2">Serviço do catálogo</h1>
+  <p class="text-secondary">
+    Defina como o serviço aparecerá no catálogo público e qual tipo de chamado será aberto quando o usuário solicitar.
+  </p>
   <form method="post">
     {% csrf_token %}
     {% include "chamados/partials/form_fields.html" with form=form %}

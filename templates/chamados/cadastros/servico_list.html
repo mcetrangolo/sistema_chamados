@@ -2,16 +2,30 @@
 {% block title %}Catálogo de serviços | Sistema{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3 mb-0">Catálogo de serviços</h1>
+  <div>
+    <h1 class="h3 mb-0">Catálogo de serviços</h1>
+    <p class="text-secondary mb-0">Cadastre e mantenha os serviços que aparecem no catálogo público.</p>
+  </div>
   <a class="btn btn-primary" href="{% url 'chamados:servico_novo' %}">Novo serviço</a>
 </div>
 <section class="detail-section">
   <table class="table table-hover align-middle mb-0">
-    <thead><tr><th>Serviço</th><th>Categoria</th><th>Prioridade</th><th>Aprovação</th><th>Status</th><th class="text-end">Ações</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Serviço</th>
+        <th>Tipo</th>
+        <th>Categoria</th>
+        <th>Prioridade</th>
+        <th>Aprovação</th>
+        <th>Status</th>
+        <th class="text-end">Ações</th>
+      </tr>
+    </thead>
     <tbody>
       {% for servico in servicos %}
         <tr>
           <td>{{ servico.nome }}</td>
+          <td>{{ servico.get_tipo_chamado_display }}</td>
           <td>{{ servico.categoria }}</td>
           <td>{{ servico.get_prioridade_padrao_display }}</td>
           <td>{{ servico.requer_aprovacao|yesno:"Sim,Não" }}</td>
@@ -19,7 +33,7 @@
           <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:servico_editar' servico.pk %}">Editar</a></td>
         </tr>
       {% empty %}
-        <tr><td colspan="6" class="text-center text-secondary py-4">Nenhum serviço cadastrado.</td></tr>
+        <tr><td colspan="7" class="text-center text-secondary py-4">Nenhum serviço cadastrado.</td></tr>
       {% endfor %}
     </tbody>
   </table>
