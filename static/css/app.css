@@ -422,6 +422,14 @@ a {
   font-weight: 750;
 }
 
+.chart-panel {
+  display: flex;
+  flex-direction: column;
+  height: 300px;
+  min-height: 300px;
+  overflow: hidden;
+}
+
 .institution-report-header {
   align-items: center;
   background: var(--surface);
@@ -486,7 +494,11 @@ a {
 }
 
 .chart-panel canvas {
-  max-height: 260px;
+  display: block;
+  flex: 0 0 220px;
+  height: 220px !important;
+  max-height: 220px;
+  width: 100% !important;
 }
 
 .sla-summary {
