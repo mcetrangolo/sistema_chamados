@@ -66,6 +66,38 @@
       </section>
     {% endif %}
 
+    <section class="detail-section">
+      <h2 class="h5">Diagnóstico de acesso</h2>
+      <dl class="row mb-0">
+        <dt class="col-sm-4">Host acessado</dt><dd class="col-sm-8">{{ diagnostico_atualizacao.host }}</dd>
+        <dt class="col-sm-4">Origem/Referer</dt><dd class="col-sm-8">{{ diagnostico_atualizacao.origem|default:"-" }}</dd>
+        <dt class="col-sm-4">ALLOWED_HOSTS</dt><dd class="col-sm-8">{{ diagnostico_atualizacao.allowed_hosts }}</dd>
+        <dt class="col-sm-4">CSRF_TRUSTED_ORIGINS</dt><dd class="col-sm-8">{{ diagnostico_atualizacao.csrf_trusted_origins }}</dd>
+        <dt class="col-sm-4">Git</dt>
+        <dd class="col-sm-8">
+          {% if diagnostico_atualizacao.git_binario %}
+            {{ diagnostico_atualizacao.git_binario }}
+          {% else %}
+            <span class="badge text-bg-danger">Não encontrado</span>
+          {% endif %}
+        </dd>
+        <dt class="col-sm-4">Pasta .git</dt>
+        <dd class="col-sm-8">{{ diagnostico_atualizacao.git_pasta|yesno:"Encontrada,Não encontrada" }}</dd>
+        <dt class="col-sm-4">Acesso ao GitHub</dt>
+        <dd class="col-sm-8">
+          {% if diagnostico_atualizacao.github_ok %}
+            <span class="badge text-bg-success">OK</span> {{ diagnostico_atualizacao.github_msg }}
+          {% else %}
+            <span class="badge text-bg-danger">Falhou</span> {{ diagnostico_atualizacao.github_msg }}
+          {% endif %}
+        </dd>
+      </dl>
+      <p class="text-secondary small mt-3 mb-0">
+        Se a tela abre pela rede externa, mas os botões POST falham, inclua o domínio/IP usado em ALLOWED_HOSTS e, quando usar HTTPS/proxy,
+        também em CSRF_TRUSTED_ORIGINS no arquivo .env.
+      </p>
+    </section>
+
     {% if ultimo_resultado %}
       <section class="detail-section">
         <h2 class="h5">Último resultado</h2>

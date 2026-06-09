@@ -4,12 +4,53 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Enable-Tls12IfAvailable {
+    try {
+        $tls12 = [Net.SecurityProtocolType]::Tls12
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor $tls12
+    } catch {
+        # Windows 7 sem .NET atualizado pode nao ter TLS 1.2; o envio HTTP local continua funcionando.
+    }
+}
+
+function ConvertTo-AgentJson($obj) {
+    if (Get-Command ConvertTo-Json -ErrorAction SilentlyContinue) {
+        return $obj | ConvertTo-Json -Depth 8
+    }
+
+    try {
+        Add-Type -AssemblyName System.Web.Extensions
+        $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+        $serializer.MaxJsonLength = 10485760
+        return $serializer.Serialize($obj)
+    } catch {
+        throw "Nao foi possivel serializar JSON. Instale PowerShell 3+ ou .NET com System.Web.Extensions."
+    }
+}
+
 function Get-PrimaryInterface {
-    $interfaces = Get-NetIPConfiguration |
-        Where-Object { $_.IPv4Address -and $_.NetAdapter.Status -eq "Up" } |
-        Sort-Object { if ($_.NetAdapter.Name -like "*Ethernet*") { 0 } else { 1 } }
+    $interfaces = Get-WmiObject Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True" -ErrorAction SilentlyContinue |
+        Where-Object { $_.IPAddress -and $_.MACAddress } |
+        Sort-Object @{Expression = { if ($_.Description -match "Ethernet|Gigabit|Realtek|Intel") { 0 } else { 1 } } }
 
     return $interfaces | Select-Object -First 1
+}
+
+function Get-NetworkInterfaces {
+    $items = @()
+    Get-WmiObject Win32_NetworkAdapterConfiguration -Filter "IPEnabled=True" -ErrorAction SilentlyContinue |
+        Where-Object { $_.IPAddress -and $_.MACAddress } |
+        ForEach-Object {
+            $ipv4 = @($_.IPAddress | Where-Object { $_ -match "^\d{1,3}(\.\d{1,3}){3}$" }) | Select-Object -First 1
+            $items += @{
+                nome = [string]$_.Description
+                ip = [string]$ipv4
+                mac = [string]$_.MACAddress
+                status = "Up"
+                velocidade = ""
+            }
+        }
+    return $items
 }
 
 function Get-InstalledOffice {
@@ -32,10 +73,7 @@ function Get-InstalledOffice {
             Select-Object DisplayName, DisplayVersion
     }
 
-    $office = $apps |
-        Sort-Object DisplayName, DisplayVersion -Unique |
-        Select-Object -First 1
-
+    $office = $apps | Sort-Object DisplayName, DisplayVersion -Unique | Select-Object -First 1
     if ($office) {
         return "$($office.DisplayName) $($office.DisplayVersion)".Trim()
     }
@@ -72,15 +110,12 @@ function Get-InstalledSoftwareList {
             }
     }
 
-    return $apps |
-        Where-Object { $_ -and $_.Trim() } |
-        Sort-Object -Unique |
-        Select-Object -First 200
+    return @($apps | Where-Object { $_ -and $_.Trim() } | Sort-Object -Unique | Select-Object -First 200)
 }
 
 function Get-LocalDiskTotalGb {
-    $total = Get-CimInstance Win32_LogicalDisk |
-        Where-Object { $_.DriveType -eq 3 -and $_.Size } |
+    $total = Get-WmiObject Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Size } |
         Measure-Object -Property Size -Sum
 
     if ($total.Sum) {
@@ -90,54 +125,41 @@ function Get-LocalDiskTotalGb {
 }
 
 function Get-AgentPayload {
-    param(
-        [string]$SerialManual = ""
-    )
+    param([string]$SerialManual = "")
 
-    $computer = Get-CimInstance Win32_ComputerSystem
-    $bios = Get-CimInstance Win32_BIOS
-    $os = Get-CimInstance Win32_OperatingSystem
-    $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+    $computer = Get-WmiObject Win32_ComputerSystem
+    $bios = Get-WmiObject Win32_BIOS
+    $os = Get-WmiObject Win32_OperatingSystem
+    $cpu = Get-WmiObject Win32_Processor | Select-Object -First 1
     $primary = Get-PrimaryInterface
-    $interfaces = @()
-
-    Get-NetIPConfiguration |
-        Where-Object { $_.IPv4Address -and $_.NetAdapter.MacAddress -and $_.NetAdapter.Status -eq "Up" } |
-        ForEach-Object {
-            $interfaces += @{
-                nome = $_.NetAdapter.Name
-                ip = ($_.IPv4Address | Select-Object -First 1).IPAddress
-                mac = $_.NetAdapter.MacAddress
-                status = $_.NetAdapter.Status
-                velocidade = $_.NetAdapter.LinkSpeed
-            }
-        }
+    $interfaces = @(Get-NetworkInterfaces)
 
     $ip = ""
     $mac = ""
     if ($primary) {
-        $ip = ($primary.IPv4Address | Select-Object -First 1).IPAddress
-        $mac = $primary.NetAdapter.MacAddress
+        $ipv4 = @($primary.IPAddress | Where-Object { $_ -match "^\d{1,3}(\.\d{1,3}){3}$" }) | Select-Object -First 1
+        $ip = [string]$ipv4
+        $mac = [string]$primary.MACAddress
     }
 
-    $serial = $bios.SerialNumber
+    $serial = [string]$bios.SerialNumber
     if ($SerialManual.Trim()) {
         $serial = $SerialManual.Trim()
     }
 
     return @{
-        hostname = $env:COMPUTERNAME
+        hostname = [string]$env:COMPUTERNAME
         ip = $ip
         mac = $mac
         usuario_logado = "$env:USERDOMAIN\$env:USERNAME"
-        dominio = $computer.Domain
-        fabricante = $computer.Manufacturer
-        modelo = $computer.Model
+        dominio = [string]$computer.Domain
+        fabricante = [string]$computer.Manufacturer
+        modelo = [string]$computer.Model
         numero_serie = $serial
         sistema_operacional = "$($os.Caption) $($os.Version) build $($os.BuildNumber)"
-        arquitetura = $os.OSArchitecture
-        processador = $cpu.Name
-        memoria_total_gb = [math]::Round($computer.TotalPhysicalMemory / 1GB, 2)
+        arquitetura = [string]$os.OSArchitecture
+        processador = [string]$cpu.Name
+        memoria_total_gb = [math]::Round([double]$computer.TotalPhysicalMemory / 1GB, 2)
         disco_total_gb = Get-LocalDiskTotalGb
         office = Get-InstalledOffice
         softwares_instalados = @(Get-InstalledSoftwareList)
@@ -146,11 +168,34 @@ function Get-AgentPayload {
     }
 }
 
+function Send-AgentPayload {
+    param(
+        [string]$Endpoint,
+        [string]$Token,
+        [string]$Json
+    )
+
+    Enable-Tls12IfAvailable
+    $client = New-Object System.Net.WebClient
+    $client.Encoding = [System.Text.Encoding]::UTF8
+    $client.Headers.Add("Authorization", "Bearer $Token")
+    $client.Headers.Add("Content-Type", "application/json; charset=utf-8")
+    return $client.UploadString($Endpoint, "POST", $Json)
+}
+
 if (-not (Test-Path $ConfigPath)) {
     throw "Arquivo de configuracao nao encontrado: $ConfigPath"
 }
 
-$config = Get-Content $ConfigPath -Raw | ConvertFrom-Json
+$configText = Get-Content $ConfigPath -Raw
+if (Get-Command ConvertFrom-Json -ErrorAction SilentlyContinue) {
+    $config = $configText | ConvertFrom-Json
+} else {
+    Add-Type -AssemblyName System.Web.Extensions
+    $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+    $config = $serializer.DeserializeObject($configText)
+}
+
 $serverUrl = [string]$config.server_url
 $token = [string]$config.token
 $serialManual = [string]$config.numero_serie_manual
@@ -162,13 +207,9 @@ if (-not $serverUrl -or -not $token) {
 $serverUrl = $serverUrl.TrimEnd("/")
 $endpoint = "$serverUrl/inventario/agente/coleta/"
 $payload = Get-AgentPayload -SerialManual $serialManual
-$json = $payload | ConvertTo-Json -Depth 5
+$json = ConvertTo-AgentJson $payload
+$response = Send-AgentPayload -Endpoint $endpoint -Token $token -Json $json
 
-$headers = @{
-    Authorization = "Bearer $token"
-}
-
-$response = Invoke-RestMethod -Method Post -Uri $endpoint -Headers $headers -Body $json -ContentType "application/json; charset=utf-8" -TimeoutSec 30
 $logDir = Split-Path $ConfigPath
 $logPath = Join-Path $logDir "last-run.log"
-"$(Get-Date -Format o) OK $($response | ConvertTo-Json -Compress)" | Out-File -FilePath $logPath -Encoding utf8
+"$(Get-Date -Format o) OK $response" | Out-File -FilePath $logPath -Encoding utf8

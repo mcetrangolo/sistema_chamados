@@ -1,0 +1,83 @@
+param(
+    [string]$OutputDir = ".\dist",
+    [string]$OutputName = "SistemaChamadosAgentSetup.exe"
+)
+
+$ErrorActionPreference = "Stop"
+$baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$outputDirFull = (New-Item -ItemType Directory -Path $OutputDir -Force).FullName
+$packageDir = Join-Path $outputDirFull "SistemaChamadosAgentPackage"
+$sedPath = Join-Path $outputDirFull "SistemaChamadosAgentSetup.sed"
+$exePath = Join-Path $outputDirFull $OutputName
+
+if (Test-Path $packageDir) {
+    Remove-Item -Path $packageDir -Recurse -Force
+}
+New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
+
+foreach ($file in @("agent.ps1", "install.ps1", "install.cmd")) {
+    Copy-Item -Path (Join-Path $baseDir $file) -Destination (Join-Path $packageDir $file) -Force
+}
+
+$iexpress = Join-Path $env:WINDIR "System32\iexpress.exe"
+if (-not (Test-Path $iexpress)) {
+    Write-Warning "IExpress nao encontrado. Distribua a pasta: $packageDir"
+    exit 0
+}
+
+$sed = @"
+[Version]
+Class=IEXPRESS
+SEDVersion=3
+[Options]
+PackagePurpose=InstallApp
+ShowInstallProgramWindow=1
+HideExtractAnimation=0
+UseLongFileName=1
+InsideCompressed=0
+CAB_FixedSize=0
+CAB_ResvCodeSigning=0
+RebootMode=N
+InstallPrompt=%InstallPrompt%
+DisplayLicense=%DisplayLicense%
+FinishMessage=%FinishMessage%
+TargetName=%TargetName%
+FriendlyName=%FriendlyName%
+AppLaunched=%AppLaunched%
+PostInstallCmd=%PostInstallCmd%
+AdminQuietInstCmd=%AdminQuietInstCmd%
+UserQuietInstCmd=%UserQuietInstCmd%
+SourceFiles=SourceFiles
+[Strings]
+InstallPrompt=
+DisplayLicense=
+FinishMessage=Instalacao do agente concluida.
+TargetName=$exePath
+FriendlyName=Sistema Chamados Agent Setup
+AppLaunched=install.cmd
+PostInstallCmd=<None>
+AdminQuietInstCmd=
+UserQuietInstCmd=
+FILE0=agent.ps1
+FILE1=install.ps1
+FILE2=install.cmd
+[SourceFiles]
+SourceFiles0=$packageDir
+[SourceFiles0]
+%FILE0%=
+%FILE1%=
+%FILE2%=
+"@
+
+$sed | Out-File -FilePath $sedPath -Encoding ASCII -Force
+& $iexpress /N /Q $sedPath
+
+for ($i = 0; $i -lt 10 -and -not (Test-Path $exePath); $i++) {
+    Start-Sleep -Milliseconds 500
+}
+
+if (Test-Path $exePath) {
+    Write-Host "Instalador criado: $exePath" -ForegroundColor Green
+} else {
+    throw "IExpress executou, mas o EXE nao foi encontrado: $exePath"
+}

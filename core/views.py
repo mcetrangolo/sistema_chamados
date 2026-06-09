@@ -5,6 +5,7 @@ import platform
 from re import sub
 import shutil
 import subprocess
+import urllib.request
 
 from django.conf import settings
 from django.contrib import messages
@@ -203,6 +204,7 @@ class AtualizacaoSistemaView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["git_info"] = self._git_info()
+        context["diagnostico_atualizacao"] = self._diagnostico(request=self.request)
         context["ultimo_resultado"] = self.request.session.pop("ultimo_resultado_atualizacao", "")
         context["comando_servidor"] = "cd /opt/sistema-chamados && bash scripts/deploy_linux.sh"
         return context
@@ -217,23 +219,58 @@ class AtualizacaoSistemaView(LoginRequiredMixin, TemplateView):
         return redirect("core:atualizacoes")
 
     def _git_disponivel(self):
-        return (settings.BASE_DIR / ".git").exists()
+        return bool(shutil.which("git")) and (settings.BASE_DIR / ".git").exists()
 
     def _rodar(self, comando, timeout=120):
-        resultado = subprocess.run(
-            comando,
-            cwd=settings.BASE_DIR,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-        )
+        try:
+            resultado = subprocess.run(
+                comando,
+                cwd=settings.BASE_DIR,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
+        except FileNotFoundError:
+            return 127, f"Comando nao encontrado: {comando[0]}"
+        except subprocess.TimeoutExpired as exc:
+            saida_timeout = "\n".join(
+                parte.decode("utf-8", "replace") if isinstance(parte, bytes) else str(parte)
+                for parte in [exc.stdout, exc.stderr]
+                if parte
+            )
+            return 124, f"Tempo limite excedido ao executar: {' '.join(comando)}\n{saida_timeout}".strip()
+        except Exception as exc:
+            return 1, str(exc)
         saida = "\n".join(
             parte.strip()
             for parte in [resultado.stdout, resultado.stderr]
             if parte and parte.strip()
         )
         return resultado.returncode, saida
+
+    def _testar_url(self, url, timeout=5):
+        try:
+            requisicao = urllib.request.Request(url, headers={"User-Agent": "SistemaChamadosAtualizador/1.0"})
+            with urllib.request.urlopen(requisicao, timeout=timeout) as resposta:
+                return True, f"HTTP {resposta.status}"
+        except Exception as exc:
+            return False, str(exc)
+
+    def _diagnostico(self, request):
+        github_ok, github_msg = self._testar_url("https://github.com", timeout=5)
+        host = request.get_host()
+        origem = request.headers.get("Origin") or request.headers.get("Referer") or ""
+        return {
+            "host": host,
+            "origem": origem,
+            "allowed_hosts": ", ".join(settings.ALLOWED_HOSTS) or "-",
+            "csrf_trusted_origins": ", ".join(settings.CSRF_TRUSTED_ORIGINS) or "-",
+            "git_binario": shutil.which("git") or "",
+            "git_pasta": (settings.BASE_DIR / ".git").exists(),
+            "github_ok": github_ok,
+            "github_msg": github_msg,
+        }
 
     def _git_texto(self, *args):
         codigo, saida = self._rodar(["git", *args], timeout=30)
@@ -262,7 +299,7 @@ class AtualizacaoSistemaView(LoginRequiredMixin, TemplateView):
 
     def _verificar(self, request):
         if not self._git_disponivel():
-            messages.error(request, "Esta instalação não pode verificar atualizações pela tela. Use o terminal do servidor.")
+            messages.error(request, "Esta instalação não pode verificar atualizações pela tela. Verifique se Git está instalado e se a pasta .git existe.")
             return redirect("core:atualizacoes")
 
         codigo, saida = self._rodar(["git", "fetch", "--prune"], timeout=120)
