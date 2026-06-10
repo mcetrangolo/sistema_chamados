@@ -21,6 +21,7 @@ O arquivo será gerado em:
 
 ```text
 dist\SistemaChamadosAgentSetup.exe
+releases\agents\windows\SistemaChamadosAgentSetup.exe
 ```
 
 O instalador atual e um `.exe` standalone compilado em C#, sem IExpress. Ele nao depende de arquivos temporarios extraidos pelo Windows para iniciar.

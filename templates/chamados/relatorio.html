@@ -274,6 +274,12 @@
     resizeDelay: 150,
     plugins: { legend: { position: "bottom" } }
   };
+  const reportBarChartOptions = {
+    ...reportChartOptions,
+    scales: {
+      y: { beginAtZero: true, ticks: { precision: 0, stepSize: 1 } }
+    }
+  };
   function loadReportChartData(id) {
     const element = document.getElementById(id);
     return element ? JSON.parse(element.textContent) : { labels: [], data: [] };
@@ -294,7 +300,7 @@
           borderWidth: 1
         }]
       },
-      options: reportChartOptions
+      options: type === "bar" ? reportBarChartOptions : reportChartOptions
     });
   }
   buildReportChart("inventarioSoChart", "inventario-so-chart-data", "pie");

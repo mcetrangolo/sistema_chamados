@@ -10,6 +10,8 @@ $projectDir = Resolve-Path (Join-Path $baseDir "..\..\..")
 $outputDirFull = (New-Item -ItemType Directory -Path $OutputDir -Force).FullName
 $packageDir = Join-Path $outputDirFull "SistemaChamadosAgentPackage"
 $exePath = Join-Path $outputDirFull $OutputName
+$releaseDir = Join-Path $projectDir "releases\agents\windows"
+$releaseExePath = Join-Path $releaseDir $OutputName
 
 if (Test-Path $packageDir) {
     Remove-Item -Path $packageDir -Recurse -Force
@@ -57,7 +59,10 @@ if (-not $csc) {
 & $csc /nologo /target:winexe /out:$exePath /reference:System.Windows.Forms.dll $generatedSource
 
 if (Test-Path $exePath) {
+    New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+    Copy-Item -LiteralPath $exePath -Destination $releaseExePath -Force
     Write-Host "Instalador standalone criado: $exePath" -ForegroundColor Green
+    Write-Host "Copia versionada atualizada: $releaseExePath" -ForegroundColor Green
 } else {
     throw "Compilacao executou, mas o EXE nao foi encontrado: $exePath"
 }

@@ -352,6 +352,12 @@ a {
 
 .metric {
   border-top: 3px solid var(--primary);
+  display: block;
+  height: 100%;
+  min-height: 96px;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
 }
 
 .metric-link {
@@ -379,6 +385,8 @@ a {
   color: var(--muted);
   display: block;
   font-size: .875rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .metric strong {
@@ -386,6 +394,7 @@ a {
   font-size: 2rem;
   line-height: 1.1;
   margin-top: .25rem;
+  overflow-wrap: anywhere;
 }
 
 .content-narrow {
@@ -425,9 +434,10 @@ a {
 .chart-panel {
   display: flex;
   flex-direction: column;
-  height: 300px;
+  height: 300px !important;
   min-height: 300px;
   overflow: hidden;
+  position: relative;
 }
 
 .chart-canvas {
@@ -520,6 +530,7 @@ a {
   display: block;
   height: 220px !important;
   max-height: 220px !important;
+  min-height: 220px !important;
   width: 100% !important;
 }
 

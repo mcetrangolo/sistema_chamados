@@ -156,6 +156,12 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
   const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } };
+  const barChartOptions = {
+    ...chartOptions,
+    scales: {
+      y: { beginAtZero: true, ticks: { precision: 0, stepSize: 1 } }
+    }
+  };
   const palette = ["#155eef", "#16875d", "#b7791f", "#c2413d", "#6f42c1", "#0f766e", "#64748b", "#ea580c"];
   function loadChartData(id) {
     return JSON.parse(document.getElementById(id).textContent);
@@ -165,7 +171,7 @@
     new Chart(document.getElementById(canvasId), {
       type,
       data: { labels: data.labels, datasets: [{ data: data.data, backgroundColor: palette }] },
-      options: chartOptions
+      options: type === "bar" ? barChartOptions : chartOptions
     });
   }
   buildChart("statusChart", "status-chart-data", "doughnut");

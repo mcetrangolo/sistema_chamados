@@ -50,6 +50,18 @@ AGENTE_WINDOWS_EXE = "SistemaChamadosAgentSetup.exe"
 AGENTE_LINUX_INSTALLER = "install.sh"
 
 
+def _caminho_agente_windows():
+    candidatos = [
+        settings.BASE_DIR / "releases" / "agents" / "windows" / AGENTE_WINDOWS_EXE,
+        settings.BASE_DIR / "dist" / AGENTE_WINDOWS_EXE,
+    ]
+    for caminho in candidatos:
+        caminho = caminho.resolve()
+        if caminho.exists():
+            return caminho
+    return candidatos[0].resolve()
+
+
 def _ips_rede_local():
     ips = []
     try:
@@ -103,9 +115,12 @@ def registrar_alteracoes_ativo(ativo, antes, campos, origem):
 
 @login_required
 def baixar_agente_windows(request):
-    caminho = (settings.BASE_DIR / "dist" / AGENTE_WINDOWS_EXE).resolve()
-    base_dist = (settings.BASE_DIR / "dist").resolve()
-    if not str(caminho).startswith(str(base_dist)) or not caminho.exists():
+    caminho = _caminho_agente_windows()
+    bases_permitidas = [
+        (settings.BASE_DIR / "releases" / "agents" / "windows").resolve(),
+        (settings.BASE_DIR / "dist").resolve(),
+    ]
+    if not any(str(caminho).startswith(str(base)) for base in bases_permitidas) or not caminho.exists():
         raise Http404(
             "Instalador do agente nao encontrado. Gere o arquivo com scripts/agent/windows/build_installer.ps1."
         )
@@ -134,7 +149,7 @@ def baixar_agente_linux(request):
 @login_required
 @user_passes_test(lambda user: user.is_superuser)
 def configuracao_agente(request):
-    caminho = (settings.BASE_DIR / "dist" / AGENTE_WINDOWS_EXE).resolve()
+    caminho = _caminho_agente_windows()
     url_detectada = request.build_absolute_uri("/").rstrip("/")
     base_url = _base_url_agente(request)
     porta = request.get_port()
