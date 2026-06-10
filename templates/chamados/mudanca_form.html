@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Mudanca | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="content-narrow">
+  <h1 class="h3 mb-3">Mudanca</h1>
+  <form method="post" class="detail-section">
+    {% csrf_token %}
+    {% include "chamados/partials/form_fields.html" %}
+    <button class="btn btn-primary" type="submit">Salvar</button>
+  </form>
+</div>
+{% endblock %}

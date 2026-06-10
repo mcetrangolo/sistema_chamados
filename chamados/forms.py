@@ -7,12 +7,15 @@ from .models import (
     AnexoChamado,
     ArtigoConhecimento,
     AvaliacaoChamado,
+    CampoServicoCatalogo,
     Categoria,
     Chamado,
     ComentarioChamado,
     EquipeAtendimento,
     HistoricoChamado,
     RegraSLA,
+    Mudanca,
+    Problema,
     RespostaPronta,
     ServicoCatalogo,
     Setor,
@@ -478,14 +481,21 @@ class ServicoCatalogoForm(BootstrapFormMixin, forms.ModelForm):
             "aprovador_padrao",
             "requer_matricula",
             "requer_aprovacao",
-            "campos_personalizados",
             "instrucoes",
             "ativo",
         ]
         widgets = {
             "descricao": forms.Textarea(attrs={"rows": 4}),
-            "campos_personalizados": forms.Textarea(attrs={"rows": 8}),
             "instrucoes": forms.Textarea(attrs={"rows": 4}),
+        }
+
+
+class CampoServicoCatalogoForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = CampoServicoCatalogo
+        fields = ["nome", "rotulo", "tipo", "opcoes", "obrigatorio", "ordem", "ativo"]
+        widgets = {
+            "opcoes": forms.Textarea(attrs={"rows": 4, "placeholder": "Uma opcao por linha"}),
         }
 
 
@@ -505,7 +515,19 @@ class SolicitacaoServicoForm(BootstrapFormMixin, forms.ModelForm):
         else:
             self.fields["matricula"].required = True
         self.campos_dinamicos = []
-        for campo in (getattr(servico, "campos_personalizados", None) or []):
+        campos_visuais = []
+        if servico and servico.pk:
+            campos_visuais = list(servico.campos.filter(ativo=True))
+        campos_legados = getattr(servico, "campos_personalizados", None) or []
+        for campo in campos_visuais:
+            nome = campo.nome
+            field_name = f"extra_{nome}"
+            rotulo = campo.rotulo
+            tipo = campo.tipo
+            obrigatorio = campo.obrigatorio
+            opcoes = campo.lista_opcoes
+            self._adicionar_campo_dinamico(field_name, nome, rotulo, tipo, obrigatorio, opcoes)
+        for campo in campos_legados:
             nome = str(campo.get("nome", "")).strip()
             if not nome:
                 continue
@@ -513,24 +535,27 @@ class SolicitacaoServicoForm(BootstrapFormMixin, forms.ModelForm):
             rotulo = campo.get("rotulo") or campo.get("label") or nome.replace("_", " ").title()
             tipo = campo.get("tipo", "texto")
             obrigatorio = bool(campo.get("obrigatorio", False))
-            if tipo == "texto_longo":
-                field = forms.CharField(label=rotulo, required=obrigatorio, widget=forms.Textarea(attrs={"rows": 4}))
-            elif tipo == "numero":
-                field = forms.DecimalField(label=rotulo, required=obrigatorio)
-            elif tipo == "data":
-                field = forms.DateField(label=rotulo, required=obrigatorio, widget=forms.DateInput(attrs={"type": "date"}))
-            elif tipo == "email":
-                field = forms.EmailField(label=rotulo, required=obrigatorio)
-            elif tipo == "checkbox":
-                field = forms.BooleanField(label=rotulo, required=False)
-            elif tipo == "selecao":
-                opcoes = campo.get("opcoes") or campo.get("choices") or []
-                choices = [("", "Selecione")] + [(str(item), str(item)) for item in opcoes]
-                field = forms.ChoiceField(label=rotulo, required=obrigatorio, choices=choices)
-            else:
-                field = forms.CharField(label=rotulo, required=obrigatorio)
-            self.fields[field_name] = field
-            self.campos_dinamicos.append((field_name, nome, rotulo))
+            opcoes = campo.get("opcoes") or campo.get("choices") or []
+            self._adicionar_campo_dinamico(field_name, nome, rotulo, tipo, obrigatorio, opcoes)
+
+    def _adicionar_campo_dinamico(self, field_name, nome, rotulo, tipo, obrigatorio, opcoes):
+        if tipo == "texto_longo":
+            field = forms.CharField(label=rotulo, required=obrigatorio, widget=forms.Textarea(attrs={"rows": 4}))
+        elif tipo == "numero":
+            field = forms.DecimalField(label=rotulo, required=obrigatorio)
+        elif tipo == "data":
+            field = forms.DateField(label=rotulo, required=obrigatorio, widget=forms.DateInput(attrs={"type": "date"}))
+        elif tipo == "email":
+            field = forms.EmailField(label=rotulo, required=obrigatorio)
+        elif tipo == "checkbox":
+            field = forms.BooleanField(label=rotulo, required=False)
+        elif tipo == "selecao":
+            choices = [("", "Selecione")] + [(str(item), str(item)) for item in opcoes]
+            field = forms.ChoiceField(label=rotulo, required=obrigatorio, choices=choices)
+        else:
+            field = forms.CharField(label=rotulo, required=obrigatorio)
+        self.fields[field_name] = field
+        self.campos_dinamicos.append((field_name, nome, rotulo))
 
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -544,3 +569,51 @@ class SolicitacaoServicoForm(BootstrapFormMixin, forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class ProblemaForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = Problema
+        fields = [
+            "titulo",
+            "chamado_principal",
+            "chamados_relacionados",
+            "responsavel",
+            "status",
+            "causa_raiz",
+            "workaround",
+            "solucao_definitiva",
+        ]
+        widgets = {
+            "chamados_relacionados": forms.SelectMultiple(attrs={"size": 8}),
+            "causa_raiz": forms.Textarea(attrs={"rows": 4}),
+            "workaround": forms.Textarea(attrs={"rows": 4}),
+            "solucao_definitiva": forms.Textarea(attrs={"rows": 4}),
+        }
+
+
+class MudancaForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = Mudanca
+        fields = [
+            "titulo",
+            "chamado",
+            "responsavel",
+            "aprovador",
+            "status",
+            "risco",
+            "impacto",
+            "plano_execucao",
+            "plano_rollback",
+            "janela_inicio",
+            "janela_fim",
+            "validacao_pos_mudanca",
+        ]
+        widgets = {
+            "impacto": forms.Textarea(attrs={"rows": 4}),
+            "plano_execucao": forms.Textarea(attrs={"rows": 5}),
+            "plano_rollback": forms.Textarea(attrs={"rows": 5}),
+            "janela_inicio": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "janela_fim": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "validacao_pos_mudanca": forms.Textarea(attrs={"rows": 4}),
+        }

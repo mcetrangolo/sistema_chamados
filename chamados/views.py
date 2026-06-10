@@ -26,6 +26,7 @@ from .forms import (
     AvaliacaoChamadoForm,
     CategoriaForm,
     ChamadoForm,
+    CampoServicoCatalogoForm,
     ComentarioInternoForm,
     ComentarioPortalForm,
     ConsultaChamadoForm,
@@ -33,6 +34,8 @@ from .forms import (
     PortalChamadoForm,
     RegraSLAForm,
     RelatorioChamadosForm,
+    MudancaForm,
+    ProblemaForm,
     RespostaProntaForm,
     ServicoCatalogoForm,
     SetorForm,
@@ -48,10 +51,13 @@ from .models import (
     AvaliacaoChamado,
     Categoria,
     Chamado,
+    CampoServicoCatalogo,
     ComentarioChamado,
     EquipeAtendimento,
     HistoricoChamado,
     RegraSLA,
+    Mudanca,
+    Problema,
     RespostaPronta,
     ServicoCatalogo,
     Setor,
@@ -777,6 +783,176 @@ class ServicoCatalogoUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateVi
     def form_valid(self, form):
         messages.success(self.request, "Serviço atualizado com sucesso.")
         return super().form_valid(form)
+
+
+class CampoServicoCatalogoListView(LoginRequiredMixin, AdminRequiredMixin, ListView):
+    model = CampoServicoCatalogo
+    template_name = "chamados/cadastros/campo_servico_list.html"
+    context_object_name = "campos"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.servico = get_object_or_404(ServicoCatalogo, pk=kwargs["servico_pk"])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        return self.servico.campos.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["servico"] = self.servico
+        return context
+
+
+class CampoServicoCatalogoCreateView(LoginRequiredMixin, AdminRequiredMixin, CreateView):
+    model = CampoServicoCatalogo
+    form_class = CampoServicoCatalogoForm
+    template_name = "chamados/cadastros/campo_servico_form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.servico = get_object_or_404(ServicoCatalogo, pk=kwargs["servico_pk"])
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        form.instance.servico = self.servico
+        messages.success(self.request, "Campo cadastrado com sucesso.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy("chamados:servico_campos", kwargs={"servico_pk": self.servico.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["servico"] = self.servico
+        return context
+
+
+class CampoServicoCatalogoUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
+    model = CampoServicoCatalogo
+    form_class = CampoServicoCatalogoForm
+    template_name = "chamados/cadastros/campo_servico_form.html"
+
+    def get_queryset(self):
+        return CampoServicoCatalogo.objects.select_related("servico")
+
+    def get_success_url(self):
+        return reverse_lazy("chamados:servico_campos", kwargs={"servico_pk": self.object.servico.pk})
+
+    def form_valid(self, form):
+        messages.success(self.request, "Campo atualizado com sucesso.")
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["servico"] = self.object.servico
+        return context
+
+
+class ProblemaListView(LoginRequiredMixin, ListView):
+    model = Problema
+    template_name = "chamados/problema_list.html"
+    context_object_name = "problemas"
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = Problema.objects.select_related("responsavel", "chamado_principal")
+        q = self.request.GET.get("q", "").strip()
+        status = self.request.GET.get("status", "")
+        if q:
+            queryset = queryset.filter(Q(titulo__icontains=q) | Q(causa_raiz__icontains=q) | Q(workaround__icontains=q))
+        if status:
+            queryset = queryset.filter(status=status)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["status_choices"] = Problema.Status.choices
+        context["filtros"] = self.request.GET
+        return context
+
+
+class ProblemaCreateView(LoginRequiredMixin, CreateView):
+    model = Problema
+    form_class = ProblemaForm
+    template_name = "chamados/problema_form.html"
+
+    def form_valid(self, form):
+        messages.success(self.request, "Problema registrado com sucesso.")
+        return super().form_valid(form)
+
+
+class ProblemaUpdateView(LoginRequiredMixin, UpdateView):
+    model = Problema
+    form_class = ProblemaForm
+    template_name = "chamados/problema_form.html"
+
+    def form_valid(self, form):
+        messages.success(self.request, "Problema atualizado com sucesso.")
+        return super().form_valid(form)
+
+
+class ProblemaDetailView(LoginRequiredMixin, DetailView):
+    model = Problema
+    template_name = "chamados/problema_detail.html"
+    context_object_name = "problema"
+
+    def get_queryset(self):
+        return Problema.objects.select_related("responsavel", "chamado_principal").prefetch_related("chamados_relacionados")
+
+
+class MudancaListView(LoginRequiredMixin, ListView):
+    model = Mudanca
+    template_name = "chamados/mudanca_list.html"
+    context_object_name = "mudancas"
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = Mudanca.objects.select_related("responsavel", "aprovador", "chamado")
+        q = self.request.GET.get("q", "").strip()
+        status = self.request.GET.get("status", "")
+        risco = self.request.GET.get("risco", "")
+        if q:
+            queryset = queryset.filter(Q(titulo__icontains=q) | Q(impacto__icontains=q) | Q(plano_execucao__icontains=q))
+        if status:
+            queryset = queryset.filter(status=status)
+        if risco:
+            queryset = queryset.filter(risco=risco)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["status_choices"] = Mudanca.Status.choices
+        context["risco_choices"] = Mudanca.Risco.choices
+        context["filtros"] = self.request.GET
+        return context
+
+
+class MudancaCreateView(LoginRequiredMixin, CreateView):
+    model = Mudanca
+    form_class = MudancaForm
+    template_name = "chamados/mudanca_form.html"
+
+    def form_valid(self, form):
+        messages.success(self.request, "Mudanca registrada com sucesso.")
+        return super().form_valid(form)
+
+
+class MudancaUpdateView(LoginRequiredMixin, UpdateView):
+    model = Mudanca
+    form_class = MudancaForm
+    template_name = "chamados/mudanca_form.html"
+
+    def form_valid(self, form):
+        messages.success(self.request, "Mudanca atualizada com sucesso.")
+        return super().form_valid(form)
+
+
+class MudancaDetailView(LoginRequiredMixin, DetailView):
+    model = Mudanca
+    template_name = "chamados/mudanca_detail.html"
+    context_object_name = "mudanca"
+
+    def get_queryset(self):
+        return Mudanca.objects.select_related("responsavel", "aprovador", "chamado")
 
 
 class BuscaGlobalView(LoginRequiredMixin, TemplateView):

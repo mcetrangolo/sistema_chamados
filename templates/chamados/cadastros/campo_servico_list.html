@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Campos do servico | Catalogo{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">Campos do servico</h1>
+    <p class="text-secondary mb-0">{{ servico.nome }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'chamados:servicos' %}">Voltar</a>
+    <a class="btn btn-primary" href="{% url 'chamados:servico_campo_novo' servico.pk %}">Novo campo</a>
+  </div>
+</div>
+<section class="detail-section">
+  <table class="table table-hover align-middle mb-0">
+    <thead><tr><th>Ordem</th><th>Rotulo</th><th>Nome tecnico</th><th>Tipo</th><th>Obrigatorio</th><th>Status</th><th class="text-end">Acoes</th></tr></thead>
+    <tbody>
+      {% for campo in campos %}
+        <tr>
+          <td>{{ campo.ordem }}</td>
+          <td>{{ campo.rotulo }}</td>
+          <td>{{ campo.nome }}</td>
+          <td>{{ campo.get_tipo_display }}</td>
+          <td>{{ campo.obrigatorio|yesno:"Sim,Nao" }}</td>
+          <td>{{ campo.ativo|yesno:"Ativo,Inativo" }}</td>
+          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:servico_campo_editar' campo.pk %}">Editar</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-center text-secondary py-4">Nenhum campo cadastrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

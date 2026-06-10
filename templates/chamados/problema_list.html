@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Problemas | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div><h1 class="h3 mb-0">Gestao de problemas</h1><p class="text-secondary mb-0">Causa raiz, workaround e erros conhecidos.</p></div>
+  <a class="btn btn-primary" href="{% url 'chamados:problema_novo' %}">Novo problema</a>
+</div>
+<form method="get" class="row g-2 mb-3 filters">
+  <div class="col-md-6"><input class="form-control" name="q" value="{{ filtros.q }}" placeholder="Buscar problema"></div>
+  <div class="col-md-3"><select class="form-select" name="status"><option value="">Status</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if filtros.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" type="submit">Filtrar</button></div>
+</form>
+<section class="detail-section">
+  <table class="table table-hover align-middle mb-0">
+    <thead><tr><th>Titulo</th><th>Status</th><th>Responsavel</th><th>Chamado principal</th><th>Atualizado</th></tr></thead>
+    <tbody>
+      {% for problema in problemas %}
+        <tr><td><a href="{{ problema.get_absolute_url }}">{{ problema.titulo }}</a></td><td>{{ problema.get_status_display }}</td><td>{{ problema.responsavel|default:"-" }}</td><td>{{ problema.chamado_principal|default:"-" }}</td><td>{{ problema.atualizado_em|date:"d/m/Y H:i" }}</td></tr>
+      {% empty %}
+        <tr><td colspan="5" class="text-center text-secondary py-4">Nenhum problema registrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

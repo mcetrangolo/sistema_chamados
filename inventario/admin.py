@@ -3,10 +3,12 @@ from django.contrib import admin
 from .models import (
     AtivoRede,
     AgendamentoVarredura,
+    AnexoLicencaSoftware,
     CredencialSNMP,
     FaixaRede,
     InterfaceRede,
     LicencaSoftware,
+    HistoricoAlteracaoAtivo,
     MetodoDescoberta,
     OcorrenciaAtivo,
     RelacionamentoAtivo,
@@ -24,6 +26,13 @@ class OcorrenciaInline(admin.TabularInline):
     model = OcorrenciaAtivo
     extra = 0
     readonly_fields = ("registrado_por", "criado_em")
+
+
+class HistoricoAlteracaoInline(admin.TabularInline):
+    model = HistoricoAlteracaoAtivo
+    extra = 0
+    readonly_fields = ("campo", "valor_anterior", "valor_novo", "origem", "criado_em")
+    can_delete = False
 
 
 class RelacionamentoOrigemInline(admin.TabularInline):
@@ -65,7 +74,7 @@ class AtivoRedeAdmin(admin.ModelAdmin):
     list_display = ("nome", "tipo", "ip", "hostname", "sistema_operacional", "office", "status", "origem", "ultima_coleta_em")
     list_filter = ("tipo", "status", "origem", "setor", "sistema_operacional", "office")
     search_fields = ("nome", "ip", "mac", "hostname", "fabricante", "modelo", "numero_serie", "processador", "office")
-    inlines = [InterfaceInline, RelacionamentoOrigemInline, OcorrenciaInline]
+    inlines = [InterfaceInline, RelacionamentoOrigemInline, OcorrenciaInline, HistoricoAlteracaoInline]
 
 
 @admin.register(VarreduraRede)
@@ -102,3 +111,17 @@ class LicencaSoftwareAdmin(admin.ModelAdmin):
     list_filter = ("status", "fabricante", "validade")
     search_fields = ("nome", "fabricante", "chave")
     filter_horizontal = ("ativos",)
+
+
+@admin.register(AnexoLicencaSoftware)
+class AnexoLicencaSoftwareAdmin(admin.ModelAdmin):
+    list_display = ("licenca", "descricao", "enviado_por", "criado_em")
+    list_filter = ("criado_em",)
+    search_fields = ("licenca__nome", "descricao", "arquivo")
+
+
+@admin.register(HistoricoAlteracaoAtivo)
+class HistoricoAlteracaoAtivoAdmin(admin.ModelAdmin):
+    list_display = ("ativo", "campo", "origem", "criado_em")
+    list_filter = ("campo", "origem", "criado_em")
+    search_fields = ("ativo__nome", "campo", "valor_anterior", "valor_novo")

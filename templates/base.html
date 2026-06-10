@@ -49,6 +49,8 @@
               <li><a class="dropdown-item" href="{% url 'chamados:fila' 'atrasados' %}">Atrasados</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:fila' 'problemas' %}">Problemas</a></li>
               <li><a class="dropdown-item" href="{% url 'chamados:fila' 'mudancas' %}">Mudancas</a></li>
+              <li><a class="dropdown-item" href="{% url 'chamados:problemas' %}">Gestao de problemas</a></li>
+              <li><a class="dropdown-item" href="{% url 'chamados:mudancas' %}">Gestao de mudancas</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="{% url 'chamados:busca_global' %}">Busca global</a></li>
             </ul>
@@ -61,6 +63,7 @@
               <li><a class="dropdown-item" href="{% url 'inventario:painel' %}">Painel</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:ativos' %}">Ativos</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:licencas' %}">Licencas de software</a></li>
+              <li><a class="dropdown-item" href="{% url 'inventario:licencas_conciliacao' %}">Conciliação de licenças</a></li>
               {% if user.is_superuser %}
                 <li><a class="dropdown-item" href="{% url 'inventario:agente_config' %}">Agente Windows</a></li>
               {% endif %}

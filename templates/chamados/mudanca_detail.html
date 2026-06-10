@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ mudanca.titulo }} | Mudanca{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div><h1 class="h3 mb-1">{{ mudanca.titulo }}</h1><p class="text-secondary mb-0">{{ mudanca.get_status_display }} - risco {{ mudanca.get_risco_display }}</p></div>
+  <a class="btn btn-primary" href="{% url 'chamados:mudanca_editar' mudanca.pk %}">Editar</a>
+</div>
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="detail-section"><h2 class="h5">Impacto</h2>{{ mudanca.impacto|default:"-"|linebreaks }}</section>
+    <section class="detail-section"><h2 class="h5">Plano de execucao</h2>{{ mudanca.plano_execucao|linebreaks }}</section>
+    <section class="detail-section"><h2 class="h5">Plano de rollback</h2>{{ mudanca.plano_rollback|linebreaks }}</section>
+    <section class="detail-section"><h2 class="h5">Validacao pos-mudanca</h2>{{ mudanca.validacao_pos_mudanca|default:"Ainda nao registrada."|linebreaks }}</section>
+  </div>
+  <aside class="col-lg-4"><div class="side-panel"><dl class="row mb-0"><dt class="col-5">Responsavel</dt><dd class="col-7">{{ mudanca.responsavel|default:"-" }}</dd><dt class="col-5">Aprovador</dt><dd class="col-7">{{ mudanca.aprovador|default:"-" }}</dd><dt class="col-5">Inicio</dt><dd class="col-7">{{ mudanca.janela_inicio|date:"d/m/Y H:i"|default:"-" }}</dd><dt class="col-5">Fim</dt><dd class="col-7">{{ mudanca.janela_fim|date:"d/m/Y H:i"|default:"-" }}</dd></dl></div></aside>
+</div>
+{% endblock %}

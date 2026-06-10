@@ -19,6 +19,7 @@ from core.models import ConfiguracaoInstitucional
 from .forms import (
     AtivoRedeForm,
     AgendamentoVarreduraForm,
+    AnexoLicencaSoftwareForm,
     CredencialSNMPForm,
     FaixaRedeForm,
     LicencaSoftwareForm,
@@ -29,11 +30,13 @@ from .forms import (
 )
 from .models import (
     AgendamentoVarredura,
+    AnexoLicencaSoftware,
     AtivoRede,
     CredencialSNMP,
     FaixaRede,
     InterfaceRede,
     LicencaSoftware,
+    HistoricoAlteracaoAtivo,
     MetodoDescoberta,
     OcorrenciaAtivo,
     RelacionamentoAtivo,
@@ -77,6 +80,25 @@ def _decimal_ou_none(valor):
         return round(float(valor), 2)
     except (TypeError, ValueError):
         return None
+
+
+def registrar_alteracoes_ativo(ativo, antes, campos, origem):
+    alteracoes = []
+    for campo in campos:
+        anterior = antes.get(campo)
+        novo = getattr(ativo, campo)
+        if str(anterior or "") != str(novo or ""):
+            alteracoes.append(
+                HistoricoAlteracaoAtivo(
+                    ativo=ativo,
+                    campo=campo,
+                    valor_anterior=str(anterior or ""),
+                    valor_novo=str(novo or ""),
+                    origem=origem,
+                )
+            )
+    if alteracoes:
+        HistoricoAlteracaoAtivo.objects.bulk_create(alteracoes)
 
 
 @login_required
@@ -185,6 +207,25 @@ def receber_coleta_agente(request):
     criado = ativo is None
     if criado:
         ativo = AtivoRede(tipo=tipo_padrao)
+    campos_monitorados = [
+        "nome",
+        "hostname",
+        "ip",
+        "mac",
+        "fabricante",
+        "modelo",
+        "numero_serie",
+        "sistema_operacional",
+        "processador",
+        "memoria_total_gb",
+        "disco_total_gb",
+        "office",
+        "softwares_instalados",
+        "usuario_logado",
+        "dominio",
+        "status",
+    ]
+    antes = {campo: getattr(ativo, campo, "") for campo in campos_monitorados}
 
     interfaces = dados.get("interfaces") or []
     interfaces_txt = []
@@ -241,6 +282,7 @@ def receber_coleta_agente(request):
     ativo.observacoes = "\n".join(observacoes)
     ativo.ultima_coleta_em = timezone.now()
     ativo.save()
+    registrar_alteracoes_ativo(ativo, antes, campos_monitorados, "agente")
 
     for interface in interfaces[:20]:
         nome_interface = _normalizar_texto(interface.get("nome"), 120)
@@ -414,8 +456,12 @@ class AtivoRedeUpdateView(LoginRequiredMixin, UpdateView):
     template_name = "inventario/ativo_form.html"
 
     def form_valid(self, form):
+        campos = list(form.changed_data)
+        antes = {campo: getattr(self.object, campo, "") for campo in campos}
         messages.success(self.request, "Ativo atualizado com sucesso.")
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        registrar_alteracoes_ativo(self.object, antes, campos, "manual")
+        return response
 
 
 class AtivoRedeDetailView(LoginRequiredMixin, DetailView):
@@ -425,7 +471,7 @@ class AtivoRedeDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return AtivoRede.objects.select_related("tipo", "setor").prefetch_related(
-            "interfaces", "ocorrencias", "chamados", "relacoes_origem__destino", "relacoes_destino__origem", "licencas"
+            "interfaces", "ocorrencias", "chamados", "relacoes_origem__destino", "relacoes_destino__origem", "licencas", "historico_alteracoes"
         )
 
     def get_context_data(self, **kwargs):
@@ -458,6 +504,20 @@ class LicencaSoftwareListView(LoginRequiredMixin, ListView):
         return context
 
 
+class LicencaSoftwareDetailView(LoginRequiredMixin, DetailView):
+    model = LicencaSoftware
+    template_name = "inventario/licenca_detail.html"
+    context_object_name = "licenca"
+
+    def get_queryset(self):
+        return LicencaSoftware.objects.prefetch_related("ativos", "anexos")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["anexo_form"] = AnexoLicencaSoftwareForm()
+        return context
+
+
 class LicencaSoftwareCreateView(LoginRequiredMixin, CreateView):
     model = LicencaSoftware
     form_class = LicencaSoftwareForm
@@ -478,6 +538,43 @@ class LicencaSoftwareUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, "Licenca atualizada com sucesso.")
         return super().form_valid(form)
+
+
+@login_required
+def anexar_licenca(request, pk):
+    licenca = get_object_or_404(LicencaSoftware, pk=pk)
+    if request.method == "POST":
+        form = AnexoLicencaSoftwareForm(request.POST, request.FILES)
+        if form.is_valid():
+            anexo = form.save(commit=False)
+            anexo.licenca = licenca
+            anexo.enviado_por = request.user
+            anexo.save()
+            messages.success(request, "Anexo enviado com sucesso.")
+        else:
+            messages.error(request, "Nao foi possivel enviar o anexo.")
+    return redirect("inventario:licenca_detalhe", pk=licenca.pk)
+
+
+class ConciliacaoLicencasView(LoginRequiredMixin, TemplateView):
+    template_name = "inventario/conciliacao_licencas.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        licencas = list(LicencaSoftware.objects.values_list("nome", flat=True))
+        encontrados = {}
+        for ativo in AtivoRede.objects.exclude(softwares_instalados="").only("id", "nome", "softwares_instalados"):
+            for linha in ativo.softwares_instalados.splitlines():
+                software = linha.strip()
+                if not software:
+                    continue
+                coberto = any(licenca.lower() in software.lower() or software.lower() in licenca.lower() for licenca in licencas)
+                encontrados.setdefault(software, {"total": 0, "coberto": coberto, "ativos": []})
+                encontrados[software]["total"] += 1
+                if len(encontrados[software]["ativos"]) < 5:
+                    encontrados[software]["ativos"].append(ativo.nome)
+        context["softwares"] = sorted(encontrados.items(), key=lambda item: (-item[1]["total"], item[0]))[:200]
+        return context
 
 
 @login_required

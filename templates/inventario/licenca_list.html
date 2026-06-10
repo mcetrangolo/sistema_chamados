@@ -6,7 +6,10 @@
     <h1 class="h3 mb-0">Licencas de software</h1>
     <p class="text-secondary mb-0">Controle de uso, validade e conformidade das licencas.</p>
   </div>
-  <a class="btn btn-primary" href="{% url 'inventario:licenca_nova' %}">Nova licenca</a>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'inventario:licencas_conciliacao' %}">Conciliação</a>
+    <a class="btn btn-primary" href="{% url 'inventario:licenca_nova' %}">Nova licenca</a>
+  </div>
 </div>
 <form method="get" class="row g-2 mb-3 filters">
   <div class="col-md-5"><input class="form-control" name="q" value="{{ filtros.q }}" placeholder="Buscar software, fabricante ou chave"></div>
@@ -24,7 +27,7 @@
     <tbody>
       {% for licenca in licencas %}
         <tr>
-          <td>{{ licenca.nome }}</td>
+          <td><a href="{% url 'inventario:licenca_detalhe' licenca.pk %}">{{ licenca.nome }}</a></td>
           <td>{{ licenca.fabricante|default:"-" }}</td>
           <td>{{ licenca.quantidade_em_uso }} / {{ licenca.quantidade_total }}</td>
           <td>{{ licenca.saldo }}</td>

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ licenca.nome }} | Licenca{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ licenca.nome }}</h1>
+    <p class="text-secondary mb-0">{{ licenca.fabricante|default:"Fabricante nao informado" }}</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'inventario:licenca_editar' licenca.pk %}">Editar</a>
+</div>
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="detail-section">
+      <h2 class="h5">Ativos vinculados</h2>
+      <table class="table table-sm align-middle">
+        <thead><tr><th>Ativo</th><th>IP</th><th>Usuario</th></tr></thead>
+        <tbody>
+          {% for ativo in licenca.ativos.all %}
+            <tr><td><a href="{{ ativo.get_absolute_url }}">{{ ativo.nome }}</a></td><td>{{ ativo.ip|default:"-" }}</td><td>{{ ativo.usuario_logado|default:"-" }}</td></tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-secondary">Nenhum ativo vinculado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    <section class="detail-section">
+      <h2 class="h5">Anexos</h2>
+      <table class="table table-sm align-middle">
+        <thead><tr><th>Arquivo</th><th>Descricao</th><th>Enviado por</th><th>Data</th></tr></thead>
+        <tbody>
+          {% for anexo in licenca.anexos.all %}
+            <tr><td><a href="{{ anexo.arquivo.url }}" target="_blank">{{ anexo.arquivo.name }}</a></td><td>{{ anexo.descricao|default:"-" }}</td><td>{{ anexo.enviado_por|default:"-" }}</td><td>{{ anexo.criado_em|date:"d/m/Y H:i" }}</td></tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-secondary">Nenhum anexo enviado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <aside class="col-lg-4">
+    <div class="side-panel">
+      <dl class="row mb-0">
+        <dt class="col-5">Status</dt><dd class="col-7">{{ licenca.get_status_display }}</dd>
+        <dt class="col-5">Quantidade</dt><dd class="col-7">{{ licenca.quantidade_em_uso }} / {{ licenca.quantidade_total }}</dd>
+        <dt class="col-5">Saldo</dt><dd class="col-7">{{ licenca.saldo }}</dd>
+        <dt class="col-5">Validade</dt><dd class="col-7">{{ licenca.validade|date:"d/m/Y"|default:"Perpetua/sem vencimento" }}</dd>
+      </dl>
+    </div>
+    <form class="side-panel mt-3" method="post" enctype="multipart/form-data" action="{% url 'inventario:licenca_anexo_novo' licenca.pk %}">
+      {% csrf_token %}
+      <h2 class="h6">Anexar documento</h2>
+      {% include "chamados/partials/form_fields.html" with form=anexo_form %}
+      <button class="btn btn-outline-primary w-100" type="submit">Enviar anexo</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

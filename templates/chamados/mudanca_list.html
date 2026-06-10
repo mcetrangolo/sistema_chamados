@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Mudancas | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div><h1 class="h3 mb-0">Gestao de mudancas</h1><p class="text-secondary mb-0">Risco, janela, plano de execucao e rollback.</p></div>
+  <a class="btn btn-primary" href="{% url 'chamados:mudanca_nova' %}">Nova mudanca</a>
+</div>
+<form method="get" class="row g-2 mb-3 filters">
+  <div class="col-md-4"><input class="form-control" name="q" value="{{ filtros.q }}" placeholder="Buscar mudanca"></div>
+  <div class="col-md-3"><select class="form-select" name="status"><option value="">Status</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if filtros.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <div class="col-md-3"><select class="form-select" name="risco"><option value="">Risco</option>{% for value,label in risco_choices %}<option value="{{ value }}" {% if filtros.risco == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" type="submit">Filtrar</button></div>
+</form>
+<section class="detail-section">
+  <table class="table table-hover align-middle mb-0">
+    <thead><tr><th>Titulo</th><th>Status</th><th>Risco</th><th>Responsavel</th><th>Janela</th></tr></thead>
+    <tbody>
+      {% for mudanca in mudancas %}
+        <tr><td><a href="{{ mudanca.get_absolute_url }}">{{ mudanca.titulo }}</a></td><td>{{ mudanca.get_status_display }}</td><td>{{ mudanca.get_risco_display }}</td><td>{{ mudanca.responsavel|default:"-" }}</td><td>{{ mudanca.janela_inicio|date:"d/m/Y H:i"|default:"-" }}</td></tr>
+      {% empty %}
+        <tr><td colspan="5" class="text-center text-secondary py-4">Nenhuma mudanca registrada.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

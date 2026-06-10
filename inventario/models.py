@@ -205,6 +205,39 @@ class LicencaSoftware(models.Model):
         return self.quantidade_total - self.quantidade_em_uso
 
 
+class AnexoLicencaSoftware(models.Model):
+    licenca = models.ForeignKey(LicencaSoftware, on_delete=models.CASCADE, related_name="anexos")
+    arquivo = models.FileField(upload_to="licencas/anexos/%Y/%m/")
+    descricao = models.CharField(max_length=180, blank=True)
+    enviado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+        verbose_name = "anexo de licenca"
+        verbose_name_plural = "anexos de licencas"
+
+    def __str__(self):
+        return self.descricao or self.arquivo.name
+
+
+class HistoricoAlteracaoAtivo(models.Model):
+    ativo = models.ForeignKey(AtivoRede, on_delete=models.CASCADE, related_name="historico_alteracoes")
+    campo = models.CharField(max_length=120)
+    valor_anterior = models.TextField(blank=True)
+    valor_novo = models.TextField(blank=True)
+    origem = models.CharField(max_length=80, default="sistema")
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+        verbose_name = "historico de alteracao do ativo"
+        verbose_name_plural = "historicos de alteracoes dos ativos"
+
+    def __str__(self):
+        return f"{self.ativo} - {self.campo}"
+
+
 class InterfaceRede(models.Model):
     ativo = models.ForeignKey(AtivoRede, on_delete=models.CASCADE, related_name="interfaces")
     nome = models.CharField(max_length=120)

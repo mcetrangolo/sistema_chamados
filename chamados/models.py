@@ -630,6 +630,42 @@ class ServicoCatalogo(models.Model):
         return reverse("chamados:catalogo_solicitar", kwargs={"slug": self.slug})
 
 
+class CampoServicoCatalogo(models.Model):
+    class Tipo(models.TextChoices):
+        TEXTO = "texto", "Texto curto"
+        TEXTO_LONGO = "texto_longo", "Texto longo"
+        NUMERO = "numero", "Numero"
+        DATA = "data", "Data"
+        EMAIL = "email", "E-mail"
+        CHECKBOX = "checkbox", "Sim/Nao"
+        SELECAO = "selecao", "Lista de opcoes"
+
+    servico = models.ForeignKey(ServicoCatalogo, on_delete=models.CASCADE, related_name="campos")
+    nome = models.SlugField(max_length=80)
+    rotulo = models.CharField(max_length=120)
+    tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.TEXTO)
+    opcoes = models.TextField(
+        blank=True,
+        help_text="Uma opcao por linha. Usado apenas para campos do tipo lista de opcoes.",
+    )
+    obrigatorio = models.BooleanField(default=False)
+    ordem = models.PositiveIntegerField(default=0)
+    ativo = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["ordem", "rotulo"]
+        unique_together = ("servico", "nome")
+        verbose_name = "campo do servico"
+        verbose_name_plural = "campos dos servicos"
+
+    def __str__(self):
+        return f"{self.servico} - {self.rotulo}"
+
+    @property
+    def lista_opcoes(self):
+        return [linha.strip() for linha in self.opcoes.splitlines() if linha.strip()]
+
+
 class SolicitacaoServico(models.Model):
     class Status(models.TextChoices):
         RECEBIDA = "recebida", "Recebida"
@@ -709,3 +745,101 @@ class AprovacaoSolicitacao(models.Model):
 
     def __str__(self):
         return f"{self.titulo} - {self.get_status_display()}"
+
+
+class Problema(models.Model):
+    class Status(models.TextChoices):
+        INVESTIGACAO = "investigacao", "Em investigacao"
+        ERRO_CONHECIDO = "erro_conhecido", "Erro conhecido"
+        WORKAROUND = "workaround", "Workaround publicado"
+        RESOLVIDO = "resolvido", "Resolvido"
+        ENCERRADO = "encerrado", "Encerrado"
+
+    titulo = models.CharField(max_length=180)
+    chamado_principal = models.ForeignKey(
+        Chamado,
+        on_delete=models.SET_NULL,
+        related_name="problemas_principais",
+        null=True,
+        blank=True,
+    )
+    chamados_relacionados = models.ManyToManyField(Chamado, related_name="problemas", blank=True)
+    responsavel = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="problemas_responsaveis",
+        null=True,
+        blank=True,
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.INVESTIGACAO)
+    causa_raiz = models.TextField(blank=True)
+    workaround = models.TextField(blank=True)
+    solucao_definitiva = models.TextField(blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+        verbose_name = "problema"
+        verbose_name_plural = "problemas"
+
+    def __str__(self):
+        return self.titulo
+
+    def get_absolute_url(self):
+        return reverse("chamados:problema_detalhe", kwargs={"pk": self.pk})
+
+
+class Mudanca(models.Model):
+    class Status(models.TextChoices):
+        RASCUNHO = "rascunho", "Rascunho"
+        AGUARDANDO_APROVACAO = "aguardando_aprovacao", "Aguardando aprovacao"
+        APROVADA = "aprovada", "Aprovada"
+        EM_EXECUCAO = "em_execucao", "Em execucao"
+        VALIDACAO = "validacao", "Validacao"
+        CONCLUIDA = "concluida", "Concluida"
+        REJEITADA = "rejeitada", "Rejeitada"
+        CANCELADA = "cancelada", "Cancelada"
+
+    class Risco(models.TextChoices):
+        BAIXO = "baixo", "Baixo"
+        MEDIO = "medio", "Medio"
+        ALTO = "alto", "Alto"
+
+    titulo = models.CharField(max_length=180)
+    chamado = models.ForeignKey(Chamado, on_delete=models.SET_NULL, related_name="mudancas", null=True, blank=True)
+    responsavel = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="mudancas_responsaveis",
+        null=True,
+        blank=True,
+    )
+    aprovador = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="mudancas_aprovadas",
+        null=True,
+        blank=True,
+    )
+    status = models.CharField(max_length=25, choices=Status.choices, default=Status.RASCUNHO)
+    risco = models.CharField(max_length=20, choices=Risco.choices, default=Risco.MEDIO)
+    impacto = models.TextField(blank=True)
+    plano_execucao = models.TextField()
+    plano_rollback = models.TextField()
+    janela_inicio = models.DateTimeField(null=True, blank=True)
+    janela_fim = models.DateTimeField(null=True, blank=True)
+    validacao_pos_mudanca = models.TextField(blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+        verbose_name = "mudanca"
+        verbose_name_plural = "mudancas"
+
+    def __str__(self):
+        return self.titulo
+
+    def get_absolute_url(self):
+        return reverse("chamados:mudanca_detalhe", kwargs={"pk": self.pk})

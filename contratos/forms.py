@@ -2,7 +2,7 @@ from django import forms
 
 from chamados.forms import BootstrapFormMixin
 
-from .models import AditivoContrato, ContratoPublico, Fornecedor, PedidoProrrogacao
+from .models import AnexoContrato, AditivoContrato, ContratoPublico, Fornecedor, PedidoProrrogacao
 
 
 class FornecedorForm(BootstrapFormMixin, forms.ModelForm):
@@ -64,3 +64,9 @@ class AditivoContratoForm(BootstrapFormMixin, forms.ModelForm):
             "nova_data_fim": forms.DateInput(attrs={"type": "date"}),
             "observacao": forms.Textarea(attrs={"rows": 4}),
         }
+
+
+class AnexoContratoForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = AnexoContrato
+        fields = ["arquivo", "tipo", "descricao"]

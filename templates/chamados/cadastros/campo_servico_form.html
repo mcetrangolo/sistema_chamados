@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Campo do servico | Catalogo{% endblock %}
+{% block content %}
+<div class="content-narrow">
+  <h1 class="h3 mb-2">Campo do servico</h1>
+  <p class="text-secondary">{{ servico.nome }}</p>
+  <form method="post" class="detail-section">
+    {% csrf_token %}
+    {% include "chamados/partials/form_fields.html" %}
+    <div class="d-flex gap-2">
+      <button class="btn btn-primary" type="submit">Salvar campo</button>
+      <a class="btn btn-outline-secondary" href="{% url 'chamados:servico_campos' servico.pk %}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

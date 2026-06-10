@@ -7,9 +7,12 @@ from .models import (
     AprovacaoSolicitacao,
     Categoria,
     Chamado,
+    CampoServicoCatalogo,
     ComentarioChamado,
     EquipeAtendimento,
     HistoricoChamado,
+    Mudanca,
+    Problema,
     RegraSLA,
     RespostaPronta,
     ServicoCatalogo,
@@ -170,6 +173,13 @@ class ServicoCatalogoAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("nome",)}
 
 
+@admin.register(CampoServicoCatalogo)
+class CampoServicoCatalogoAdmin(admin.ModelAdmin):
+    list_display = ("servico", "rotulo", "nome", "tipo", "obrigatorio", "ordem", "ativo")
+    list_filter = ("tipo", "obrigatorio", "ativo", "servico")
+    search_fields = ("servico__nome", "nome", "rotulo")
+
+
 @admin.register(SolicitacaoServico)
 class SolicitacaoServicoAdmin(admin.ModelAdmin):
     list_display = ("protocolo", "servico", "nome", "setor", "status", "chamado", "criado_em")
@@ -183,3 +193,18 @@ class AprovacaoSolicitacaoAdmin(admin.ModelAdmin):
     list_display = ("titulo", "origem", "solicitante", "status", "aprovado_por", "criado_em", "decidido_em")
     list_filter = ("origem", "status", "criado_em")
     search_fields = ("titulo", "solicitante", "observacao")
+
+
+@admin.register(Problema)
+class ProblemaAdmin(admin.ModelAdmin):
+    list_display = ("titulo", "status", "responsavel", "chamado_principal", "criado_em")
+    list_filter = ("status", "responsavel")
+    search_fields = ("titulo", "causa_raiz", "workaround", "solucao_definitiva")
+    filter_horizontal = ("chamados_relacionados",)
+
+
+@admin.register(Mudanca)
+class MudancaAdmin(admin.ModelAdmin):
+    list_display = ("titulo", "status", "risco", "responsavel", "aprovador", "janela_inicio", "janela_fim")
+    list_filter = ("status", "risco", "responsavel", "aprovador")
+    search_fields = ("titulo", "impacto", "plano_execucao", "plano_rollback")

@@ -53,6 +53,21 @@
         </table>
       </div>
     </section>
+    <section class="detail-section">
+      <h2 class="h5">Documentos anexos</h2>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>Tipo</th><th>Descricao</th><th>Enviado por</th><th>Data</th></tr></thead>
+          <tbody>
+            {% for anexo in contrato.anexos.all %}
+              <tr><td>{{ anexo.get_tipo_display }}</td><td><a href="{{ anexo.arquivo.url }}" target="_blank">{{ anexo.descricao|default:anexo.arquivo.name }}</a></td><td>{{ anexo.enviado_por|default:"-" }}</td><td>{{ anexo.criado_em|date:"d/m/Y H:i" }}</td></tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-secondary">Nenhum documento anexado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
   <aside class="col-lg-4">
     <div class="side-panel">
@@ -70,6 +85,12 @@
         <dt class="col-5">Alerta dias</dt><dd class="col-7">{{ contrato.alerta_dias }}</dd>
       </dl>
     </div>
+    <form class="side-panel mt-3" method="post" enctype="multipart/form-data" action="{% url 'contratos:anexo_novo' contrato.pk %}">
+      {% csrf_token %}
+      <h2 class="h6">Anexar documento</h2>
+      {% include "chamados/partials/form_fields.html" with form=anexo_form %}
+      <button class="btn btn-outline-primary w-100" type="submit">Enviar anexo</button>
+    </form>
   </aside>
 </div>
 {% endblock %}

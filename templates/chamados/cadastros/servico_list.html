@@ -30,7 +30,10 @@
           <td>{{ servico.get_prioridade_padrao_display }}</td>
           <td>{{ servico.requer_aprovacao|yesno:"Sim,Não" }}</td>
           <td>{{ servico.ativo|yesno:"Ativo,Inativo" }}</td>
-          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:servico_editar' servico.pk %}">Editar</a></td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'chamados:servico_campos' servico.pk %}">Campos</a>
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:servico_editar' servico.pk %}">Editar</a>
+          </td>
         </tr>
       {% empty %}
         <tr><td colspan="7" class="text-center text-secondary py-4">Nenhum serviço cadastrado.</td></tr>

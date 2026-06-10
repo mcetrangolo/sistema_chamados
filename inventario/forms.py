@@ -2,6 +2,7 @@ from django import forms
 
 from .models import (
     AgendamentoVarredura,
+    AnexoLicencaSoftware,
     AtivoRede,
     CredencialSNMP,
     FaixaRede,
@@ -100,6 +101,12 @@ class LicencaSoftwareForm(BootstrapFormMixin, forms.ModelForm):
             "ativos": forms.SelectMultiple(attrs={"size": 10}),
             "observacoes": forms.Textarea(attrs={"rows": 4}),
         }
+
+
+class AnexoLicencaSoftwareForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = AnexoLicencaSoftware
+        fields = ["arquivo", "descricao"]
 
 
 class VarreduraRedeForm(BootstrapFormMixin, forms.Form):

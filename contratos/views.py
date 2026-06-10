@@ -3,10 +3,11 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
+from django.contrib.auth.decorators import login_required
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
-from .forms import AditivoContratoForm, ContratoPublicoForm, FornecedorForm, PedidoProrrogacaoForm
-from .models import AditivoContrato, ContratoPublico, Fornecedor, PedidoProrrogacao
+from .forms import AnexoContratoForm, AditivoContratoForm, ContratoPublicoForm, FornecedorForm, PedidoProrrogacaoForm
+from .models import AnexoContrato, AditivoContrato, ContratoPublico, Fornecedor, PedidoProrrogacao
 
 
 class ContratoListView(LoginRequiredMixin, ListView):
@@ -84,8 +85,13 @@ class ContratoDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return ContratoPublico.objects.select_related("fornecedor", "gestor", "fiscal").prefetch_related(
-            "prorrogacoes", "aditivos"
+            "prorrogacoes", "aditivos", "anexos"
         )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["anexo_form"] = AnexoContratoForm()
+        return context
 
 
 class FornecedorListView(LoginRequiredMixin, ListView):
@@ -165,3 +171,19 @@ class AditivoContratoCreateView(LoginRequiredMixin, CreateView):
         context = super().get_context_data(**kwargs)
         context["contrato"] = self.contrato
         return context
+
+
+@login_required
+def anexar_contrato(request, pk):
+    contrato = get_object_or_404(ContratoPublico, pk=pk)
+    if request.method == "POST":
+        form = AnexoContratoForm(request.POST, request.FILES)
+        if form.is_valid():
+            anexo = form.save(commit=False)
+            anexo.contrato = contrato
+            anexo.enviado_por = request.user
+            anexo.save()
+            messages.success(request, "Anexo enviado com sucesso.")
+        else:
+            messages.error(request, "Nao foi possivel enviar o anexo.")
+    return redirect(contrato)
