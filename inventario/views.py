@@ -47,6 +47,7 @@ from .services import descobrir_por_faixa
 
 
 AGENTE_WINDOWS_EXE = "SistemaChamadosAgentSetup.exe"
+AGENTE_WINDOWS_ZIP = "SistemaChamadosAgentSource.zip"
 AGENTE_LINUX_INSTALLER = "install.sh"
 
 
@@ -60,6 +61,10 @@ def _caminho_agente_windows():
         if caminho.exists():
             return caminho
     return candidatos[0].resolve()
+
+
+def _caminho_pacote_windows_zip():
+    return (settings.BASE_DIR / "releases" / "agents" / "windows" / AGENTE_WINDOWS_ZIP).resolve()
 
 
 def _ips_rede_local():
@@ -133,6 +138,20 @@ def baixar_agente_windows(request):
 
 
 @login_required
+def baixar_agente_windows_zip(request):
+    caminho = _caminho_pacote_windows_zip()
+    base_release = (settings.BASE_DIR / "releases" / "agents" / "windows").resolve()
+    if not str(caminho).startswith(str(base_release)) or not caminho.exists():
+        raise Http404("Pacote ZIP do agente Windows nao encontrado.")
+    return FileResponse(
+        caminho.open("rb"),
+        as_attachment=True,
+        filename=AGENTE_WINDOWS_ZIP,
+        content_type="application/zip",
+    )
+
+
+@login_required
 def baixar_agente_linux(request):
     caminho = (settings.BASE_DIR / "scripts" / "agent" / "linux" / AGENTE_LINUX_INSTALLER).resolve()
     base_linux = (settings.BASE_DIR / "scripts" / "agent" / "linux").resolve()
@@ -159,11 +178,14 @@ def configuracao_agente(request):
     usa_endereco_local = "localhost" in base_url.lower() or "127.0.0.1" in base_url
     endpoint = f"{base_url}/inventario/agente/coleta/"
     download_url = f"{base_url}/inventario/agente/windows/download/"
+    windows_zip_download_url = f"{base_url}/inventario/agente/windows/source.zip"
     linux_download_url = f"{base_url}/inventario/agente/linux/download/"
+    zip_path = _caminho_pacote_windows_zip()
     contexto = {
         "token": settings.INVENTARIO_AGENT_TOKEN,
         "endpoint": endpoint,
         "download_url": download_url,
+        "windows_zip_download_url": windows_zip_download_url,
         "linux_download_url": linux_download_url,
         "url_detectada": url_detectada,
         "public_base_url": settings.PUBLIC_BASE_URL,
@@ -178,6 +200,9 @@ def configuracao_agente(request):
         )
         if caminho.exists()
         else None,
+        "windows_zip_existe": zip_path.exists(),
+        "windows_zip_nome": AGENTE_WINDOWS_ZIP,
+        "windows_zip_tamanho": zip_path.stat().st_size if zip_path.exists() else None,
     }
     return TemplateView.as_view(template_name="inventario/agente_config.html")(request, **contexto)
 

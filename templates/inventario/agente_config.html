@@ -10,6 +10,7 @@
   <div class="d-flex gap-2">
     <a class="btn btn-outline-primary" href="{% url 'inventario:painel' %}">Voltar ao inventario</a>
     <a class="btn btn-outline-primary" href="{% url 'inventario:agente_linux_download' %}">Baixar agente Linux</a>
+    <a class="btn btn-outline-primary" href="{% url 'inventario:agente_windows_zip_download' %}">Baixar Windows ZIP</a>
     <a class="btn btn-primary" href="{% url 'inventario:agente_windows_download' %}">Baixar agente Windows</a>
   </div>
 </div>
@@ -31,6 +32,8 @@
         <dd><code>{{ token }}</code></dd>
         <dt>Download do instalador</dt>
         <dd><code>{{ download_url }}</code></dd>
+        <dt>Download Windows alternativo sem EXE</dt>
+        <dd><code>{{ windows_zip_download_url }}</code></dd>
         <dt>Download do agente Linux</dt>
         <dd><code>{{ linux_download_url }}</code></dd>
         <dt>Endereco detectado nesta sessao</dt>
@@ -50,7 +53,7 @@
         </dd>
       </dl>
       <p class="text-secondary mb-0">
-        Os instaladores atuais ja levam o token padrao embutido. Na maquina inventariada, normalmente basta informar o IP e a porta do servidor, por exemplo <code>192.168.0.10:8000</code>.
+        O instalador EXE versionado usa o token padrao <code>sistema-chamados-agent-local</code>. Se o servidor usar outro token no <code>.env</code>, gere novamente o instalador nessa instalacao ou use o pacote ZIP informando o token correto.
       </p>
     </section>
   </div>
@@ -69,15 +72,28 @@
           <code>scripts\agent\windows\build_installer.ps1</code>.
         </div>
       {% endif %}
+      {% if windows_zip_existe %}
+        <div class="agent-package-ok mt-3">
+          <strong>{{ windows_zip_nome }}</strong>
+          <span>{{ windows_zip_tamanho }} bytes</span>
+          <span>Alternativa sem executavel compilado para ambientes em que o antivirus bloqueia EXE desconhecido.</span>
+        </div>
+      {% endif %}
     </section>
     <section class="detail-section">
       <h2 class="h5">Fluxo Windows</h2>
+      <div class="alert alert-info">
+        O instalador <code>.exe</code> e um pacote interno sem assinatura digital. Antivírus como Avast/CyberCapture podem enviar o arquivo para analise por ele ser novo e executar PowerShell para coletar inventario. Quando isso ocorrer, use o ZIP sem EXE ou assine digitalmente o instalador antes de distribuir em massa.
+      </div>
       <ol class="mb-0 text-secondary">
         <li>Baixar o instalador pela tela de inventario.</li>
         <li>Executar como Administrador na estacao Windows.</li>
         <li>Informar o endereco do servidor, por exemplo <code>192.168.0.10:8000</code>.</li>
         <li>Confirmar a primeira coleta e verificar o ativo na lista de inventario.</li>
       </ol>
+      <p class="text-secondary mt-3 mb-0">
+        Se o Avast/CyberCapture bloquear o <code>.exe</code>, use <strong>Baixar Windows ZIP</strong>, extraia o pacote e execute <code>install_gui.ps1</code> como Administrador. O codigo do agente fica visivel dentro do ZIP.
+      </p>
     </section>
     <section class="detail-section">
       <h2 class="h5">Fluxo Linux</h2>

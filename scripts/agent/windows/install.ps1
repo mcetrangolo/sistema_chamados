@@ -142,30 +142,60 @@ function Register-StartMenuShortcuts {
     $menuDir = Join-Path $programsDir "Sistema Chamados Agent"
     New-Item -ItemType Directory -Path $menuDir -Force | Out-Null
 
-    $shell = New-Object -ComObject WScript.Shell
+    $agentScript = Join-Path $InstallDir "agent.ps1"
+    $powershell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    if (-not (Test-Path $powershell)) {
+        $powershell = "powershell.exe"
+    }
 
-    $uninstallShortcut = $shell.CreateShortcut((Join-Path $menuDir "Desinstalar agente.lnk"))
-    $uninstallShortcut.TargetPath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-    $uninstallShortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`""
-    $uninstallShortcut.WorkingDirectory = $InstallDir
-    $uninstallShortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll,31"
-    $uninstallShortcut.Description = "Remove o Sistema Chamados Agent deste computador."
-    $uninstallShortcut.Save()
+    try {
+        $shell = New-Object -ComObject WScript.Shell
 
-    $folderShortcut = $shell.CreateShortcut((Join-Path $menuDir "Abrir pasta do agente.lnk"))
-    $folderShortcut.TargetPath = $InstallDir
-    $folderShortcut.WorkingDirectory = $InstallDir
-    $folderShortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll,4"
-    $folderShortcut.Description = "Abre a pasta local do Sistema Chamados Agent."
-    $folderShortcut.Save()
+        $uninstallShortcut = $shell.CreateShortcut((Join-Path $menuDir "Desinstalar agente.lnk"))
+        $uninstallShortcut.TargetPath = $powershell
+        $uninstallShortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`""
+        $uninstallShortcut.WorkingDirectory = $InstallDir
+        $uninstallShortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll,31"
+        $uninstallShortcut.Description = "Remove o Sistema Chamados Agent deste computador."
+        $uninstallShortcut.Save()
 
-    $configShortcut = $shell.CreateShortcut((Join-Path $menuDir "Ver configuracao do agente.lnk"))
-    $configShortcut.TargetPath = "notepad.exe"
-    $configShortcut.Arguments = "`"$ConfigPath`""
-    $configShortcut.WorkingDirectory = $InstallDir
-    $configShortcut.IconLocation = "$env:SystemRoot\System32\notepad.exe"
-    $configShortcut.Description = "Abre a configuracao local do Sistema Chamados Agent."
-    $configShortcut.Save()
+        $collectShortcut = $shell.CreateShortcut((Join-Path $menuDir "Executar coleta agora.lnk"))
+        $collectShortcut.TargetPath = $powershell
+        $collectShortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$agentScript`" -ConfigPath `"$ConfigPath`""
+        $collectShortcut.WorkingDirectory = $InstallDir
+        $collectShortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll,167"
+        $collectShortcut.Description = "Executa uma coleta imediata do Sistema Chamados Agent."
+        $collectShortcut.Save()
+
+        $folderShortcut = $shell.CreateShortcut((Join-Path $menuDir "Abrir pasta do agente.lnk"))
+        $folderShortcut.TargetPath = $InstallDir
+        $folderShortcut.WorkingDirectory = $InstallDir
+        $folderShortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll,4"
+        $folderShortcut.Description = "Abre a pasta local do Sistema Chamados Agent."
+        $folderShortcut.Save()
+
+        $configShortcut = $shell.CreateShortcut((Join-Path $menuDir "Ver configuracao do agente.lnk"))
+        $configShortcut.TargetPath = "notepad.exe"
+        $configShortcut.Arguments = "`"$ConfigPath`""
+        $configShortcut.WorkingDirectory = $InstallDir
+        $configShortcut.IconLocation = "$env:SystemRoot\System32\notepad.exe"
+        $configShortcut.Description = "Abre a configuracao local do Sistema Chamados Agent."
+        $configShortcut.Save()
+    } catch {
+        # Os arquivos .cmd abaixo continuam funcionando como fallback.
+    }
+
+    "@echo off`r`n`"$powershell`" -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`"`r`npause`r`n" |
+        Out-File -FilePath (Join-Path $menuDir "Desinstalar agente.cmd") -Encoding ascii -Force
+    "@echo off`r`n`"$powershell`" -NoProfile -ExecutionPolicy Bypass -File `"$agentScript`" -ConfigPath `"$ConfigPath`"`r`npause`r`n" |
+        Out-File -FilePath (Join-Path $menuDir "Executar coleta agora.cmd") -Encoding ascii -Force
+
+    $userProgramsDir = [Environment]::GetFolderPath("Programs")
+    if ($userProgramsDir -and $userProgramsDir -ne $programsDir) {
+        $userMenuDir = Join-Path $userProgramsDir "Sistema Chamados Agent"
+        New-Item -ItemType Directory -Path $userMenuDir -Force | Out-Null
+        Copy-Item -Path (Join-Path $menuDir "*.cmd") -Destination $userMenuDir -Force
+    }
 }
 
 Assert-Admin

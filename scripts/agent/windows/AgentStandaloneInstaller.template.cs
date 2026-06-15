@@ -10,7 +10,7 @@ namespace SistemaChamadosAgentSetup
 {
     internal static class Program
     {
-        private const string Version = "1.1.0";
+        private const string Version = "1.2.0";
         private const string AgentToken = "__AGENT_TOKEN__";
         private const string AgentScriptBase64 = "__AGENT_SCRIPT_BASE64__";
         private const string UninstallScriptBase64 = "__UNINSTALL_SCRIPT_BASE64__";
@@ -245,21 +245,50 @@ namespace SistemaChamadosAgentSetup
             Directory.CreateDirectory(menuDir);
 
             CreateShortcut(Path.Combine(menuDir, "Desinstalar agente.lnk"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(uninstallScript), installDir, "Remove o Sistema Chamados Agent deste computador.");
+            CreateShortcut(Path.Combine(menuDir, "Executar coleta agora.lnk"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(Path.Combine(installDir, "agent.ps1")) + " -ConfigPath " + Quote(configPath), installDir, "Executa uma coleta imediata do Sistema Chamados Agent.");
             CreateShortcut(Path.Combine(menuDir, "Abrir pasta do agente.lnk"), installDir, "", installDir, "Abre a pasta local do Sistema Chamados Agent.");
             CreateShortcut(Path.Combine(menuDir, "Ver configuracao do agente.lnk"), "notepad.exe", Quote(configPath), installDir, "Abre a configuracao local do Sistema Chamados Agent.");
+
+            CreateCommandFile(Path.Combine(menuDir, "Desinstalar agente.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(uninstallScript));
+            CreateCommandFile(Path.Combine(menuDir, "Executar coleta agora.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(Path.Combine(installDir, "agent.ps1")) + " -ConfigPath " + Quote(configPath));
+
+            string userPrograms = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+            if (!String.IsNullOrEmpty(userPrograms) && !String.Equals(userPrograms, programs, StringComparison.OrdinalIgnoreCase))
+            {
+                string userMenuDir = Path.Combine(userPrograms, "Sistema Chamados Agent");
+                Directory.CreateDirectory(userMenuDir);
+                CreateCommandFile(Path.Combine(userMenuDir, "Desinstalar agente.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(uninstallScript));
+                CreateCommandFile(Path.Combine(userMenuDir, "Executar coleta agora.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(Path.Combine(installDir, "agent.ps1")) + " -ConfigPath " + Quote(configPath));
+            }
+        }
+
+        private static void CreateCommandFile(string path, string targetPath, string arguments)
+        {
+            string contents = "@echo off\r\n" +
+                "echo Sistema Chamados Agent\r\n" +
+                Quote(targetPath) + " " + arguments + "\r\n" +
+                "pause\r\n";
+            File.WriteAllText(path, contents, Encoding.Default);
         }
 
         private static void CreateShortcut(string shortcutPath, string targetPath, string arguments, string workingDirectory, string description)
         {
-            Type shellType = Type.GetTypeFromProgID("WScript.Shell");
-            object shell = Activator.CreateInstance(shellType);
-            object shortcut = shellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { shortcutPath });
-            Type shortcutType = shortcut.GetType();
-            shortcutType.InvokeMember("TargetPath", BindingFlags.SetProperty, null, shortcut, new object[] { targetPath });
-            shortcutType.InvokeMember("Arguments", BindingFlags.SetProperty, null, shortcut, new object[] { arguments });
-            shortcutType.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, shortcut, new object[] { workingDirectory });
-            shortcutType.InvokeMember("Description", BindingFlags.SetProperty, null, shortcut, new object[] { description });
-            shortcutType.InvokeMember("Save", BindingFlags.InvokeMethod, null, shortcut, null);
+            try
+            {
+                Type shellType = Type.GetTypeFromProgID("WScript.Shell");
+                object shell = Activator.CreateInstance(shellType);
+                object shortcut = shellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, shell, new object[] { shortcutPath });
+                Type shortcutType = shortcut.GetType();
+                shortcutType.InvokeMember("TargetPath", BindingFlags.SetProperty, null, shortcut, new object[] { targetPath });
+                shortcutType.InvokeMember("Arguments", BindingFlags.SetProperty, null, shortcut, new object[] { arguments });
+                shortcutType.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, shortcut, new object[] { workingDirectory });
+                shortcutType.InvokeMember("Description", BindingFlags.SetProperty, null, shortcut, new object[] { description });
+                shortcutType.InvokeMember("Save", BindingFlags.InvokeMethod, null, shortcut, null);
+            }
+            catch
+            {
+                // O atalho .cmd criado no mesmo menu continua funcionando como fallback.
+            }
         }
     }
 

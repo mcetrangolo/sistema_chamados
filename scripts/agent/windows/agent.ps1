@@ -4,6 +4,24 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$logDir = Split-Path $ConfigPath
+if (-not $logDir) {
+    $logDir = Join-Path $env:ProgramData "SistemaChamadosAgent"
+}
+$logPath = Join-Path $logDir "last-run.log"
+
+function Write-AgentLog {
+    param([string]$Message)
+    try {
+        if (-not (Test-Path $logDir)) {
+            New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+        }
+        "$(Get-Date -Format o) $Message" | Out-File -FilePath $logPath -Encoding utf8 -Append
+    } catch {
+        Write-Host $Message
+    }
+}
+
 function Enable-Tls12IfAvailable {
     try {
         $tls12 = [Net.SecurityProtocolType]::Tls12
@@ -183,33 +201,37 @@ function Send-AgentPayload {
     return $client.UploadString($Endpoint, "POST", $Json)
 }
 
-if (-not (Test-Path $ConfigPath)) {
-    throw "Arquivo de configuracao nao encontrado: $ConfigPath"
+try {
+    if (-not (Test-Path $ConfigPath)) {
+        throw "Arquivo de configuracao nao encontrado: $ConfigPath"
+    }
+
+    $configText = Get-Content $ConfigPath -Raw
+    if (Get-Command ConvertFrom-Json -ErrorAction SilentlyContinue) {
+        $config = $configText | ConvertFrom-Json
+    } else {
+        Add-Type -AssemblyName System.Web.Extensions
+        $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+        $config = $serializer.DeserializeObject($configText)
+    }
+
+    $serverUrl = [string]$config.server_url
+    $token = [string]$config.token
+    $serialManual = [string]$config.numero_serie_manual
+
+    if (-not $serverUrl -or -not $token) {
+        throw "Configure server_url e token em $ConfigPath"
+    }
+
+    $serverUrl = $serverUrl.TrimEnd("/")
+    $endpoint = "$serverUrl/inventario/agente/coleta/"
+    Write-AgentLog "INFO Enviando coleta para $endpoint"
+    $payload = Get-AgentPayload -SerialManual $serialManual
+    $json = ConvertTo-AgentJson $payload
+    $response = Send-AgentPayload -Endpoint $endpoint -Token $token -Json $json
+    Write-AgentLog "OK $response"
+    exit 0
+} catch {
+    Write-AgentLog "ERRO $($_.Exception.Message)"
+    exit 1
 }
-
-$configText = Get-Content $ConfigPath -Raw
-if (Get-Command ConvertFrom-Json -ErrorAction SilentlyContinue) {
-    $config = $configText | ConvertFrom-Json
-} else {
-    Add-Type -AssemblyName System.Web.Extensions
-    $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
-    $config = $serializer.DeserializeObject($configText)
-}
-
-$serverUrl = [string]$config.server_url
-$token = [string]$config.token
-$serialManual = [string]$config.numero_serie_manual
-
-if (-not $serverUrl -or -not $token) {
-    throw "Configure server_url e token em $ConfigPath"
-}
-
-$serverUrl = $serverUrl.TrimEnd("/")
-$endpoint = "$serverUrl/inventario/agente/coleta/"
-$payload = Get-AgentPayload -SerialManual $serialManual
-$json = ConvertTo-AgentJson $payload
-$response = Send-AgentPayload -Endpoint $endpoint -Token $token -Json $json
-
-$logDir = Split-Path $ConfigPath
-$logPath = Join-Path $logDir "last-run.log"
-"$(Get-Date -Format o) OK $response" | Out-File -FilePath $logPath -Encoding utf8

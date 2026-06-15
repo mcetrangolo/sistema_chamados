@@ -26,6 +26,22 @@ releases\agents\windows\SistemaChamadosAgentSetup.exe
 
 O instalador atual e um `.exe` standalone compilado em C#, sem IExpress. Ele nao depende de arquivos temporarios extraidos pelo Windows para iniciar.
 
+O `.exe` versionado em `releases\agents\windows` usa o token padrao `sistema-chamados-agent-local`. Se o servidor usar outro `INVENTARIO_AGENT_TOKEN`, gere novamente o instalador com:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\agent\windows\build_installer.ps1 -AgentToken "TOKEN_DO_SERVIDOR"
+```
+
+## Antivirus / CyberCapture
+
+O instalador e um executavel interno sem assinatura digital que grava e executa scripts PowerShell. Antiviruses como Avast/CyberCapture podem classificar o arquivo como desconhecido e enviar para analise. Para ambientes com bloqueio de EXE desconhecido, use o pacote alternativo:
+
+```text
+releases\agents\windows\SistemaChamadosAgentSource.zip
+```
+
+Extraia o ZIP e execute `install_gui.ps1` como Administrador. O codigo do agente fica visivel dentro do pacote.
+
 ## Instalar manualmente
 
 ```powershell
@@ -42,6 +58,12 @@ Por padrao, o token ja vai embutido no instalador local. Se o servidor usar outr
 O instalador exibe janelas simples de boas-vindas e configuração. Ao final, o agente fica registrado em **Painel de Controle > Programas e Recursos** como `Sistema Chamados Agent`.
 
 O pacote `.exe` grava os scripts internos em `C:\ProgramData\SistemaChamadosAgent`, solicita permissao de Administrador via UAC, cria as tarefas agendadas e executa a primeira coleta sem janela preta de console.
+
+O log da ultima execucao fica em:
+
+```text
+C:\ProgramData\SistemaChamadosAgent\last-run.log
+```
 
 ## Tarefas criadas
 
