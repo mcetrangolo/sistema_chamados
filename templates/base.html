@@ -62,6 +62,7 @@
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="{% url 'inventario:painel' %}">Painel</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:ativos' %}">Ativos</a></li>
+              <li><a class="dropdown-item" href="{% url 'inventario:ativos_importar_csv' %}">Importar ativos CSV</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:licencas' %}">Licencas de software</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:licencas_conciliacao' %}">Conciliação de licenças</a></li>
               {% if user.is_superuser %}

@@ -24,7 +24,7 @@
               {% csrf_token %}
               <select class="form-select form-select-sm scan-method" name="metodo" aria-label="Método de descoberta">
                 {% for value,label in varredura_form.fields.metodo.choices %}
-                  <option value="{{ value }}" {% if value == "snmp" %}selected{% endif %}>{{ label }}</option>
+                  <option value="{{ value }}" {% if value == "auto" %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
               </select>
               <input class="form-control form-control-sm scan-ports" name="portas" placeholder="Portas" style="max-width: 120px;">
@@ -37,5 +37,17 @@
       {% endfor %}
     </tbody>
   </table>
+</section>
+<section class="detail-section mt-4">
+  <h2 class="h5">Diagnostico de varredura</h2>
+  <p class="text-secondary mb-2">
+    O modo automatico tenta Nmap quando disponivel, depois Ping/ICMP, portas TCP comuns, DNS reverso e SNMP quando houver credencial na faixa.
+    Em redes corporativas e comum ICMP estar bloqueado; nesses casos TCP, SNMP, AD ou agente costumam ser mais confiaveis.
+  </p>
+  <ul class="text-secondary mb-0">
+    <li>Para servidores Linux, instale <code>nmap</code> para melhorar a descoberta: <code>sudo apt install nmap</code>.</li>
+    <li>Se o servidor esta em outra VLAN, confirme rota, firewall e ACL entre o servidor e a faixa informada.</li>
+    <li>Para Windows de usuario, portas como <code>135,139,445,3389</code> podem estar bloqueadas por firewall local.</li>
+  </ul>
 </section>
 {% endblock %}

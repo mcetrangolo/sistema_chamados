@@ -1,8 +1,10 @@
 import ipaddress
 import platform
+import shutil
 import socket
 import subprocess
 from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from django.conf import settings
 
@@ -29,13 +31,16 @@ def ping_host(ip, timeout_ms=800):
     parametro = "-n" if is_windows else "-c"
     timeout_param = "-w" if is_windows else "-W"
     timeout_value = str(timeout_ms if is_windows else max(1, timeout_ms // 1000))
-    resultado = subprocess.run(
-        ["ping", parametro, "1", timeout_param, timeout_value, str(ip)],
-        capture_output=True,
-        text=True,
-        timeout=max(2, timeout_ms // 1000 + 1),
-    )
-    return resultado.returncode == 0
+    try:
+        resultado = subprocess.run(
+            ["ping", parametro, "1", timeout_param, timeout_value, str(ip)],
+            capture_output=True,
+            text=True,
+            timeout=max(2, timeout_ms // 1000 + 1),
+        )
+        return resultado.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 def dns_reverso(ip):
@@ -54,6 +59,111 @@ def tcp_aberto(ip, portas, timeout=0.6):
         except (OSError, ValueError):
             continue
     return abertas
+
+
+def nmap_disponivel():
+    return shutil.which("nmap") is not None
+
+
+def descobrir_por_nmap(cidr, portas=""):
+    if not nmap_disponivel():
+        return []
+
+    comando = ["nmap", "-n", "-oX", "-", "--host-timeout", "8s"]
+    if portas:
+        comando.extend(["-p", portas])
+    else:
+        comando.extend(["-sn"])
+    comando.append(str(cidr))
+
+    try:
+        resultado = subprocess.run(comando, capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if resultado.returncode not in (0, 1):
+        return []
+
+    try:
+        import xml.etree.ElementTree as ET
+
+        raiz = ET.fromstring(resultado.stdout)
+    except Exception:
+        return []
+
+    descobertos = []
+    for host in raiz.findall("host"):
+        status = host.find("status")
+        if status is not None and status.attrib.get("state") != "up":
+            continue
+        ip = ""
+        mac = ""
+        vendor = ""
+        for address in host.findall("address"):
+            tipo = address.attrib.get("addrtype")
+            if tipo == "ipv4":
+                ip = address.attrib.get("addr", "")
+            elif tipo == "mac":
+                mac = address.attrib.get("addr", "")
+                vendor = address.attrib.get("vendor", "")
+        if not ip:
+            continue
+        hostname = ""
+        hostnames = host.find("hostnames")
+        if hostnames is not None:
+            item = hostnames.find("hostname")
+            if item is not None:
+                hostname = item.attrib.get("name", "")
+        portas_abertas = []
+        ports = host.find("ports")
+        if ports is not None:
+            for port in ports.findall("port"):
+                state = port.find("state")
+                if state is not None and state.attrib.get("state") == "open":
+                    portas_abertas.append(port.attrib.get("portid", ""))
+        obs = "Detectado por Nmap."
+        if mac or vendor:
+            obs += f" MAC: {mac} {vendor}".strip()
+        if portas_abertas:
+            obs += f" Portas abertas: {', '.join(portas_abertas)}."
+        descobertos.append(
+            DescobertaAtivo(
+                ip=ip,
+                nome=hostname or f"Host ativo {ip}",
+                hostname=hostname,
+                observacoes=obs,
+            )
+        )
+    return descobertos
+
+
+def _descobrir_host_auto(ip_texto, faixa, portas_lista):
+    motivos = []
+    hostname = dns_reverso(ip_texto)
+    if hostname:
+        motivos.append("DNS reverso")
+    if ping_host(ip_texto):
+        motivos.append("Ping/ICMP")
+    abertas = tcp_aberto(ip_texto, portas_lista or ["22", "80", "443", "445", "3389", "135", "139"])
+    if abertas:
+        motivos.append(f"TCP {', '.join(abertas)}")
+    snmp = consultar_snmp_basico(ip_texto, faixa.credencial_snmp.community if faixa.credencial_snmp else "")
+    if snmp:
+        motivos.append("SNMP")
+        hostname = snmp.get("hostname") or hostname
+
+    if not motivos:
+        return None
+    origem = AtivoRede.Origem.SNMP if snmp else AtivoRede.Origem.MANUAL
+    observacoes = "Detectado automaticamente por " + "; ".join(motivos) + "."
+    if snmp and snmp.get("descricao"):
+        observacoes += f" SNMP sysDescr: {snmp.get('descricao')}"
+    return DescobertaAtivo(
+        ip=ip_texto,
+        nome=hostname or f"Host ativo {ip_texto}",
+        hostname=hostname,
+        origem=origem,
+        observacoes=observacoes,
+    )
 
 
 def consultar_snmp_basico(ip, community):
@@ -99,6 +209,25 @@ def descobrir_por_faixa(faixa, metodo, portas=""):
 
     descobertos = []
     portas_lista = [p.strip() for p in portas.split(",") if p.strip()]
+
+    if metodo == MetodoDescoberta.Codigo.AUTO:
+        via_nmap = descobrir_por_nmap(faixa.cidr, portas or "22,80,443,445,3389,135,139")
+        por_ip = {item.ip: item for item in via_nmap}
+        hosts_restantes = [str(ip) for ip in hosts_da_faixa(faixa.cidr) if str(ip) not in por_ip]
+        max_workers = min(64, max(4, len(hosts_restantes) or 1))
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futuros = {
+                executor.submit(_descobrir_host_auto, ip_texto, faixa, portas_lista): ip_texto
+                for ip_texto in hosts_restantes
+            }
+            for futuro in as_completed(futuros):
+                try:
+                    item = futuro.result()
+                except Exception:
+                    item = None
+                if item:
+                    por_ip[item.ip] = item
+        return list(por_ip.values())
 
     for ip in hosts_da_faixa(faixa.cidr):
         ip_texto = str(ip)

@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 import socket
 
@@ -22,6 +24,7 @@ from .forms import (
     AnexoLicencaSoftwareForm,
     CredencialSNMPForm,
     FaixaRedeForm,
+    ImportacaoAtivosCSVForm,
     LicencaSoftwareForm,
     OcorrenciaAtivoForm,
     RelacionamentoAtivoForm,
@@ -480,6 +483,116 @@ def exportar_ativos_xls(request):
     return response
 
 
+class ImportarAtivosCSVView(LoginRequiredMixin, TemplateView):
+    template_name = "inventario/importar_ativos.html"
+
+    campos_alias = {
+        "nome": ["nome", "name"],
+        "tipo": ["tipo", "type"],
+        "ip": ["ip", "endereco_ip", "endereco ip"],
+        "mac": ["mac", "mac_address", "mac address"],
+        "hostname": ["hostname", "host"],
+        "fabricante": ["fabricante", "manufacturer"],
+        "modelo": ["modelo", "model"],
+        "numero_serie": ["serial", "numero_serie", "numero de serie", "patrimonio"],
+        "sistema_operacional": ["sistema_operacional", "sistema operacional", "so", "os"],
+        "responsavel": ["responsavel", "usuario", "user"],
+        "localizacao": ["localizacao", "localização", "local"],
+        "observacoes": ["observacoes", "observações", "observacao", "observação"],
+    }
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form"] = kwargs.get("form") or ImportacaoAtivosCSVForm()
+        context["campos_suportados"] = ", ".join(self.campos_alias.keys())
+        return context
+
+    def post(self, request, *args, **kwargs):
+        form = ImportacaoAtivosCSVForm(request.POST, request.FILES)
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(form=form))
+
+        arquivo = form.cleaned_data["arquivo"]
+        atualizar = form.cleaned_data["atualizar_existentes"]
+        try:
+            texto = arquivo.read().decode("utf-8-sig")
+        except UnicodeDecodeError:
+            arquivo.seek(0)
+            texto = arquivo.read().decode("latin-1")
+
+        amostra = texto[:2048]
+        try:
+            dialect = csv.Sniffer().sniff(amostra, delimiters=";,")
+        except csv.Error:
+            dialect = csv.excel
+            dialect.delimiter = ";"
+        leitor = csv.DictReader(io.StringIO(texto), dialect=dialect)
+        criados = 0
+        atualizados = 0
+        ignorados = 0
+        tipo_default, _ = TipoAtivo.objects.get_or_create(nome="Dispositivo importado")
+
+        for linha in leitor:
+            dados = self.normalizar_linha(linha)
+            if not any(dados.values()):
+                continue
+            if not any([dados.get("nome"), dados.get("ip"), dados.get("mac"), dados.get("hostname"), dados.get("numero_serie")]):
+                ignorados += 1
+                continue
+
+            tipo = tipo_default
+            if dados.get("tipo"):
+                tipo, _ = TipoAtivo.objects.get_or_create(nome=dados["tipo"][:80])
+
+            ativo = self.localizar_ativo(dados) if atualizar else None
+            criado = ativo is None
+            if criado:
+                ativo = AtivoRede(tipo=tipo)
+
+            antes = {campo: getattr(ativo, campo, "") for campo in dados.keys() if hasattr(ativo, campo)}
+            ativo.tipo = tipo
+            ativo.nome = dados.get("nome") or dados.get("hostname") or dados.get("ip") or ativo.nome or "Ativo importado"
+            for campo, valor in dados.items():
+                if valor and hasattr(ativo, campo) and campo not in {"tipo", "nome"}:
+                    setattr(ativo, campo, valor)
+            ativo.origem = AtivoRede.Origem.IMPORTACAO
+            ativo.status = ativo.status or AtivoRede.Status.DESCONHECIDO
+            ativo.save()
+            registrar_alteracoes_ativo(ativo, antes, list(antes.keys()), "importacao_csv")
+            criados += 1 if criado else 0
+            atualizados += 0 if criado else 1
+
+        messages.success(request, f"Importacao concluida. Criados: {criados}. Atualizados: {atualizados}. Ignorados: {ignorados}.")
+        return redirect("inventario:ativos")
+
+    def normalizar_linha(self, linha):
+        normalizada = {}
+        origem = {str(chave).strip().lower(): (valor or "").strip() for chave, valor in linha.items() if chave}
+        for campo, aliases in self.campos_alias.items():
+            for alias in aliases:
+                if alias in origem and origem[alias]:
+                    normalizada[campo] = origem[alias][:250]
+                    break
+        return normalizada
+
+    def localizar_ativo(self, dados):
+        filtros = []
+        if dados.get("numero_serie"):
+            filtros.append(Q(numero_serie__iexact=dados["numero_serie"]))
+        if dados.get("mac"):
+            filtros.append(Q(mac__iexact=dados["mac"]))
+        if dados.get("ip"):
+            filtros.append(Q(ip=dados["ip"]))
+        if dados.get("hostname"):
+            filtros.append(Q(hostname__iexact=dados["hostname"]) | Q(nome__iexact=dados["hostname"]))
+        if not filtros:
+            return None
+        consulta = filtros[0]
+        for filtro in filtros[1:]:
+            consulta |= filtro
+        return AtivoRede.objects.filter(consulta).order_by("id").first()
+
+
 class AtivoRedeCreateView(LoginRequiredMixin, CreateView):
     model = AtivoRede
     form_class = AtivoRedeForm
@@ -775,6 +888,7 @@ def iniciar_varredura_snmp(request, pk):
         status=VarreduraRede.Status.CONCLUIDA,
     )
     tipo_nome = {
+        MetodoDescoberta.Codigo.AUTO: "Dispositivo descoberto",
         MetodoDescoberta.Codigo.SNMP: "Dispositivo de rede",
         MetodoDescoberta.Codigo.PING: "Dispositivo desconhecido",
         MetodoDescoberta.Codigo.DNS: "Dispositivo desconhecido",
@@ -838,6 +952,7 @@ def executar_varredura(faixa, metodo, portas="", usuario=None):
         status=VarreduraRede.Status.CONCLUIDA,
     )
     tipo_nome = {
+        MetodoDescoberta.Codigo.AUTO: "Dispositivo descoberto",
         MetodoDescoberta.Codigo.SNMP: "Dispositivo de rede",
         MetodoDescoberta.Codigo.PING: "Dispositivo desconhecido",
         MetodoDescoberta.Codigo.DNS: "Dispositivo desconhecido",
@@ -894,6 +1009,7 @@ def origem_por_metodo(metodo):
 
 def nome_pre_inventario(metodo, ip):
     prefixos = {
+        MetodoDescoberta.Codigo.AUTO: "Host descoberto",
         MetodoDescoberta.Codigo.PING: "Host ativo",
         MetodoDescoberta.Codigo.DNS: "Host DNS",
         MetodoDescoberta.Codigo.TCP: "Serviço detectado",
@@ -908,6 +1024,7 @@ def nome_pre_inventario(metodo, ip):
 
 def mensagem_pre_inventario(metodo, portas=""):
     mensagens = {
+        MetodoDescoberta.Codigo.AUTO: "Pre-inventariado por descoberta automatica. Confirme tipo, responsavel, setor e localizacao.",
         MetodoDescoberta.Codigo.PING: "Pré-inventariado por ping/ICMP. Confirme tipo, responsável e localização.",
         MetodoDescoberta.Codigo.DNS: "Pré-inventariado por DNS reverso. Confirme hostname e características.",
         MetodoDescoberta.Codigo.TCP: f"Pré-inventariado por portas TCP ({portas or 'padrão'}). Confirme serviços e função.",
@@ -921,8 +1038,14 @@ def mensagem_pre_inventario(metodo, portas=""):
 
 
 def mensagem_varredura(metodo, portas="", encontrados=0):
-    return (
+    mensagem = (
         f"Varredura {MetodoDescoberta.Codigo(metodo).label} concluída. "
         f"Ativos encontrados: {encontrados}. "
         f"{'Portas: ' + portas + '. ' if portas else ''}"
     )
+    if encontrados == 0:
+        mensagem += (
+            "Nenhum host respondeu. Verifique rota para a VLAN/faixa, firewall/ACL entre servidor e rede alvo, "
+            "bloqueio de ICMP/TCP/SNMP, community SNMP e disponibilidade do Nmap no servidor."
+        )
+    return mensagem

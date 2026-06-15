@@ -43,6 +43,12 @@ if ! command -v python3 >/dev/null 2>&1; then
 fi
 
 echo "Instalador do Agente Linux do Sistema de Chamados"
+case "$DEFAULT_SERVER_URL" in
+  __*__) DEFAULT_SERVER_URL="http://" ;;
+esac
+case "$AGENT_TOKEN" in
+  __*__) AGENT_TOKEN="$(ask "Token do agente" "sistema-chamados-agent-local")" ;;
+esac
 server_url="$(ask "Informe o IP:porta ou URL do servidor" "$DEFAULT_SERVER_URL")"
 server_url="$(normalize_url "$server_url")"
 serial_manual="$(ask "Numero de serie manual/patrimonio opcional" "")"
@@ -213,7 +219,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:
+        print("ERRO: %s" % exc, file=sys.stderr)
+        sys.exit(1)
 PY
 
 chmod 0755 "$INSTALL_DIR/agent.py"

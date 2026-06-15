@@ -14,6 +14,7 @@ urlpatterns = [
     path("", views.InventarioPainelView.as_view(), name="painel"),
     path("ativos/", views.AtivoRedeListView.as_view(), name="ativos"),
     path("ativos/exportar/xls/", views.exportar_ativos_xls, name="ativos_xls"),
+    path("ativos/importar/csv/", views.ImportarAtivosCSVView.as_view(), name="ativos_importar_csv"),
     path("ativos/excluir-lote/", views.excluir_ativos_lote, name="ativos_excluir_lote"),
     path("ativos/novo/", views.AtivoRedeCreateView.as_view(), name="ativo_novo"),
     path("ativos/<int:pk>/", views.AtivoRedeDetailView.as_view(), name="ativo_detalhe"),

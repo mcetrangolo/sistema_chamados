@@ -63,6 +63,7 @@ class FaixaRede(models.Model):
 
 class MetodoDescoberta(models.Model):
     class Codigo(models.TextChoices):
+        AUTO = "auto", "Automático"
         PING = "ping", "Ping / ICMP"
         DNS = "dns", "DNS reverso"
         TCP = "tcp", "TCP / portas"
@@ -267,7 +268,7 @@ class VarreduraRede(models.Model):
     metodo = models.CharField(
         max_length=20,
         choices=MetodoDescoberta.Codigo.choices,
-        default=MetodoDescoberta.Codigo.SNMP,
+        default=MetodoDescoberta.Codigo.AUTO,
     )
     iniciado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,

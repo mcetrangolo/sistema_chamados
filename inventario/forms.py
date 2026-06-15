@@ -109,11 +109,20 @@ class AnexoLicencaSoftwareForm(BootstrapFormMixin, forms.ModelForm):
         fields = ["arquivo", "descricao"]
 
 
+class ImportacaoAtivosCSVForm(BootstrapFormMixin, forms.Form):
+    arquivo = forms.FileField(label="Arquivo CSV")
+    atualizar_existentes = forms.BooleanField(
+        label="Atualizar ativos existentes",
+        required=False,
+        initial=True,
+    )
+
+
 class VarreduraRedeForm(BootstrapFormMixin, forms.Form):
     metodo = forms.ChoiceField(
         label="Método de descoberta",
         choices=MetodoDescoberta.Codigo.choices,
-        initial=MetodoDescoberta.Codigo.PING,
+        initial=MetodoDescoberta.Codigo.AUTO,
     )
     portas = forms.CharField(
         label="Portas TCP",

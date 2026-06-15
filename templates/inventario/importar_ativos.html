@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Importar ativos CSV | Inventario{% endblock %}
+{% block content %}
+<div class="page-heading mb-4">
+  <div>
+    <span class="section-label">Inventario</span>
+    <h1>Importar ativos CSV</h1>
+    <p>Cadastre ou atualize ativos quando agente e descoberta de rede nao forem suficientes.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'inventario:ativos' %}">Voltar aos ativos</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <section class="detail-section">
+      <h2 class="h5">Arquivo</h2>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.arquivo.id_for_label }}">{{ form.arquivo.label }}</label>
+          {{ form.arquivo }}
+          {% for error in form.arquivo.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="form-check mb-3">
+          {{ form.atualizar_existentes }}
+          <label class="form-check-label" for="{{ form.atualizar_existentes.id_for_label }}">{{ form.atualizar_existentes.label }}</label>
+        </div>
+        <button class="btn btn-primary" type="submit">Importar</button>
+      </form>
+    </section>
+  </div>
+  <div class="col-lg-5">
+    <section class="detail-section">
+      <h2 class="h5">Colunas aceitas</h2>
+      <p class="text-secondary">Use separador virgula ou ponto e virgula. A importacao procura ativos existentes por serial, MAC, IP ou hostname.</p>
+      <pre class="backup-command">nome;tipo;ip;mac;hostname;fabricante;modelo;numero_serie;sistema_operacional;responsavel;localizacao;observacoes</pre>
+      <p class="text-secondary mb-0">
+        Campos suportados: {{ campos_suportados }}.
+      </p>
+    </section>
+  </div>
+</div>
+{% endblock %}
