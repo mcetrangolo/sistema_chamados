@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "inventario",
     "governanca",
     "contratos",
+    "documentacao",
 ]
 
 MIDDLEWARE = [

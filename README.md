@@ -180,20 +180,51 @@ docker compose exec web python manage.py testar_snmp 192.168.0.1 --community pub
 
 ## Atualizar o sistema no servidor
 
-Quando houver melhorias enviadas ao GitHub:
+Quando houver melhorias enviadas ao GitHub, entre no servidor pelo terminal/SSH e execute a atualização dentro da pasta do projeto:
 
 ```bash
 cd /opt/sistema-chamados
 bash scripts/deploy_linux.sh
 ```
 
-Rotina recomendada antes de atualizar:
+Esse script é o caminho recomendado porque já executa a rotina de atualização do projeto. Antes de atualizar, garanta que existe backup recente:
 
 ```bash
 cd /opt/sistema-chamados
 docker compose exec web python manage.py backup_local
 bash scripts/deploy_linux.sh
 ```
+
+Se precisar atualizar manualmente pelo terminal, use a sequência abaixo:
+
+```bash
+cd /opt/sistema-chamados
+
+# 1. Conferir se existem alteracoes locais no servidor
+git status --short
+
+# 2. Criar backup antes de alterar a versao
+docker compose exec web python manage.py backup_local
+
+# 3. Baixar a versao mais recente do GitHub
+git fetch --prune
+git pull --ff-only origin main
+
+# 4. Aplicar alteracoes de banco e arquivos estaticos
+docker compose exec web python manage.py migrate
+docker compose exec web python manage.py collectstatic --noinput
+
+# 5. Reiniciar os servicos
+docker compose restart
+
+# 6. Validar a aplicacao
+docker compose exec web python manage.py check
+docker compose exec web python manage.py validar_producao
+```
+
+Se o servidor usar `docker-compose` antigo em vez de `docker compose`, substitua os comandos acima por `docker-compose`.
+
+Se `git status --short` mostrar arquivos modificados no servidor, pare antes do `git pull` e verifique o que mudou. Isso evita sobrescrever ajustes locais ou arquivos editados manualmente.
 
 Tambem existe uma tela em:
 

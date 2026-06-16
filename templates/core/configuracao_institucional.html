@@ -7,8 +7,8 @@
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
     <div class="alert alert-info">
-      Para melhor resultado, use uma logo em PNG com fundo transparente, preferencialmente até 320px de largura por 160px de altura.
-      A exibição no menu será ajustada automaticamente.
+      Para melhor resultado no topo do sistema, use uma logo horizontal em PNG com fundo transparente.
+      A exibição é limitada a 120px de largura por 38px de altura e será ajustada automaticamente sem distorcer a imagem.
     </div>
     {% if object.logo %}
       <div class="detail-section mb-3">

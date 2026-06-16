@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Documentação restrita | Infraestrutura{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-1">Documentação restrita</h1>
+    <p class="text-secondary mb-0">Cadastre topologia, configurações, procedimentos e informações sensíveis.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'documentacao:lista' %}">Voltar</a>
+</div>
+
+<section class="detail-section">
+  <form method="post" class="professional-form">
+    {% csrf_token %}
+    <div class="row g-3">
+      {% for field in form %}
+        <div class="{% if field.name == 'resumo' or field.name == 'conteudo' or field.name == 'conteudo_restrito' or field.name == 'usuarios_autorizados' %}col-12{% else %}col-md-6{% endif %}">
+          {% if field.name == 'ativo' %}
+            <div class="form-check mt-4">
+              {{ field }}
+              <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            </div>
+          {% else %}
+            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+          {% endif %}
+          {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+          {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="form-footer">
+      <button class="btn btn-primary btn-lg" type="submit">Salvar documentação</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

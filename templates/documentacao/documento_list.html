@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Documentação restrita | Infraestrutura{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-1">Documentação restrita</h1>
+    <p class="text-secondary mb-0">Topologia, rede, configurações e informações sensíveis com acesso controlado.</p>
+  </div>
+  {% if user.is_superuser %}
+    <a class="btn btn-primary" href="{% url 'documentacao:novo' %}">Novo documento</a>
+  {% endif %}
+</div>
+
+<form method="get" class="filters mb-4">
+  <div class="row g-2">
+    <div class="col-md-7"><input class="form-control" name="q" value="{{ filtros.q }}" placeholder="Buscar por título, local, resumo ou conteúdo"></div>
+    <div class="col-md-3">
+      <select class="form-select" name="tipo">
+        <option value="">Todos os tipos</option>
+        {% for valor, rotulo in tipo_choices %}
+          <option value="{{ valor }}" {% if filtros.tipo == valor %}selected{% endif %}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 d-grid"><button class="btn btn-primary" type="submit">Filtrar</button></div>
+  </div>
+</form>
+
+<section class="detail-section">
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead><tr><th>Documento</th><th>Tipo</th><th>Criticidade</th><th>Local</th><th>Atualizado</th></tr></thead>
+      <tbody>
+        {% for documento in documentos %}
+          <tr>
+            <td>
+              <a href="{{ documento.get_absolute_url }}">{{ documento.titulo }}</a>
+              {% if not documento.ativo %}<span class="badge text-bg-secondary ms-2">Inativo</span>{% endif %}
+              <div class="small text-secondary">{{ documento.resumo|truncatechars:120 }}</div>
+            </td>
+            <td>{{ documento.get_tipo_display }}</td>
+            <td><span class="badge text-bg-light">{{ documento.get_criticidade_display }}</span></td>
+            <td>{{ documento.localizacao|default:"-" }}</td>
+            <td>{{ documento.atualizado_em|date:"d/m/Y H:i" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-center text-secondary py-4">Nenhum documento disponível para seu usuário.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

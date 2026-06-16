@@ -505,6 +505,30 @@ Finalidade:
 * Apoiar mudanças planejadas.
 * Identificar serviços críticos.
 
+## 11.1 Módulo de Documentação Restrita de Infraestrutura
+
+O sistema deverá possuir um módulo digital para documentação interna de infraestrutura, substituindo documentos manuais de topologia, rede, senhas, configurações e procedimentos operacionais.
+
+Esse módulo deverá permitir registrar:
+
+* Topologia local e lógica.
+* Redes, VLANs, faixas de IP, gateways e DNS.
+* Servidores, serviços, sistemas e dependências.
+* Configurações relevantes de equipamentos e sistemas.
+* Procedimentos de instalação, recuperação, contingência e manutenção.
+* Informações restritas, como senhas, chaves, acessos e observações sensíveis.
+* Anexos relacionados, como documentos antigos, diagramas, planilhas e imagens.
+
+Por conter informações sensíveis, o acesso deverá ser limitado:
+
+* Superusuários/administradores deverão possuir acesso total.
+* O administrador deverá definir explicitamente quais usuários podem acessar cada documentação.
+* Usuários não autorizados não deverão visualizar a existência nem o conteúdo dos documentos restritos.
+* Apenas administradores deverão criar, editar, inativar ou anexar arquivos nesse módulo.
+* O sistema deverá registrar log de visualização, criação, edição e anexos, incluindo usuário, data/hora, IP e identificação do navegador/dispositivo quando disponível.
+
+O módulo deverá servir como repositório controlado e auditável da memória técnica da infraestrutura, reduzindo dependência de arquivos soltos e melhorando a continuidade operacional.
+
 ## 12. Módulo de Gestão de Problemas
 
 O sistema deverá permitir registrar problemas relacionados a incidentes recorrentes.
