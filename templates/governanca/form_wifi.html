@@ -10,7 +10,7 @@
 </div>
 <section class="support-panel mb-4">
   <h2>Termo de ciência</h2>
-  <p>O acesso é pessoal e deve respeitar as normas internas de segurança da informação. O usuário declara ciência de que os registros poderão ser utilizados para auditoria, rastreabilidade e comprovação da solicitação.</p>
+  <div class="border rounded p-3 bg-light" style="max-height: 360px; overflow:auto; white-space: pre-wrap;">{{ termo_texto }}</div>
 </section>
 <section class="public-panel request-panel">
   <form method="post" class="professional-form">
@@ -26,7 +26,6 @@
       {% endfor %}
     </div>
     <div class="form-footer">
-      <span>O PDF será salvo na pasta configurada para documentos de governança.</span>
       <button class="btn btn-primary btn-lg" type="submit">Enviar solicitação</button>
     </div>
   </form>

@@ -347,6 +347,59 @@ Cada serviço poderá conter:
 * SLA específico.
 * Instruções ao usuário.
 
+### 8.1 Solicitações de Novo Acesso, Rede e Wi-Fi
+
+O catálogo deverá possuir formulários específicos para solicitações de governança de acesso, contemplando:
+
+* Novo acesso à rede.
+* Troca de senha de conta existente.
+* Alteração de permissão de acesso.
+* Acesso à internet Wi-Fi corporativa.
+
+O formulário de acesso à rede deverá registrar, no mínimo:
+
+* Nome do solicitante.
+* Matrícula.
+* Telefone ou ramal.
+* Setor.
+* E-mail.
+* Cargo.
+* Tipo da solicitação: novo acesso, troca de senha ou alteração de permissão.
+* Usuário de rede existente, quando aplicável.
+* Acesso solicitado, como pasta, sistema, perfil ou recurso de determinado departamento.
+* Justificativa.
+* Chefia imediata ou autorizador indicado.
+
+O formulário de acesso à internet Wi-Fi deverá registrar, no mínimo:
+
+* Nome do solicitante.
+* Matrícula.
+* E-mail.
+* Setor.
+* Cargo.
+* Telefone.
+* Tipo de equipamento.
+* Fabricante.
+* Modelo.
+* Número de série.
+* Endereço MAC.
+* Justificativa.
+
+No momento exato da solicitação, o sistema deverá apresentar o termo de ciência correspondente ao serviço solicitado. O envio somente poderá ser concluído após o usuário marcar o aceite do termo.
+
+O aceite deverá ser armazenado com evidência auditável, incluindo:
+
+* Versão do termo aceito.
+* Texto integral do termo aceito no momento da solicitação.
+* Data e hora do aceite.
+* Usuário/solicitante relacionado.
+* IP de origem.
+* Identificação do navegador/dispositivo, quando disponível.
+* Protocolo da solicitação.
+* Documento PDF gerado com os dados informados e o registro do aceite.
+
+O sistema deverá manter histórico permanente do aceite, permitindo comprovação futura de que o usuário leu e tomou ciência das responsabilidades antes da abertura ou execução do pedido.
+
 ## 9. Módulo de Base de Conhecimento
 
 O sistema deverá permitir criar artigos, tutoriais e procedimentos.

@@ -720,9 +720,20 @@ class CatalogoServicoListView(ListView):
 
 class CatalogoServicoSolicitarView(TemplateView):
     template_name = "chamados/public/catalogo_solicitar.html"
+    servicos_governanca = {
+        "acesso-a-internetwi-fi": "/governanca/wifi-corporativo/",
+        "novo-usuario-de-rede": "/governanca/usuario-acesso/?tipo=novo_acesso",
+        "troca-de-senha": "/governanca/usuario-acesso/?tipo=troca_senha",
+    }
 
     def get_servico(self):
         return get_object_or_404(ServicoCatalogo, slug=self.kwargs["slug"], ativo=True)
+
+    def dispatch(self, request, *args, **kwargs):
+        destino = self.servicos_governanca.get(kwargs.get("slug"))
+        if destino:
+            return redirect(destino)
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1122,9 +1133,25 @@ def criar_chamado_de_governanca(governanca_id):
     ]
     if solicitacao.acessos_solicitados:
         detalhes.extend(["Acessos solicitados:", solicitacao.acessos_solicitados, ""])
+    if solicitacao.tipo_solicitacao_rede:
+        detalhes.extend(["Tipo de solicitação:", solicitacao.get_tipo_solicitacao_rede_display(), ""])
+    if solicitacao.usuario_rede_existente:
+        detalhes.extend(["Usuário de rede existente:", solicitacao.usuario_rede_existente, ""])
+    if solicitacao.chefia_imediata:
+        detalhes.extend(["Chefia/autorizador informado:", solicitacao.chefia_imediata, ""])
     if solicitacao.aparelhos:
         detalhes.extend(["Aparelhos:", solicitacao.aparelhos, ""])
-    detalhes.extend(["Justificativa:", solicitacao.justificativa or "-"])
+    detalhes.extend(
+        [
+            "Justificativa:",
+            solicitacao.justificativa or "-",
+            "",
+            "Aceite registrado:",
+            f"Versão: {solicitacao.termo_versao or '-'}",
+            f"Data/hora: {solicitacao.termo_aceito_em:%d/%m/%Y %H:%M:%S}" if solicitacao.termo_aceito_em else "Data/hora: -",
+            f"IP: {solicitacao.termo_aceito_ip or '-'}",
+        ]
+    )
 
     chamado = Chamado.objects.create(
         nome_solicitante=solicitacao.nome,
@@ -1138,6 +1165,12 @@ def criar_chamado_de_governanca(governanca_id):
     )
     solicitacao.status = SolicitacaoGovernanca.Status.EM_ANALISE
     solicitacao.save(update_fields=["status", "atualizado_em"])
+
+    if not solicitacao.documento_caminho:
+        from governanca.pdf import gerar_documento_solicitacao
+
+        solicitacao.documento_caminho = gerar_documento_solicitacao(solicitacao)
+        solicitacao.save(update_fields=["documento_caminho", "atualizado_em"])
 
     pdf_path = Path(solicitacao.documento_caminho or "")
     if pdf_path.is_file():

@@ -5,9 +5,13 @@
   <div>
     <span class="section-label">Governança</span>
     <h1>Cadastro de usuário e novos acessos</h1>
-    <p>O envio gera um documento PDF de comprovação da solicitação.</p>
+    <p>Solicite novo acesso, troca de senha ou alteração de permissão com registro formal de ciência.</p>
   </div>
 </div>
+<section class="support-panel mb-4">
+  <h2>Termo de ciência</h2>
+  <div class="border rounded p-3 bg-light" style="max-height: 260px; overflow:auto; white-space: pre-wrap;">{{ termo_texto }}</div>
+</section>
 <section class="public-panel request-panel">
   <form method="post" class="professional-form">
     {% csrf_token %}
@@ -22,7 +26,6 @@
       {% endfor %}
     </div>
     <div class="form-footer">
-      <span>O PDF será salvo na pasta configurada para documentos de governança.</span>
       <button class="btn btn-primary btn-lg" type="submit">Enviar solicitação</button>
     </div>
   </form>
