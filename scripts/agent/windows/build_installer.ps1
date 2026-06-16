@@ -9,14 +9,21 @@ $baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectDir = Resolve-Path (Join-Path $baseDir "..\..\..")
 $outputDirFull = (New-Item -ItemType Directory -Path $OutputDir -Force).FullName
 $packageDir = Join-Path $outputDirFull "SistemaChamadosAgentPackage"
+$sourcePackageDir = Join-Path $outputDirFull "SistemaChamadosAgentSource"
 $exePath = Join-Path $outputDirFull $OutputName
+$zipPath = Join-Path $outputDirFull "SistemaChamadosAgentSource.zip"
 $releaseDir = Join-Path $projectDir "releases\agents\windows"
 $releaseExePath = Join-Path $releaseDir $OutputName
+$releaseZipPath = Join-Path $releaseDir "SistemaChamadosAgentSource.zip"
 
 if (Test-Path $packageDir) {
     Remove-Item -Path $packageDir -Recurse -Force
 }
+if (Test-Path $sourcePackageDir) {
+    Remove-Item -Path $sourcePackageDir -Recurse -Force
+}
 New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
+New-Item -ItemType Directory -Path $sourcePackageDir -Force | Out-Null
 
 if (-not $AgentToken) {
     $envPath = Join-Path $projectDir ".env"
@@ -47,6 +54,31 @@ $source = $source.Replace("__AGENT_SCRIPT_BASE64__", $agentScript)
 $source = $source.Replace("__UNINSTALL_SCRIPT_BASE64__", $uninstallScript)
 $source | Out-File -FilePath $generatedSource -Encoding UTF8 -Force
 
+foreach ($file in @("agent.ps1", "install.ps1", "install_gui.ps1", "uninstall.ps1", "README.md")) {
+    $sourceFile = Join-Path $baseDir $file
+    $targetFile = Join-Path $sourcePackageDir $file
+    if ($file -in @("install.ps1", "install_gui.ps1")) {
+        $content = Get-Content $sourceFile -Raw
+        $escapedToken = $AgentToken.Replace("\", "\\").Replace('"', '\"')
+        $content = $content.Replace('[string]$Token = "sistema-chamados-agent-local"', "[string]`$Token = `"$escapedToken`"")
+        $content | Out-File -FilePath $targetFile -Encoding UTF8 -Force
+    } else {
+        Copy-Item -LiteralPath $sourceFile -Destination $targetFile -Force
+    }
+}
+
+@"
+@echo off
+cd /d "%~dp0"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0install_gui.ps1"
+pause
+"@ | Out-File -FilePath (Join-Path $sourcePackageDir "InstalarAgente.cmd") -Encoding ascii -Force
+
+if (Test-Path $zipPath) {
+    Remove-Item -LiteralPath $zipPath -Force
+}
+Compress-Archive -Path (Join-Path $sourcePackageDir "*") -DestinationPath $zipPath -Force
+
 $csc = @(
     (Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe"),
     (Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"),
@@ -61,8 +93,11 @@ if (-not $csc) {
 if (Test-Path $exePath) {
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
     Copy-Item -LiteralPath $exePath -Destination $releaseExePath -Force
+    Copy-Item -LiteralPath $zipPath -Destination $releaseZipPath -Force
     Write-Host "Instalador standalone criado: $exePath" -ForegroundColor Green
+    Write-Host "Pacote ZIP criado: $zipPath" -ForegroundColor Green
     Write-Host "Copia versionada atualizada: $releaseExePath" -ForegroundColor Green
+    Write-Host "Copia ZIP versionada atualizada: $releaseZipPath" -ForegroundColor Green
 } else {
     throw "Compilacao executou, mas o EXE nao foi encontrado: $exePath"
 }

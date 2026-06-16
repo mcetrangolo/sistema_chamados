@@ -123,6 +123,30 @@
   </div>
   <aside class="col-xl-4">
     <section class="side-panel">
+      <h2 class="h6">Varrer novamente</h2>
+      <form method="post" action="{% url 'inventario:ativo_revarrer' ativo.pk %}" class="scan-form">
+        {% csrf_token %}
+        <div class="mb-2">
+          <label class="form-label" for="id_metodo_revarrer">Metodo</label>
+          <select class="form-select form-select-sm" id="id_metodo_revarrer" name="metodo">
+            {% for value,label in varredura_form.fields.metodo.choices %}
+              {% if value == "auto" or value == "ping" or value == "dns" or value == "tcp" or value == "snmp" %}
+                <option value="{{ value }}" {% if value == "auto" %}selected{% endif %}>{{ label }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="id_portas_revarrer">Portas TCP</label>
+          <input class="form-control form-control-sm" id="id_portas_revarrer" name="portas" placeholder="22,80,443,3389">
+        </div>
+        <button class="btn btn-outline-success w-100" type="submit" {% if not ativo.ip %}disabled{% endif %}>Escanear este ativo</button>
+      </form>
+      {% if not ativo.ip %}
+        <p class="text-secondary small mb-0 mt-2">Cadastre um IP para permitir a varredura individual.</p>
+      {% endif %}
+    </section>
+    <section class="side-panel mt-3">
       <h2 class="h6">Relacionar ativo</h2>
       <form method="post" action="{% url 'inventario:relacionamento_novo' ativo.pk %}">
         {% csrf_token %}

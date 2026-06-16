@@ -1,7 +1,9 @@
 import csv
 import io
+import ipaddress
 import json
 import socket
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
 from django.contrib import messages
@@ -46,7 +48,7 @@ from .models import (
     TipoAtivo,
     VarreduraRede,
 )
-from .services import descobrir_por_faixa
+from .services import descobrir_por_faixa, descobrir_por_host
 
 
 AGENTE_WINDOWS_EXE = "SistemaChamadosAgentSetup.exe"
@@ -68,6 +70,17 @@ def _caminho_agente_windows():
 
 def _caminho_pacote_windows_zip():
     return (settings.BASE_DIR / "releases" / "agents" / "windows" / AGENTE_WINDOWS_ZIP).resolve()
+
+
+def _arquivos_pacote_windows_zip():
+    base_windows = (settings.BASE_DIR / "scripts" / "agent" / "windows").resolve()
+    return {
+        "agent.ps1": base_windows / "agent.ps1",
+        "install.ps1": base_windows / "install.ps1",
+        "install_gui.ps1": base_windows / "install_gui.ps1",
+        "uninstall.ps1": base_windows / "uninstall.ps1",
+        "README.md": base_windows / "README.md",
+    }
 
 
 def _ips_rede_local():
@@ -142,16 +155,33 @@ def baixar_agente_windows(request):
 
 @login_required
 def baixar_agente_windows_zip(request):
-    caminho = _caminho_pacote_windows_zip()
-    base_release = (settings.BASE_DIR / "releases" / "agents" / "windows").resolve()
-    if not str(caminho).startswith(str(base_release)) or not caminho.exists():
-        raise Http404("Pacote ZIP do agente Windows nao encontrado.")
-    return FileResponse(
-        caminho.open("rb"),
-        as_attachment=True,
-        filename=AGENTE_WINDOWS_ZIP,
-        content_type="application/zip",
-    )
+    arquivos = _arquivos_pacote_windows_zip()
+    faltantes = [nome for nome, caminho in arquivos.items() if not caminho.exists()]
+    if faltantes:
+        raise Http404(f"Arquivos do agente Windows nao encontrados: {', '.join(faltantes)}.")
+
+    buffer = io.BytesIO()
+    with ZipFile(buffer, "w", ZIP_DEFLATED) as zipf:
+        for nome, caminho in arquivos.items():
+            conteudo = caminho.read_text(encoding="utf-8")
+            if nome in {"install.ps1", "install_gui.ps1"}:
+                token = settings.INVENTARIO_AGENT_TOKEN.replace("\\", "\\\\").replace('"', '\\"')
+                conteudo = conteudo.replace(
+                    '[string]$Token = "sistema-chamados-agent-local"',
+                    f'[string]$Token = "{token}"',
+                )
+            zipf.writestr(nome, conteudo)
+        zipf.writestr(
+            "InstalarAgente.cmd",
+            '@echo off\r\n'
+            'cd /d "%~dp0"\r\n'
+            'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0install_gui.ps1"\r\n'
+            "pause\r\n",
+        )
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{AGENTE_WINDOWS_ZIP}"'
+    return response
 
 
 @login_required
@@ -183,7 +213,8 @@ def configuracao_agente(request):
     download_url = f"{base_url}/inventario/agente/windows/download/"
     windows_zip_download_url = f"{base_url}/inventario/agente/windows/source.zip"
     linux_download_url = f"{base_url}/inventario/agente/linux/download/"
-    zip_path = _caminho_pacote_windows_zip()
+    arquivos_zip = _arquivos_pacote_windows_zip()
+    zip_pronto = all(caminho.exists() for caminho in arquivos_zip.values())
     contexto = {
         "token": settings.INVENTARIO_AGENT_TOKEN,
         "endpoint": endpoint,
@@ -203,9 +234,9 @@ def configuracao_agente(request):
         )
         if caminho.exists()
         else None,
-        "windows_zip_existe": zip_path.exists(),
+        "windows_zip_existe": zip_pronto,
         "windows_zip_nome": AGENTE_WINDOWS_ZIP,
-        "windows_zip_tamanho": zip_path.stat().st_size if zip_path.exists() else None,
+        "windows_zip_tamanho": None,
     }
     return TemplateView.as_view(template_name="inventario/agente_config.html")(request, **contexto)
 
@@ -631,6 +662,7 @@ class AtivoRedeDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context["ocorrencia_form"] = OcorrenciaAtivoForm()
         context["relacionamento_form"] = RelacionamentoAtivoForm()
+        context["varredura_form"] = VarreduraRedeForm()
         return context
 
 
@@ -867,6 +899,97 @@ def registrar_relacionamento(request, pk):
             messages.success(request, "Relacionamento CMDB registrado.")
         else:
             messages.error(request, "Nao foi possivel registrar o relacionamento.")
+    return redirect(ativo)
+
+
+def faixa_por_ip(ip):
+    try:
+        endereco = ipaddress.ip_address(ip)
+    except ValueError:
+        return None
+    for faixa in FaixaRede.objects.select_related("credencial_snmp").filter(ativa=True):
+        try:
+            if endereco in ipaddress.ip_network(faixa.cidr, strict=False):
+                return faixa
+        except ValueError:
+            continue
+    return None
+
+
+def aplicar_descoberta_no_ativo(ativo, descoberta, origem="varredura manual"):
+    campos = [
+        "nome",
+        "hostname",
+        "ip",
+        "sistema_operacional",
+        "origem",
+        "observacoes",
+        "status",
+        "ultima_coleta_em",
+    ]
+    antes = {campo: getattr(ativo, campo, "") for campo in campos}
+
+    if descoberta.nome and (not ativo.nome or ativo.nome.startswith(("Host ativo", "Host descoberto", "Ativo descoberto"))):
+        ativo.nome = descoberta.nome
+    ativo.hostname = descoberta.hostname or ativo.hostname
+    ativo.ip = descoberta.ip or ativo.ip
+    ativo.sistema_operacional = descoberta.sistema_operacional or ativo.sistema_operacional
+    ativo.origem = descoberta.origem or ativo.origem
+    ativo.status = AtivoRede.Status.ONLINE
+    if descoberta.observacoes:
+        ativo.observacoes = descoberta.observacoes
+    ativo.ultima_coleta_em = timezone.now()
+    ativo.save(update_fields=campos + ["atualizado_em"])
+    registrar_alteracoes_ativo(ativo, antes, campos, origem)
+
+
+@login_required
+@require_POST
+def revarrer_ativo(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk)
+    form = VarreduraRedeForm(request.POST or None)
+    if not form.is_valid():
+        messages.error(request, "Informe um metodo de descoberta valido.")
+        return redirect(ativo)
+
+    if not ativo.ip:
+        messages.warning(request, "Este ativo ainda nao tem IP cadastrado para varrer novamente.")
+        return redirect(ativo)
+
+    metodo = form.cleaned_data["metodo"]
+    portas = form.cleaned_data.get("portas", "")
+    metodos_suportados = {
+        MetodoDescoberta.Codigo.AUTO,
+        MetodoDescoberta.Codigo.PING,
+        MetodoDescoberta.Codigo.DNS,
+        MetodoDescoberta.Codigo.TCP,
+        MetodoDescoberta.Codigo.SNMP,
+    }
+    if metodo not in metodos_suportados:
+        messages.error(request, "Para revarrer um ativo individual, use Automatico, Ping, DNS, TCP ou SNMP.")
+        return redirect(ativo)
+
+    faixa = faixa_por_ip(ativo.ip)
+    credencial = faixa.credencial_snmp if faixa and faixa.credencial_snmp else CredencialSNMP.objects.filter(ativo=True).first()
+    if metodo == MetodoDescoberta.Codigo.SNMP and not credencial:
+        messages.error(request, "Cadastre uma credencial SNMP ativa ou associe uma credencial a faixa deste IP.")
+        return redirect(ativo)
+
+    try:
+        descoberta = descobrir_por_host(ativo.ip, metodo, portas, credencial)
+    except Exception as exc:
+        messages.error(request, f"Nao foi possivel concluir a varredura do ativo: {exc}")
+        return redirect(ativo)
+
+    if not descoberta:
+        messages.warning(
+            request,
+            "Nenhuma informacao nova foi localizada. Verifique firewall, rota, portas TCP, community SNMP e se o host esta ligado.",
+        )
+        return redirect(ativo)
+
+    aplicar_descoberta_no_ativo(ativo, descoberta)
+    messages.success(request, f"Varredura do ativo concluida por {MetodoDescoberta.Codigo(metodo).label}.")
     return redirect(ativo)
 
 

@@ -20,6 +20,7 @@ urlpatterns = [
     path("ativos/<int:pk>/", views.AtivoRedeDetailView.as_view(), name="ativo_detalhe"),
     path("ativos/<int:pk>/editar/", views.AtivoRedeUpdateView.as_view(), name="ativo_editar"),
     path("ativos/<int:pk>/excluir/", views.excluir_ativo, name="ativo_excluir"),
+    path("ativos/<int:pk>/revarrer/", views.revarrer_ativo, name="ativo_revarrer"),
     path("ativos/<int:pk>/ocorrencias/nova/", views.registrar_ocorrencia, name="ocorrencia_nova"),
     path("ativos/<int:pk>/relacionamentos/novo/", views.registrar_relacionamento, name="relacionamento_novo"),
     path("licencas/", views.LicencaSoftwareListView.as_view(), name="licencas"),

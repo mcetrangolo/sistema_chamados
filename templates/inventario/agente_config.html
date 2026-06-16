@@ -75,8 +75,8 @@
       {% if windows_zip_existe %}
         <div class="agent-package-ok mt-3">
           <strong>{{ windows_zip_nome }}</strong>
-          <span>{{ windows_zip_tamanho }} bytes</span>
-          <span>Alternativa sem executavel compilado para ambientes em que o antivirus bloqueia EXE desconhecido.</span>
+          <span>Gerado no download com os scripts e token atuais.</span>
+          <span>Alternativa sem executavel compilado para ambientes em que o antivirus bloqueia EXE desconhecido. Extraia e execute <code>InstalarAgente.cmd</code> como Administrador.</span>
         </div>
       {% endif %}
     </section>
@@ -92,7 +92,7 @@
         <li>Confirmar a primeira coleta e verificar o ativo na lista de inventario.</li>
       </ol>
       <p class="text-secondary mt-3 mb-0">
-        Se o Avast/CyberCapture bloquear o <code>.exe</code>, use <strong>Baixar Windows ZIP</strong>, extraia o pacote e execute <code>install_gui.ps1</code> como Administrador. O codigo do agente fica visivel dentro do ZIP.
+        Se o Avast/CyberCapture bloquear o <code>.exe</code>, use <strong>Baixar Windows ZIP</strong>, extraia o pacote e execute <code>InstalarAgente.cmd</code> como Administrador. O codigo do agente fica visivel dentro do ZIP.
       </p>
     </section>
     <section class="detail-section">
