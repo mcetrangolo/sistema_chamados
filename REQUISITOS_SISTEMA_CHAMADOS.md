@@ -928,3 +928,51 @@ Tabelas ou modelos principais:
 A primeira meta deverá ser criar uma versão funcional, estável e organizada com foco em chamados, usuários, setores, equipes, histórico, anexos, dashboard e relatórios básicos.
 
 Essa versão deverá evitar complexidade excessiva, mas já deverá ser estruturada com banco PostgreSQL, Docker, variáveis de ambiente, logs e separação modular, permitindo evolução segura para um sistema de Service Desk completo.
+
+## 27. Status da Versao Atual - v1.3.0
+
+Esta versao consolida melhorias de inventario, agente, descoberta de rede e atualizacao operacional do sistema.
+
+### 27.1 Inventario e Descoberta
+
+Funcionalidades implementadas nesta etapa:
+
+* Descoberta automatica por faixa com Nmap quando disponivel, Ping/ICMP, portas TCP, DNS reverso e SNMP.
+* Nmap empacotado no Dockerfile para ambientes Docker, reduzindo dependencia de instalacao manual no servidor.
+* Correcao da consulta SNMP para compatibilidade com versoes atuais da biblioteca `pysnmp`.
+* Comando de teste SNMP para validacao operacional de IP, community, porta UDP 161 e ACL do equipamento.
+* Botao de revarredura individual no detalhe do ativo, permitindo tentar novamente a identificacao de hosts ja localizados.
+* Revarredura por ativo com metodos Automatico, Ping/ICMP, DNS reverso, TCP e SNMP.
+* Atualizacao do ativo a partir da nova descoberta, preservando historico de alteracoes.
+
+### 27.2 Agentes de Inventario
+
+Funcionalidades implementadas nesta etapa:
+
+* Download de agente Windows em formato EXE.
+* Download alternativo em ZIP sem executavel compilado, gerado dinamicamente com scripts e token atuais da instalacao.
+* Inclusao do atalho `InstalarAgente.cmd` no ZIP para facilitar a instalacao administrativa.
+* Agente Linux disponibilizado por download com token e URL base ajustados pela instalacao.
+* Tela de configuracao dos agentes com endpoints, token, URLs de download e orientacoes de instalacao.
+
+### 27.3 Atualizacao do Sistema pelo GitHub
+
+Funcionalidades implementadas nesta etapa:
+
+* Tela de atualizacoes em Configuracoes, exibindo branch, commit atual, repositorio, pendencias e estado local do Git.
+* Botao para verificar atualizacoes via `git fetch --prune`.
+* Botao para atualizar o sistema pela interface web, restrito a superusuario.
+* Quando o ambiente permite, o botao executa o mesmo fluxo recomendado no README: `bash scripts/deploy_linux.sh`.
+* Quando o script de deploy nao esta disponivel, a tela usa fallback interno com `git fetch`, `git pull --ff-only`, migrations e coleta de arquivos estaticos.
+* Bloqueio de atualizacao quando existem alteracoes locais nao commitadas.
+* Registro do ultimo resultado da atualizacao na propria tela.
+
+### 27.4 Proximo Marco Planejado
+
+O proximo ciclo devera avaliar e implementar o modulo de acesso remoto vinculado ao inventario, com estudo prioritario de:
+
+* MeshCentral para acesso remoto persistente e suporte a parque de desktops.
+* Guacamole para acesso via RDP, SSH e VNC, especialmente em servidores e ativos administrativos.
+* Registro de provedor de acesso remoto no ativo.
+* Botao de acesso remoto no detalhe do ativo e no chamado vinculado.
+* Auditoria de abertura de sessoes remotas por tecnico, ativo e chamado.

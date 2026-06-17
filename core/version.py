@@ -1,2 +1,2 @@
-SISTEMA_VERSAO = "v1.2.3"
-SISTEMA_VERSAO_NOME = "Service Desk Publico"
+SISTEMA_VERSAO = "v1.3.0"
+SISTEMA_VERSAO_NOME = "Inventario e Atualizacao Web"
