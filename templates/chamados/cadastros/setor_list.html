@@ -13,7 +13,15 @@
         <tr>
           <td>{{ setor.nome }}</td>
           <td>{% if setor.ativo %}<span class="badge text-bg-success">Ativo</span>{% else %}<span class="badge text-bg-secondary">Inativo</span>{% endif %}</td>
-          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:setor_editar' setor.pk %}">Editar</a></td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-2">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:setor_editar' setor.pk %}">Editar</a>
+              <form method="post" action="{% url 'chamados:setor_excluir' setor.pk %}" onsubmit="return confirm('Excluir este setor? Se houver chamados vinculados, a exclusao sera bloqueada.');">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+              </form>
+            </div>
+          </td>
         </tr>
       {% empty %}
         <tr><td colspan="3" class="text-center text-secondary py-4">Nenhum setor cadastrado.</td></tr>

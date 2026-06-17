@@ -123,6 +123,18 @@
   </div>
   <aside class="col-xl-4">
     <section class="side-panel">
+      <h2 class="h6">Status de conectividade</h2>
+      <form method="post" action="{% url 'inventario:ativo_verificar_status' ativo.pk %}">
+        {% csrf_token %}
+        <button class="btn btn-outline-success w-100" type="submit" {% if not ativo.ip %}disabled{% endif %}>Verificar por ping</button>
+      </form>
+      {% if ativo.ip %}
+        <p class="text-secondary small mb-0 mt-2">Atualiza para Online ou Offline conforme resposta ICMP.</p>
+      {% else %}
+        <p class="text-secondary small mb-0 mt-2">Cadastre um IP para validar conectividade.</p>
+      {% endif %}
+    </section>
+    <section class="side-panel mt-3">
       <h2 class="h6">Varrer novamente</h2>
       <form method="post" action="{% url 'inventario:ativo_revarrer' ativo.pk %}" class="scan-form">
         {% csrf_token %}

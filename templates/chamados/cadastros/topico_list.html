@@ -19,7 +19,15 @@
           <td>{{ topico.get_prioridade_padrao_display }}</td>
           <td>{{ topico.atendente_padrao|default:"-" }}</td>
           <td>{{ topico.sla_horas }}h</td>
-          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:topico_editar' topico.pk %}">Editar</a></td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-2">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:topico_editar' topico.pk %}">Editar</a>
+              <form method="post" action="{% url 'chamados:topico_excluir' topico.pk %}" onsubmit="return confirm('Excluir este topico? Se houver chamados vinculados, a exclusao sera bloqueada.');">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+              </form>
+            </div>
+          </td>
         </tr>
       {% empty %}
         <tr><td colspan="6" class="text-center text-secondary py-4">Nenhum tópico cadastrado.</td></tr>

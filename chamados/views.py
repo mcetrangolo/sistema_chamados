@@ -7,14 +7,16 @@ from django.contrib import messages
 from django.core.files import File
 from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.models import Group
+from django.db.models.deletion import ProtectedError
 from django.db.models import Avg, Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 from core.models import ConfiguracaoInstitucional
 
@@ -507,6 +509,25 @@ class SetorUpdateView(LoginRequiredMixin, UpdateView):
         messages.success(self.request, "Setor atualizado com sucesso.")
         return super().form_valid(form)
 
+def excluir_cadastro(request, model, pk, redirect_name, nome_cadastro, campo_nome="nome"):
+    objeto = get_object_or_404(model, pk=pk)
+    nome = getattr(objeto, campo_nome, None) or str(objeto)
+    try:
+        objeto.delete()
+        messages.success(request, f"{nome_cadastro} {nome} excluido com sucesso.")
+    except ProtectedError:
+        messages.warning(
+            request,
+            f"Este {nome_cadastro.lower()} possui registros vinculados. Para ocultar, edite e desmarque Ativo.",
+        )
+    return redirect(redirect_name)
+
+
+@login_required
+@require_POST
+def excluir_setor(request, pk):
+    return excluir_cadastro(request, Setor, pk, "chamados:setores", "Setor")
+
 
 class CategoriaListView(LoginRequiredMixin, ListView):
     model = Categoria
@@ -534,6 +555,12 @@ class CategoriaUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, "Categoria atualizada com sucesso.")
         return super().form_valid(form)
+
+
+@login_required
+@require_POST
+def excluir_categoria(request, pk):
+    return excluir_cadastro(request, Categoria, pk, "chamados:categorias", "Categoria")
 
 
 class EquipeAtendimentoListView(LoginRequiredMixin, ListView):
@@ -564,6 +591,12 @@ class EquipeAtendimentoUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
+@login_required
+@require_POST
+def excluir_equipe(request, pk):
+    return excluir_cadastro(request, EquipeAtendimento, pk, "chamados:equipes", "Equipe")
+
+
 class RegraSLAListView(LoginRequiredMixin, ListView):
     model = RegraSLA
     template_name = "chamados/cadastros/sla_list.html"
@@ -590,6 +623,12 @@ class RegraSLAUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, "Regra de SLA atualizada com sucesso.")
         return super().form_valid(form)
+
+
+@login_required
+@require_POST
+def excluir_sla(request, pk):
+    return excluir_cadastro(request, RegraSLA, pk, "chamados:sla_regras", "Regra de SLA")
 
 
 class TopicoAjudaListView(LoginRequiredMixin, ListView):
@@ -620,6 +659,12 @@ class TopicoAjudaUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
+@login_required
+@require_POST
+def excluir_topico(request, pk):
+    return excluir_cadastro(request, TopicoAjuda, pk, "chamados:topicos", "Topico")
+
+
 class RespostaProntaListView(LoginRequiredMixin, ListView):
     model = RespostaPronta
     template_name = "chamados/cadastros/resposta_list.html"
@@ -646,6 +691,12 @@ class RespostaProntaUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, "Resposta pronta atualizada com sucesso.")
         return super().form_valid(form)
+
+
+@login_required
+@require_POST
+def excluir_resposta(request, pk):
+    return excluir_cadastro(request, RespostaPronta, pk, "chamados:respostas", "Resposta pronta", "titulo")
 
 
 class ArtigoConhecimentoPublicListView(ListView):
@@ -700,6 +751,12 @@ class ArtigoConhecimentoUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, "Artigo atualizado com sucesso.")
         return super().form_valid(form)
+
+
+@login_required
+@require_POST
+def excluir_artigo(request, pk):
+    return excluir_cadastro(request, ArtigoConhecimento, pk, "chamados:artigos", "Artigo", "titulo")
 
 
 class CatalogoServicoListView(ListView):
@@ -796,6 +853,13 @@ class ServicoCatalogoUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateVi
         return super().form_valid(form)
 
 
+@login_required
+@user_passes_test(lambda user: user.is_superuser)
+@require_POST
+def excluir_servico(request, pk):
+    return excluir_cadastro(request, ServicoCatalogo, pk, "chamados:servicos", "Servico")
+
+
 class CampoServicoCatalogoListView(LoginRequiredMixin, AdminRequiredMixin, ListView):
     model = CampoServicoCatalogo
     template_name = "chamados/cadastros/campo_servico_list.html"
@@ -856,6 +920,18 @@ class CampoServicoCatalogoUpdateView(LoginRequiredMixin, AdminRequiredMixin, Upd
         context = super().get_context_data(**kwargs)
         context["servico"] = self.object.servico
         return context
+
+
+@login_required
+@user_passes_test(lambda user: user.is_superuser)
+@require_POST
+def excluir_campo_servico(request, pk):
+    campo = get_object_or_404(CampoServicoCatalogo.objects.select_related("servico"), pk=pk)
+    servico_pk = campo.servico.pk
+    nome = campo.rotulo
+    campo.delete()
+    messages.success(request, f"Campo {nome} excluido com sucesso.")
+    return redirect("chamados:servico_campos", servico_pk=servico_pk)
 
 
 class ProblemaListView(LoginRequiredMixin, ListView):
@@ -1216,6 +1292,19 @@ class TecnicoCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
+@login_required
+@require_POST
+def desativar_tecnico(request, pk):
+    tecnico = get_object_or_404(get_user_model(), pk=pk)
+    if tecnico == request.user:
+        messages.warning(request, "Nao e possivel desativar o proprio usuario logado.")
+        return redirect("chamados:tecnicos")
+    tecnico.is_active = False
+    tecnico.save(update_fields=["is_active"])
+    messages.success(request, f"Atendente {tecnico.get_full_name() or tecnico.username} desativado com sucesso.")
+    return redirect("chamados:tecnicos")
+
+
 AGRUPAMENTO_MAP = {
     "status": ("status", "Status"),
     "tipo": ("tipo", "Tipo"),
@@ -1431,8 +1520,11 @@ def exportar_relatorio_xls(request):
     cabecalhos_inventario = [
         "Equipamento",
         "IP",
+        "MAC",
         "Tipo",
         "Setor",
+        "Fabricante",
+        "Modelo",
         "SO",
         "Office",
         "CPU",
@@ -1450,8 +1542,11 @@ def exportar_relatorio_xls(request):
         valores = [
             ativo.nome,
             ativo.ip or "",
+            ativo.mac,
             ativo.tipo.nome if ativo.tipo else "",
             ativo.setor.nome if ativo.setor else "",
+            ativo.fabricante,
+            ativo.modelo,
             ativo.sistema_operacional,
             ativo.office,
             ativo.processador,
@@ -1647,12 +1742,11 @@ def exportar_relatorio_pdf(request):
         escrever_linha(f"{item.get('office') or 'Nao informado'}: {item['total']}", tamanho=8)
 
     escrever_linha("Equipamentos inventariados", tamanho=9, negrito=True)
-    escrever_linha("Nome | IP | SO | Office | Memoria | Serial", tamanho=8, negrito=True)
+    escrever_linha("Nome | IP | Fabricante | Modelo | Status | Origem", tamanho=8, negrito=True)
     for ativo in inventario["ativos"][:80]:
-        memoria = f"{ativo.memoria_total_gb} GB" if ativo.memoria_total_gb else "-"
         escrever_linha(
-            f"{ativo.nome} | {ativo.ip or '-'} | {ativo.sistema_operacional or '-'} | "
-            f"{ativo.office or '-'} | {memoria} | {ativo.numero_serie or '-'}",
+            f"{ativo.nome} | {ativo.ip or '-'} | {ativo.fabricante or '-'} | "
+            f"{ativo.modelo or '-'} | {ativo.get_status_display()} | {ativo.get_origem_display()}",
             tamanho=7,
         )
 

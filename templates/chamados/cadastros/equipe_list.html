@@ -14,7 +14,15 @@
           <td>{{ equipe.nome }}</td>
           <td>{{ equipe.responsavel|default:"-" }}</td>
           <td>{{ equipe.ativo|yesno:"Ativa,Inativa" }}</td>
-          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:equipe_editar' equipe.pk %}">Editar</a></td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-2">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:equipe_editar' equipe.pk %}">Editar</a>
+              <form method="post" action="{% url 'chamados:equipe_excluir' equipe.pk %}" onsubmit="return confirm('Excluir esta equipe?');">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+              </form>
+            </div>
+          </td>
         </tr>
       {% empty %}
         <tr><td colspan="4" class="text-center text-secondary py-4">Nenhuma equipe cadastrada.</td></tr>

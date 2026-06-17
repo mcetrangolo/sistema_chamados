@@ -60,6 +60,10 @@ class ChamadoForm(BootstrapFormMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["setor"].label = "Setor solicitante"
+        setores = Setor.objects.filter(ativo=True)
+        if self.instance and self.instance.setor_id:
+            setores = setores | Setor.objects.filter(pk=self.instance.setor_id)
+        self.fields["setor"].queryset = setores.distinct()
         self.fields["categoria"].required = False
         self.fields["topico_ajuda"].queryset = TopicoAjuda.objects.filter(ativo=True)
         self.fields["equipe_responsavel"].queryset = EquipeAtendimento.objects.filter(ativo=True)
@@ -278,6 +282,13 @@ class RegraSLAForm(BootstrapFormMixin, forms.ModelForm):
             "prazo_solucao_horas",
             "ativo",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        setores = Setor.objects.filter(ativo=True)
+        if self.instance and self.instance.setor_id:
+            setores = setores | Setor.objects.filter(pk=self.instance.setor_id)
+        self.fields["setor"].queryset = setores.distinct()
 
 
 class TopicoAjudaForm(BootstrapFormMixin, forms.ModelForm):
@@ -510,6 +521,10 @@ class SolicitacaoServicoForm(BootstrapFormMixin, forms.ModelForm):
     def __init__(self, *args, servico=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.servico = servico
+        setores = Setor.objects.filter(ativo=True)
+        if self.instance and self.instance.setor_id:
+            setores = setores | Setor.objects.filter(pk=self.instance.setor_id)
+        self.fields["setor"].queryset = setores.distinct()
         if servico and not servico.requer_matricula:
             self.fields["matricula"].required = False
         else:

@@ -22,7 +22,7 @@ Register-ScheduledTask `
     -Action $Action `
     -Trigger $Trigger `
     -Settings $Settings `
-    -Description "Executa varreduras de inventario e backup local do Sistema de Chamados." `
+    -Description "Executa varreduras de inventario, validacao diaria de status por ping e backup local do Sistema de Chamados." `
     -Force
 
 Write-Host "Tarefa agendada criada/atualizada: $TaskName as $StartTime"

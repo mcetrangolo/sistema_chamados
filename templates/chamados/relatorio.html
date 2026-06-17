@@ -233,12 +233,14 @@
             <tr>
               <th>Equipamento</th>
               <th>IP</th>
+              <th>MAC</th>
               <th>Tipo</th>
+              <th>Fabricante</th>
+              <th>Modelo</th>
               <th>SO</th>
-              <th>Office</th>
-              <th>CPU</th>
-              <th>Memoria</th>
               <th>Serial</th>
+              <th>Status</th>
+              <th>Origem</th>
               <th>Coleta</th>
             </tr>
           </thead>
@@ -247,16 +249,18 @@
               <tr>
                 <td><a href="{{ ativo.get_absolute_url }}">{{ ativo.nome }}</a></td>
                 <td>{{ ativo.ip|default:"-" }}</td>
+                <td>{{ ativo.mac|default:"-" }}</td>
                 <td>{{ ativo.tipo|default:"-" }}</td>
+                <td>{{ ativo.fabricante|default:"-" }}</td>
+                <td>{{ ativo.modelo|default:"-" }}</td>
                 <td>{{ ativo.sistema_operacional|default:"-" }}</td>
-                <td>{{ ativo.office|default:"-" }}</td>
-                <td>{{ ativo.processador|default:"-" }}</td>
-                <td>{% if ativo.memoria_total_gb %}{{ ativo.memoria_total_gb }} GB{% else %}-{% endif %}</td>
                 <td>{{ ativo.numero_serie|default:"-" }}</td>
+                <td>{{ ativo.get_status_display }}</td>
+                <td>{{ ativo.get_origem_display }}</td>
                 <td>{{ ativo.ultima_coleta_em|date:"d/m/Y H:i"|default:"-" }}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="9" class="text-center text-secondary py-4">Nenhum ativo inventariado.</td></tr>
+              <tr><td colspan="11" class="text-center text-secondary py-4">Nenhum ativo inventariado.</td></tr>
             {% endfor %}
           </tbody>
         </table>

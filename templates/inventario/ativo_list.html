@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Ativos | Inventário{% endblock %}
+{% block title %}Ativos | Inventario{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Ativos de rede</h1>
@@ -10,6 +10,7 @@
     <a class="btn btn-primary" href="{% url 'inventario:ativo_novo' %}">Novo ativo</a>
   </div>
 </div>
+
 <form method="get" class="row g-2 mb-3 filters">
   <div class="col-md-5"><input class="form-control" name="q" value="{{ filtros.q }}" placeholder="Buscar por nome, IP, MAC, hostname, modelo ou serial"></div>
   <div class="col-md-3">
@@ -26,15 +27,19 @@
   </div>
   <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" type="submit">Filtrar</button></div>
 </form>
-<form method="post" action="{% url 'inventario:ativos_excluir_lote' %}" class="detail-section" onsubmit="return confirm('Excluir os ativos selecionados? Esta ação não pode ser desfeita.');">
+
+<form method="post" class="detail-section">
   {% csrf_token %}
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <span class="text-secondary small">Selecione registros para exclusão em lote.</span>
-    <button class="btn btn-outline-danger btn-sm" type="submit">Excluir selecionados</button>
+    <span class="text-secondary small">Selecione registros para verificar status ou excluir em lote.</span>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-success btn-sm" type="submit" formaction="{% url 'inventario:ativos_verificar_status' %}">Verificar status</button>
+      <button class="btn btn-outline-danger btn-sm" type="submit" formaction="{% url 'inventario:ativos_excluir_lote' %}" onclick="return confirm('Excluir os ativos selecionados? Esta acao nao pode ser desfeita.');">Excluir selecionados</button>
+    </div>
   </div>
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
-      <thead><tr><th style="width: 36px;"></th><th>Nome</th><th>Tipo</th><th>IP</th><th>MAC</th><th>Setor</th><th>Status</th><th>Origem</th><th class="text-end">Ações</th></tr></thead>
+      <thead><tr><th style="width: 36px;"></th><th>Nome</th><th>Tipo</th><th>IP</th><th>MAC</th><th>Setor</th><th>Status</th><th>Origem</th><th class="text-end">Acoes</th></tr></thead>
       <tbody>
         {% for ativo in ativos %}
           <tr>
@@ -47,7 +52,10 @@
             <td><span class="badge text-bg-light">{{ ativo.get_status_display }}</span></td>
             <td>{{ ativo.get_origem_display }}</td>
             <td class="text-end">
-              <a class="btn btn-sm btn-outline-primary" href="{% url 'inventario:ativo_editar' ativo.pk %}">Editar</a>
+              <div class="d-inline-flex gap-2">
+                <button class="btn btn-sm btn-outline-success" type="submit" formaction="{% url 'inventario:ativo_verificar_status' ativo.pk %}">Ping</button>
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'inventario:ativo_editar' ativo.pk %}">Editar</a>
+              </div>
             </td>
           </tr>
         {% empty %}

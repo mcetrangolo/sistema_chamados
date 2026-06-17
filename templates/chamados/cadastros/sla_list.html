@@ -25,7 +25,15 @@
           <td>{{ regra.prazo_primeira_resposta_horas }}h</td>
           <td>{{ regra.prazo_solucao_horas }}h</td>
           <td>{{ regra.ativo|yesno:"Ativa,Inativa" }}</td>
-          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:sla_editar' regra.pk %}">Editar</a></td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-2">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:sla_editar' regra.pk %}">Editar</a>
+              <form method="post" action="{% url 'chamados:sla_excluir' regra.pk %}" onsubmit="return confirm('Excluir esta regra de SLA?');">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+              </form>
+            </div>
+          </td>
         </tr>
       {% empty %}
         <tr><td colspan="6" class="text-center text-secondary py-4">Nenhuma regra de SLA cadastrada.</td></tr>

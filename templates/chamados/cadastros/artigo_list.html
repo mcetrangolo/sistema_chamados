@@ -15,7 +15,15 @@
           <td>{{ artigo.topico_ajuda|default:"-" }}</td>
           <td>{{ artigo.publico|yesno:"Sim,Não" }}</td>
           <td>{{ artigo.ativo|yesno:"Ativo,Inativo" }}</td>
-          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:artigo_editar' artigo.pk %}">Editar</a></td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-2">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:artigo_editar' artigo.pk %}">Editar</a>
+              <form method="post" action="{% url 'chamados:artigo_excluir' artigo.pk %}" onsubmit="return confirm('Excluir este artigo?');">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+              </form>
+            </div>
+          </td>
         </tr>
       {% empty %}
         <tr><td colspan="5" class="text-center text-secondary py-4">Nenhum artigo cadastrado.</td></tr>

@@ -17,9 +17,19 @@ class DescobertaAtivo:
     ip: str = ""
     nome: str = ""
     hostname: str = ""
+    fabricante: str = ""
+    modelo: str = ""
+    numero_serie: str = ""
+    mac: str = ""
     sistema_operacional: str = ""
+    localizacao: str = ""
     origem: str = AtivoRede.Origem.MANUAL
     observacoes: str = ""
+    interfaces: list = None
+
+    def __post_init__(self):
+        if self.interfaces is None:
+            self.interfaces = []
 
 
 def hosts_da_faixa(cidr, limite=254):
@@ -147,7 +157,7 @@ def _descobrir_host_auto(ip_texto, faixa, portas_lista):
     abertas = tcp_aberto(ip_texto, portas_lista or ["22", "80", "443", "445", "3389", "135", "139"])
     if abertas:
         motivos.append(f"TCP {', '.join(abertas)}")
-    snmp = consultar_snmp_basico(ip_texto, faixa.credencial_snmp.community if faixa.credencial_snmp else "")
+    snmp = consultar_snmp_basico(ip_texto, faixa.credencial_snmp)
     if snmp:
         motivos.append("SNMP")
         hostname = snmp.get("hostname") or hostname
@@ -162,21 +172,102 @@ def _descobrir_host_auto(ip_texto, faixa, portas_lista):
         ip=ip_texto,
         nome=hostname or f"Host ativo {ip_texto}",
         hostname=hostname,
+        fabricante=snmp.get("fabricante", "") if snmp else "",
+        modelo=snmp.get("modelo", "") if snmp else "",
+        numero_serie=snmp.get("numero_serie", "") if snmp else "",
+        mac=snmp.get("mac", "") if snmp else "",
+        localizacao=snmp.get("localizacao", "") if snmp else "",
         origem=origem,
         observacoes=observacoes,
+        interfaces=snmp.get("interfaces", []) if snmp else [],
     )
 
 
-def consultar_snmp_basico(ip, community):
+def _dados_credencial_snmp(credencial):
+    if not credencial:
+        return "", "2c"
+    if isinstance(credencial, str):
+        return credencial, "2c"
+    return getattr(credencial, "community", "") or "", getattr(credencial, "versao", "2c") or "2c"
+
+
+def _mp_model_snmp(versao):
+    return 0 if str(versao) == "1" else 1
+
+
+def consultar_snmp_basico(ip, credencial):
+    community, versao = _dados_credencial_snmp(credencial)
     if not community:
         return None
-    dados = _consultar_snmp_basico_atual(ip, community)
+    dados = _consultar_snmp_basico_atual(ip, community, versao)
     if dados:
         return dados
-    return _consultar_snmp_basico_legado(ip, community)
+    return _consultar_snmp_basico_legado(ip, community, versao)
 
 
-async def _consultar_snmp_basico_async(ip, community):
+def _status_interface(valor):
+    return {
+        "1": "up",
+        "2": "down",
+        "3": "testing",
+        "4": "unknown",
+        "5": "dormant",
+        "6": "notPresent",
+        "7": "lowerLayerDown",
+    }.get(str(valor), str(valor))
+
+
+def _formatar_mac(valor):
+    if not valor:
+        return ""
+    try:
+        octetos = valor.asOctets()
+        return ":".join(f"{octeto:02X}" for octeto in octetos) if octetos else ""
+    except Exception:
+        texto = str(valor).strip()
+        if texto.startswith("0x") and len(texto) > 2:
+            hex_texto = texto[2:]
+            return ":".join(hex_texto[i : i + 2].upper() for i in range(0, len(hex_texto), 2))
+        return texto
+
+
+def _inferir_fabricante_modelo(descricao, sys_object_id=""):
+    texto = (descricao or "").strip()
+    texto_lower = texto.lower()
+    fabricantes = [
+        "Cisco",
+        "HP",
+        "HPE",
+        "Aruba",
+        "Ubiquiti",
+        "MikroTik",
+        "Dell",
+        "D-Link",
+        "TP-Link",
+        "Intelbras",
+        "Epson",
+        "Brother",
+        "Canon",
+        "Lexmark",
+        "Zebra",
+        "Kyocera",
+    ]
+    fabricante = next((nome for nome in fabricantes if nome.lower() in texto_lower), "")
+    modelo = ""
+    if texto:
+        primeira_linha = texto.splitlines()[0]
+        partes = [parte.strip() for parte in primeira_linha.replace(",", " ").split() if parte.strip()]
+        if fabricante and fabricante in partes:
+            indice = partes.index(fabricante)
+            modelo = " ".join(partes[indice + 1 : indice + 4])
+        elif partes:
+            modelo = " ".join(partes[:4])
+    if not modelo and sys_object_id:
+        modelo = f"OID {sys_object_id}"
+    return fabricante, modelo[:120]
+
+
+async def _snmp_get_async(ip, community, versao, *oids):
     from pysnmp.hlapi.v1arch.asyncio import (
         CommunityData,
         ObjectIdentity,
@@ -190,32 +281,113 @@ async def _consultar_snmp_basico_async(ip, community):
     try:
         erro, status, _, var_binds = await get_cmd(
             dispatcher,
-            CommunityData(community, mpModel=1),
+            CommunityData(community, mpModel=_mp_model_snmp(versao)),
             await UdpTransportTarget.create((str(ip), 161), timeout=1, retries=0),
-            ObjectType(ObjectIdentity("1.3.6.1.2.1.1.5.0")),
-            ObjectType(ObjectIdentity("1.3.6.1.2.1.1.1.0")),
+            *[ObjectType(ObjectIdentity(oid)) for oid in oids],
         )
     finally:
         close = getattr(dispatcher, "close_dispatcher", None)
         if close:
             close()
     if erro or status:
+        return {}
+    return {oid: valor for oid, (_, valor) in zip(oids, var_binds)}
+
+
+async def _snmp_walk_async(ip, community, versao, oid_raiz, limite=128):
+    from pysnmp.hlapi.v1arch.asyncio import (
+        CommunityData,
+        ObjectIdentity,
+        ObjectType,
+        SnmpDispatcher,
+        UdpTransportTarget,
+        walk_cmd,
+    )
+
+    dispatcher = SnmpDispatcher()
+    itens = []
+    try:
+        async for erro, status, _, var_binds in walk_cmd(
+            dispatcher,
+            CommunityData(community, mpModel=_mp_model_snmp(versao)),
+            await UdpTransportTarget.create((str(ip), 161), timeout=1, retries=0),
+            ObjectType(ObjectIdentity(oid_raiz)),
+            lexicographicMode=False,
+        ):
+            if erro or status:
+                break
+            for nome, valor in var_binds:
+                itens.append((str(nome), valor))
+                if len(itens) >= limite:
+                    return itens
+    finally:
+        close = getattr(dispatcher, "close_dispatcher", None)
+        if close:
+            close()
+    return itens
+
+
+def _indice_oid(nome):
+    return str(nome).rsplit(".", 1)[-1]
+
+
+async def _consultar_snmp_basico_async(ip, community, versao):
+    valores = await _snmp_get_async(
+        ip,
+        community,
+        versao,
+        "1.3.6.1.2.1.1.5.0",
+        "1.3.6.1.2.1.1.1.0",
+        "1.3.6.1.2.1.1.2.0",
+        "1.3.6.1.2.1.1.6.0",
+    )
+    if not valores:
         return None
-    valores = [str(valor) for _, valor in var_binds]
+
+    hostname = str(valores.get("1.3.6.1.2.1.1.5.0", "")).strip()
+    descricao = str(valores.get("1.3.6.1.2.1.1.1.0", "")).strip()
+    sys_object_id = str(valores.get("1.3.6.1.2.1.1.2.0", "")).strip()
+    localizacao = str(valores.get("1.3.6.1.2.1.1.6.0", "")).strip()
+    fabricante, modelo = _inferir_fabricante_modelo(descricao, sys_object_id)
+
+    descricoes = {_indice_oid(nome): str(valor) for nome, valor in await _snmp_walk_async(ip, community, versao, "1.3.6.1.2.1.2.2.1.2")}
+    velocidades = {_indice_oid(nome): str(valor) for nome, valor in await _snmp_walk_async(ip, community, versao, "1.3.6.1.2.1.2.2.1.5")}
+    macs = {_indice_oid(nome): _formatar_mac(valor) for nome, valor in await _snmp_walk_async(ip, community, versao, "1.3.6.1.2.1.2.2.1.6")}
+    oper_status = {_indice_oid(nome): _status_interface(valor) for nome, valor in await _snmp_walk_async(ip, community, versao, "1.3.6.1.2.1.2.2.1.8")}
+
+    interfaces = []
+    for indice, descricao_interface in descricoes.items():
+        if not descricao_interface:
+            continue
+        interfaces.append(
+            {
+                "nome": descricao_interface[:120],
+                "descricao": descricao_interface[:250],
+                "mac": macs.get(indice, ""),
+                "velocidade": velocidades.get(indice, ""),
+                "status": oper_status.get(indice, ""),
+            }
+        )
+
     return {
-        "hostname": valores[0] if valores else "",
-        "descricao": valores[1] if len(valores) > 1 else "",
+        "hostname": hostname,
+        "descricao": descricao,
+        "fabricante": fabricante,
+        "modelo": modelo,
+        "mac": next((item["mac"] for item in interfaces if item.get("mac")), ""),
+        "localizacao": localizacao,
+        "interfaces": interfaces,
     }
 
 
-def _consultar_snmp_basico_atual(ip, community):
+def _consultar_snmp_basico_atual(ip, community, versao):
     try:
-        return asyncio.run(_consultar_snmp_basico_async(ip, community))
+        return asyncio.run(_consultar_snmp_basico_async(ip, community, versao))
     except Exception:
         return None
 
 
-def _consultar_snmp_basico_legado(ip, community):
+def _consultar_snmp_basico_legado(ip, community, versao):
     try:
         from pysnmp.hlapi import (
             CommunityData,
@@ -229,7 +401,7 @@ def _consultar_snmp_basico_legado(ip, community):
 
         iterator = getCmd(
             SnmpEngine(),
-            CommunityData(community, mpModel=1),
+            CommunityData(community, mpModel=_mp_model_snmp(versao)),
             UdpTransportTarget((str(ip), 161), timeout=1, retries=0),
             ContextData(),
             ObjectType(ObjectIdentity("1.3.6.1.2.1.1.5.0")),
@@ -270,14 +442,20 @@ def descobrir_por_host(ip, metodo, portas="", credencial_snmp=None):
         if abertas:
             return DescobertaAtivo(ip=ip_texto, nome=f"Servico detectado {ip_texto}", observacoes=f"Portas abertas: {', '.join(abertas)}.")
     if metodo == MetodoDescoberta.Codigo.SNMP:
-        dados = consultar_snmp_basico(ip_texto, credencial_snmp.community if credencial_snmp else "")
+        dados = consultar_snmp_basico(ip_texto, credencial_snmp)
         if dados:
             return DescobertaAtivo(
                 ip=ip_texto,
                 nome=dados.get("hostname") or f"Dispositivo SNMP {ip_texto}",
                 hostname=dados.get("hostname", ""),
+                fabricante=dados.get("fabricante", ""),
+                modelo=dados.get("modelo", ""),
+                numero_serie=dados.get("numero_serie", ""),
+                mac=dados.get("mac", ""),
+                localizacao=dados.get("localizacao", ""),
                 origem=AtivoRede.Origem.SNMP,
                 observacoes=f"SNMP sysDescr: {dados.get('descricao', '')}",
+                interfaces=dados.get("interfaces", []),
             )
     return None
 
@@ -321,15 +499,21 @@ def descobrir_por_faixa(faixa, metodo, portas=""):
             if abertas:
                 descobertos.append(DescobertaAtivo(ip=ip_texto, nome=f"Serviço detectado {ip_texto}", observacoes=f"Portas abertas: {', '.join(abertas)}."))
         elif metodo == MetodoDescoberta.Codigo.SNMP:
-            dados = consultar_snmp_basico(ip_texto, faixa.credencial_snmp.community if faixa.credencial_snmp else "")
+            dados = consultar_snmp_basico(ip_texto, faixa.credencial_snmp)
             if dados:
                 descobertos.append(
                     DescobertaAtivo(
                         ip=ip_texto,
                         nome=dados.get("hostname") or f"Dispositivo SNMP {ip_texto}",
                         hostname=dados.get("hostname", ""),
+                        fabricante=dados.get("fabricante", ""),
+                        modelo=dados.get("modelo", ""),
+                        numero_serie=dados.get("numero_serie", ""),
+                        mac=dados.get("mac", ""),
+                        localizacao=dados.get("localizacao", ""),
                         origem=AtivoRede.Origem.SNMP,
                         observacoes=f"SNMP sysDescr: {dados.get('descricao', '')}",
+                        interfaces=dados.get("interfaces", []),
                     )
                 )
     return descobertos

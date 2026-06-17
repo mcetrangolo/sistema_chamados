@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block title %}Relatorios de inventario | Inventario{% endblock %}
+{% block content %}
+{{ tipo_chart|json_script:"inventario-tipo-chart-data" }}
+{{ status_chart|json_script:"inventario-status-chart-data" }}
+{{ origem_chart|json_script:"inventario-origem-chart-data" }}
+{{ fabricante_chart|json_script:"inventario-fabricante-chart-data" }}
+{{ licenca_status_chart|json_script:"inventario-licenca-status-chart-data" }}
+{{ software_chart|json_script:"inventario-software-chart-data" }}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">Relatorios de inventario</h1>
+    <p class="text-secondary mb-0">Equipamentos, softwares detectados, licencas, cobertura de dados e varreduras.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'inventario:ativos' %}">Ativos</a>
+    <a class="btn btn-outline-primary" href="{% url 'inventario:relatorio_xls' %}{% if querystring %}?{{ querystring }}{% endif %}">Exportar XLS</a>
+    <a class="btn btn-outline-danger" href="{% url 'inventario:relatorio_pdf' %}{% if querystring %}?{{ querystring }}{% endif %}">Exportar PDF</a>
+  </div>
+</div>
+{% if filtro_aplicado %}
+  <div class="alert alert-info py-2">
+    Relatorio filtrado. As exportacoes em XLS e PDF usam exatamente este recorte.
+  </div>
+{% endif %}
+
+<form method="get" class="filters report-filters mb-4">
+  <div class="row g-3">
+    {% for field in form %}
+      <div class="col-md-6 col-xl-2">
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+  <div class="d-flex justify-content-end gap-2 mt-3">
+    <a class="btn btn-outline-secondary" href="{% url 'inventario:relatorio' %}">Limpar</a>
+    <button class="btn btn-primary" type="submit">Gerar relatorio</button>
+  </div>
+</form>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="metric"><span>Equipamentos</span><strong>{{ indicadores.total }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Softwares detectados</span><strong>{{ indicadores.softwares_total }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Licencas</span><strong>{{ indicadores.licencas_total }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Posicoes livres</span><strong>{{ indicadores.licencas_saldo }}</strong></div></div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="metric"><span>Online</span><strong>{{ indicadores.online }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Offline</span><strong>{{ indicadores.offline }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Sem coleta</span><strong>{{ indicadores.sem_coleta }}</strong></div></div>
+  <div class="col-md-3"><div class="metric"><span>Interfaces mapeadas</span><strong>{{ indicadores.com_interfaces }}</strong></div></div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-6 col-xl-4">
+    <section class="report-block">
+      <h2 class="h5">Equipamentos por tipo</h2>
+      <div class="report-chart-canvas"><canvas id="inventarioTipoChart"></canvas></div>
+    </section>
+  </div>
+  <div class="col-lg-6 col-xl-4">
+    <section class="report-block">
+      <h2 class="h5">Equipamentos por status</h2>
+      <div class="report-chart-canvas"><canvas id="inventarioStatusChart"></canvas></div>
+    </section>
+  </div>
+  <div class="col-lg-6 col-xl-4">
+    <section class="report-block">
+      <h2 class="h5">Origem do inventario</h2>
+      <div class="report-chart-canvas"><canvas id="inventarioOrigemChart"></canvas></div>
+    </section>
+  </div>
+  <div class="col-lg-6 col-xl-4">
+    <section class="report-block">
+      <h2 class="h5">Fabricantes</h2>
+      <div class="report-chart-canvas"><canvas id="inventarioFabricanteChart"></canvas></div>
+    </section>
+  </div>
+  <div class="col-lg-6 col-xl-4">
+    <section class="report-block">
+      <h2 class="h5">Licencas por status</h2>
+      <div class="report-chart-canvas"><canvas id="inventarioLicencaStatusChart"></canvas></div>
+    </section>
+  </div>
+  <div class="col-lg-6 col-xl-4">
+    <section class="report-block">
+      <h2 class="h5">Softwares mais presentes</h2>
+      <div class="report-chart-canvas"><canvas id="inventarioSoftwareChart"></canvas></div>
+    </section>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-xl-4">
+    <section class="report-block">
+      <h2 class="h5">Cobertura dos dados</h2>
+      <table class="table table-sm mb-0">
+        <tbody>
+          <tr><td>Sem fabricante</td><td class="text-end fw-semibold">{{ indicadores.sem_fabricante }}</td></tr>
+          <tr><td>Sem modelo</td><td class="text-end fw-semibold">{{ indicadores.sem_modelo }}</td></tr>
+          <tr><td>Sem serial</td><td class="text-end fw-semibold">{{ indicadores.sem_serial }}</td></tr>
+          <tr><td>Com interfaces</td><td class="text-end fw-semibold">{{ indicadores.com_interfaces }}</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <div class="col-xl-8">
+    <section class="report-block">
+      <h2 class="h5">Licencas de software</h2>
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Licenca</th><th>Status</th><th>Total</th><th>Uso</th><th>Saldo</th></tr></thead>
+        <tbody>
+          {% for item in indicadores.licencas_lista %}
+            <tr>
+              <td><a href="{% url 'inventario:licenca_detalhe' item.licenca.pk %}">{{ item.licenca.nome }}</a></td>
+              <td>{{ item.licenca.get_status_display }}</td>
+              <td>{{ item.licenca.quantidade_total }}</td>
+              <td>{{ item.em_uso }}</td>
+              <td class="fw-semibold">{{ item.saldo }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-secondary">Nenhuma licenca cadastrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <div class="col-xl-5">
+    <section class="report-block">
+      <h2 class="h5">Softwares detectados</h2>
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Software</th><th>Ocorrencias</th><th>Cobertura</th></tr></thead>
+        <tbody>
+          {% for item in indicadores.softwares %}
+            <tr>
+              <td>{{ item.nome }}</td>
+              <td class="fw-semibold">{{ item.total }}</td>
+              <td>{% if item.coberto %}<span class="badge text-bg-success">Licenciado</span>{% else %}<span class="badge text-bg-warning">Sem vinculo</span>{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-secondary">Nenhum software coletado pelos agentes.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <div class="col-xl-7">
+    <section class="report-block">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h5 mb-0">Equipamentos filtrados</h2>
+        <span class="text-secondary small">Mostrando ate 500 registros</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>IP</th>
+              <th>Tipo</th>
+              <th>Fabricante</th>
+              <th>Modelo</th>
+              <th>Status</th>
+              <th>Coleta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ativo in ativos %}
+              <tr>
+                <td><a href="{{ ativo.get_absolute_url }}">{{ ativo.nome }}</a></td>
+                <td>{{ ativo.ip|default:"-" }}</td>
+                <td>{{ ativo.tipo|default:"-" }}</td>
+                <td>{{ ativo.fabricante|default:"-" }}</td>
+                <td>{{ ativo.modelo|default:"-" }}</td>
+                <td><span class="badge text-bg-light">{{ ativo.get_status_display }}</span></td>
+                <td>{{ ativo.ultima_coleta_em|date:"d/m/Y H:i"|default:"-" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" class="text-center text-secondary py-4">Nenhum equipamento encontrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="col-12">
+    <section class="report-block">
+      <h2 class="h5">Ultimas varreduras</h2>
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Faixa</th><th>Metodo</th><th>Status</th><th>Encontrados</th><th>Inicio</th><th>Conclusao</th></tr></thead>
+        <tbody>
+          {% for varredura in indicadores.ultimas_varreduras %}
+            <tr>
+              <td>{{ varredura.faixa }}</td>
+              <td>{{ varredura.get_metodo_display }}</td>
+              <td>{{ varredura.get_status_display }}</td>
+              <td class="fw-semibold">{{ varredura.ativos_encontrados }}</td>
+              <td>{{ varredura.iniciado_em|date:"d/m/Y H:i" }}</td>
+              <td>{{ varredura.concluido_em|date:"d/m/Y H:i"|default:"-" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="text-secondary">Nenhuma varredura registrada.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const inventoryChartColors = ["#155eef", "#16875d", "#b7791f", "#c2413d", "#0f766e", "#7c3aed", "#64748b", "#f97316"];
+  const inventoryChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    resizeDelay: 150,
+    plugins: { legend: { position: "bottom" } },
+    scales: { y: { beginAtZero: true, ticks: { precision: 0, stepSize: 1 } } }
+  };
+  function inventoryChartData(id) {
+    const element = document.getElementById(id);
+    return element ? JSON.parse(element.textContent) : { labels: [], data: [] };
+  }
+  function buildInventoryChart(canvasId, dataId, type) {
+    const canvas = document.getElementById(canvasId);
+    const data = inventoryChartData(dataId);
+    if (!canvas || !data.labels.length) return;
+    new Chart(canvas, {
+      type,
+      data: {
+        labels: data.labels,
+        datasets: [{ data: data.data, backgroundColor: inventoryChartColors, borderWidth: 1 }]
+      },
+      options: inventoryChartOptions
+    });
+  }
+  buildInventoryChart("inventarioTipoChart", "inventario-tipo-chart-data", "bar");
+  buildInventoryChart("inventarioStatusChart", "inventario-status-chart-data", "doughnut");
+  buildInventoryChart("inventarioOrigemChart", "inventario-origem-chart-data", "doughnut");
+  buildInventoryChart("inventarioFabricanteChart", "inventario-fabricante-chart-data", "bar");
+  buildInventoryChart("inventarioLicencaStatusChart", "inventario-licenca-status-chart-data", "doughnut");
+  buildInventoryChart("inventarioSoftwareChart", "inventario-software-chart-data", "bar");
+</script>
+{% endblock %}

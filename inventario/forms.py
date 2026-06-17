@@ -1,4 +1,5 @@
 from django import forms
+from chamados.models import Setor
 
 from .models import (
     AgendamentoVarredura,
@@ -76,6 +77,15 @@ class AtivoRedeForm(BootstrapFormMixin, forms.ModelForm):
             "softwares_instalados": forms.Textarea(attrs={"rows": 8}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from chamados.models import Setor
+
+        setores = Setor.objects.filter(ativo=True)
+        if self.instance and self.instance.setor_id:
+            setores = setores | Setor.objects.filter(pk=self.instance.setor_id)
+        self.fields["setor"].queryset = setores.distinct()
+
 
 class OcorrenciaAtivoForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
@@ -135,3 +145,97 @@ class AgendamentoVarreduraForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = AgendamentoVarredura
         fields = ["nome", "faixa", "metodo", "portas", "intervalo_horas", "ativo"]
+
+
+class RelatorioInventarioForm(BootstrapFormMixin, forms.Form):
+    q = forms.CharField(
+        label="Busca",
+        required=False,
+        help_text="Nome, IP, MAC, hostname, modelo ou serial.",
+    )
+    data_inicio = forms.DateField(
+        label="Coleta inicial",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    data_fim = forms.DateField(
+        label="Coleta final",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    tipo = forms.ModelChoiceField(
+        label="Tipo",
+        required=False,
+        queryset=TipoAtivo.objects.filter(ativo=True),
+        empty_label="Todos",
+    )
+    setor = forms.ModelChoiceField(
+        label="Setor",
+        required=False,
+        queryset=Setor.objects.filter(ativo=True),
+        empty_label="Todos",
+    )
+    status = forms.ChoiceField(
+        label="Status",
+        required=False,
+        choices=[("", "Todos")] + list(AtivoRede.Status.choices),
+    )
+    origem = forms.ChoiceField(
+        label="Origem",
+        required=False,
+        choices=[("", "Todas")] + list(AtivoRede.Origem.choices),
+    )
+    familia_so = forms.ChoiceField(
+        label="Familia do SO",
+        required=False,
+        choices=[
+            ("", "Todas"),
+            ("windows", "Windows"),
+            ("linux", "Linux"),
+            ("macos", "macOS"),
+        ],
+    )
+    sistema_operacional = forms.ChoiceField(
+        label="Sistema operacional",
+        required=False,
+        choices=[("", "Todos")],
+    )
+    fabricante = forms.ChoiceField(
+        label="Fabricante",
+        required=False,
+        choices=[("", "Todos")],
+    )
+    modelo = forms.CharField(
+        label="Modelo contem",
+        required=False,
+    )
+    software = forms.CharField(
+        label="Software contem",
+        required=False,
+    )
+    coleta = forms.ChoiceField(
+        label="Coleta",
+        required=False,
+        choices=[
+            ("", "Todos"),
+            ("com", "Com coleta"),
+            ("sem", "Sem coleta"),
+        ],
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        sistemas = (
+            AtivoRede.objects.exclude(sistema_operacional="")
+            .values_list("sistema_operacional", flat=True)
+            .order_by("sistema_operacional")
+            .distinct()
+        )
+        fabricantes = (
+            AtivoRede.objects.exclude(fabricante="")
+            .values_list("fabricante", flat=True)
+            .order_by("fabricante")
+            .distinct()
+        )
+        self.fields["sistema_operacional"].choices = [("", "Todos")] + [(item, item) for item in sistemas]
+        self.fields["fabricante"].choices = [("", "Todos")] + [(item, item) for item in fabricantes]

@@ -7,17 +7,23 @@
 </div>
 <section class="detail-section">
   <table class="table table-hover align-middle mb-0">
-    <thead><tr><th>Nome</th><th>Usuário</th><th>E-mail</th><th>Admin</th></tr></thead>
+    <thead><tr><th>Nome</th><th>Usuario</th><th>E-mail</th><th>Admin</th><th class="text-end">Acoes</th></tr></thead>
     <tbody>
       {% for tecnico in tecnicos %}
         <tr>
           <td>{{ tecnico.get_full_name|default:tecnico.username }}</td>
           <td>{{ tecnico.username }}</td>
           <td>{{ tecnico.email|default:"-" }}</td>
-          <td>{% if tecnico.is_staff %}Sim{% else %}Não{% endif %}</td>
+          <td>{% if tecnico.is_staff %}Sim{% else %}Nao{% endif %}</td>
+          <td class="text-end">
+            <form method="post" action="{% url 'chamados:tecnico_desativar' tecnico.pk %}" onsubmit="return confirm('Desativar este atendente? O historico sera mantido.');">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-outline-danger" type="submit">Desativar</button>
+            </form>
+          </td>
         </tr>
       {% empty %}
-        <tr><td colspan="4" class="text-center text-secondary py-4">Nenhum atendente cadastrado.</td></tr>
+        <tr><td colspan="5" class="text-center text-secondary py-4">Nenhum atendente cadastrado.</td></tr>
       {% endfor %}
     </tbody>
   </table>

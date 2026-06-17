@@ -3,6 +3,7 @@ import io
 import ipaddress
 import json
 import socket
+from html import escape
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
@@ -10,7 +11,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
@@ -19,6 +20,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 from core.models import ConfiguracaoInstitucional
+from governanca.pdf import montar_pdf
 
 from .forms import (
     AtivoRedeForm,
@@ -30,6 +32,7 @@ from .forms import (
     LicencaSoftwareForm,
     OcorrenciaAtivoForm,
     RelacionamentoAtivoForm,
+    RelatorioInventarioForm,
     TipoAtivoForm,
     VarreduraRedeForm,
 )
@@ -48,7 +51,7 @@ from .models import (
     TipoAtivo,
     VarreduraRede,
 )
-from .services import descobrir_por_faixa, descobrir_por_host
+from .services import descobrir_por_faixa, descobrir_por_host, ping_host
 
 
 AGENTE_WINDOWS_EXE = "SistemaChamadosAgentSetup.exe"
@@ -432,6 +435,7 @@ class AtivoRedeListView(LoginRequiredMixin, ListView):
                 | Q(hostname__icontains=q)
                 | Q(modelo__icontains=q)
                 | Q(numero_serie__icontains=q)
+                | Q(sistema_operacional__icontains=q)
             )
         if tipo:
             queryset = queryset.filter(tipo_id=tipo)
@@ -444,6 +448,172 @@ class AtivoRedeListView(LoginRequiredMixin, ListView):
         context["tipos"] = TipoAtivo.objects.filter(ativo=True)
         context["status_choices"] = AtivoRede.Status.choices
         context["filtros"] = self.request.GET
+        return context
+
+
+def filtrar_ativos_relatorio(params):
+    form = RelatorioInventarioForm(params or None)
+    ativos = AtivoRede.objects.select_related("tipo", "setor").order_by("nome")
+    filtro_aplicado = False
+    if form.is_valid():
+        dados = form.cleaned_data
+        filtro_aplicado = any(valor for valor in dados.values())
+        if dados.get("q"):
+            q = dados["q"].strip()
+            ativos = ativos.filter(
+                Q(nome__icontains=q)
+                | Q(ip__icontains=q)
+                | Q(mac__icontains=q)
+                | Q(hostname__icontains=q)
+                | Q(modelo__icontains=q)
+                | Q(numero_serie__icontains=q)
+            )
+        if dados.get("data_inicio"):
+            ativos = ativos.filter(ultima_coleta_em__date__gte=dados["data_inicio"])
+        if dados.get("data_fim"):
+            ativos = ativos.filter(ultima_coleta_em__date__lte=dados["data_fim"])
+        if dados.get("tipo"):
+            ativos = ativos.filter(tipo=dados["tipo"])
+        if dados.get("setor"):
+            ativos = ativos.filter(setor=dados["setor"])
+        if dados.get("status"):
+            ativos = ativos.filter(status=dados["status"])
+        if dados.get("origem"):
+            ativos = ativos.filter(origem=dados["origem"])
+        if dados.get("familia_so") == "windows":
+            ativos = ativos.filter(sistema_operacional__icontains="windows")
+        elif dados.get("familia_so") == "linux":
+            ativos = ativos.filter(
+                Q(sistema_operacional__icontains="linux")
+                | Q(sistema_operacional__icontains="ubuntu")
+                | Q(sistema_operacional__icontains="debian")
+                | Q(sistema_operacional__icontains="centos")
+                | Q(sistema_operacional__icontains="red hat")
+            )
+        elif dados.get("familia_so") == "macos":
+            ativos = ativos.filter(
+                Q(sistema_operacional__icontains="macos")
+                | Q(sistema_operacional__icontains="mac os")
+                | Q(sistema_operacional__icontains="darwin")
+            )
+        if dados.get("sistema_operacional"):
+            ativos = ativos.filter(sistema_operacional=dados["sistema_operacional"])
+        if dados.get("fabricante"):
+            ativos = ativos.filter(fabricante=dados["fabricante"])
+        if dados.get("modelo"):
+            ativos = ativos.filter(modelo__icontains=dados["modelo"].strip())
+        if dados.get("software"):
+            ativos = ativos.filter(softwares_instalados__icontains=dados["software"].strip())
+        if dados.get("coleta") == "com":
+            ativos = ativos.filter(ultima_coleta_em__isnull=False)
+        elif dados.get("coleta") == "sem":
+            ativos = ativos.filter(ultima_coleta_em__isnull=True)
+    return form, ativos, filtro_aplicado
+
+
+def dados_relatorio_inventario(ativos, filtro_aplicado=False):
+    licencas = LicencaSoftware.objects.prefetch_related("ativos")
+    if filtro_aplicado:
+        licencas = licencas.filter(ativos__in=ativos).distinct()
+    total_licencas = licencas.count()
+    total_posicoes = licencas.aggregate(total=Sum("quantidade_total"))["total"] or 0
+    licencas_lista = []
+    total_em_uso = 0
+    for licenca in licencas:
+        em_uso = licenca.quantidade_em_uso
+        total_em_uso += em_uso
+        licencas_lista.append(
+            {
+                "licenca": licenca,
+                "em_uso": em_uso,
+                "saldo": licenca.quantidade_total - em_uso,
+            }
+        )
+    softwares = softwares_detectados_relatorio(ativos)
+    return {
+        "total": ativos.count(),
+        "online": ativos.filter(status=AtivoRede.Status.ONLINE).count(),
+        "offline": ativos.filter(status=AtivoRede.Status.OFFLINE).count(),
+        "sem_coleta": ativos.filter(ultima_coleta_em__isnull=True).count(),
+        "por_tipo": ativos.values("tipo__nome").annotate(total=Count("id")).order_by("tipo__nome"),
+        "por_status": ativos.values("status").annotate(total=Count("id")).order_by("status"),
+        "por_origem": ativos.values("origem").annotate(total=Count("id")).order_by("origem"),
+        "por_fabricante": (
+            ativos.exclude(fabricante="")
+            .values("fabricante")
+            .annotate(total=Count("id"))
+            .order_by("fabricante")
+        ),
+        "sem_fabricante": ativos.filter(fabricante="").count(),
+        "sem_modelo": ativos.filter(modelo="").count(),
+        "sem_serial": ativos.filter(numero_serie="").count(),
+        "com_interfaces": ativos.filter(interfaces__isnull=False).distinct().count(),
+        "interfaces": ativos.filter(interfaces__isnull=False).values("interfaces__status").annotate(total=Count("interfaces")).order_by("interfaces__status"),
+        "softwares": softwares[:50],
+        "softwares_total": len(softwares),
+        "licencas_total": total_licencas,
+        "licencas_ativas": licencas.filter(status=LicencaSoftware.Status.ATIVA).count(),
+        "licencas_vencidas": licencas.filter(status=LicencaSoftware.Status.VENCIDA).count(),
+        "licencas_a_vencer": licencas.filter(status=LicencaSoftware.Status.A_VENCER).count(),
+        "licencas_posicoes": total_posicoes,
+        "licencas_em_uso": total_em_uso,
+        "licencas_saldo": total_posicoes - total_em_uso,
+        "licencas_por_status": licencas.values("status").annotate(total=Count("id")).order_by("status"),
+        "licencas_lista": sorted(licencas_lista, key=lambda item: (item["saldo"], item["licenca"].nome))[:50],
+        "ultimas_varreduras": VarreduraRede.objects.select_related("faixa", "iniciado_por")[:10],
+    }
+
+
+def softwares_detectados_relatorio(ativos):
+    licencas = list(LicencaSoftware.objects.values_list("nome", flat=True))
+    encontrados = {}
+    for ativo in ativos.exclude(softwares_instalados=""):
+        for linha in ativo.softwares_instalados.splitlines():
+            software = linha.strip()
+            if not software:
+                continue
+            coberto = any(
+                licenca.lower() in software.lower() or software.lower() in licenca.lower()
+                for licenca in licencas
+            )
+            registro = encontrados.setdefault(
+                software,
+                {"nome": software, "total": 0, "coberto": coberto, "ativos": []},
+            )
+            registro["total"] += 1
+            if len(registro["ativos"]) < 5:
+                registro["ativos"].append(ativo.nome)
+    return sorted(encontrados.values(), key=lambda item: (-item["total"], item["nome"]))
+
+
+def chart_data(linhas, label_field):
+    return {
+        "labels": [linha.get(label_field) or "Nao informado" for linha in linhas],
+        "data": [linha["total"] for linha in linhas],
+    }
+
+
+class RelatorioInventarioView(LoginRequiredMixin, TemplateView):
+    template_name = "inventario/relatorio.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        form, ativos, filtro_aplicado = filtrar_ativos_relatorio(self.request.GET)
+        context["form"] = form
+        context["ativos"] = ativos[:500]
+        context["indicadores"] = dados_relatorio_inventario(ativos, filtro_aplicado)
+        context["filtro_aplicado"] = filtro_aplicado
+        indicadores = context["indicadores"]
+        context["tipo_chart"] = chart_data(indicadores["por_tipo"], "tipo__nome")
+        context["status_chart"] = chart_data(indicadores["por_status"], "status")
+        context["origem_chart"] = chart_data(indicadores["por_origem"], "origem")
+        context["fabricante_chart"] = chart_data(indicadores["por_fabricante"], "fabricante")
+        context["licenca_status_chart"] = chart_data(indicadores["licencas_por_status"], "status")
+        context["software_chart"] = {
+            "labels": [item["nome"] for item in indicadores["softwares"][:10]],
+            "data": [item["total"] for item in indicadores["softwares"][:10]],
+        }
+        context["querystring"] = self.request.GET.urlencode()
         return context
 
 
@@ -511,6 +681,189 @@ def exportar_ativos_xls(request):
             response.write(f"<td>{valor}</td>")
         response.write("</tr>")
     response.write("</table></body></html>")
+    return response
+
+
+@login_required
+def exportar_relatorio_inventario_xls(request):
+    form, ativos, filtro_aplicado = filtrar_ativos_relatorio(request.GET)
+    indicadores = dados_relatorio_inventario(ativos, filtro_aplicado)
+
+    response = HttpResponse(content_type="application/vnd.ms-excel; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="relatorio_inventario.xls"'
+    response.write("<html><head><meta charset='utf-8'></head><body>")
+    config = ConfiguracaoInstitucional.atual()
+    response.write(f"<h1>{escape(config.nome_instituicao)}</h1>")
+    response.write(f"<p>{escape(config.cnpj)} {escape(config.endereco)}</p>")
+    response.write("<h1>Relatorio de inventario</h1>")
+    response.write(f"<p>Total filtrado: {indicadores['total']}</p>")
+
+    for titulo, linhas, campo in [
+        ("Ativos por tipo", indicadores["por_tipo"], "tipo__nome"),
+        ("Ativos por status", indicadores["por_status"], "status"),
+        ("Ativos por origem", indicadores["por_origem"], "origem"),
+        ("Ativos por fabricante", indicadores["por_fabricante"], "fabricante"),
+        ("Licencas por status", indicadores["licencas_por_status"], "status"),
+    ]:
+        response.write(f"<h2>{escape(titulo)}</h2>")
+        response.write("<table border='1'><tr><th>Grupo</th><th>Total</th></tr>")
+        for linha in linhas:
+            response.write(f"<tr><td>{escape(str(linha.get(campo) or 'Nao informado'))}</td><td>{linha['total']}</td></tr>")
+        response.write("</table><br>")
+
+    response.write("<h2>Softwares detectados</h2>")
+    response.write("<table border='1'><tr><th>Software</th><th>Ocorrencias</th><th>Cobertura</th><th>Exemplos de ativos</th></tr>")
+    for item in indicadores["softwares"]:
+        response.write(
+            "<tr>"
+            f"<td>{escape(item['nome'])}</td>"
+            f"<td>{item['total']}</td>"
+            f"<td>{'Licenciado' if item['coberto'] else 'Sem vinculo'}</td>"
+            f"<td>{escape(', '.join(item['ativos']))}</td>"
+            "</tr>"
+        )
+    response.write("</table><br>")
+
+    response.write("<h2>Licencas</h2>")
+    response.write("<table border='1'><tr><th>Licenca</th><th>Status</th><th>Total</th><th>Em uso</th><th>Saldo</th></tr>")
+    for item in indicadores["licencas_lista"]:
+        licenca = item["licenca"]
+        response.write(
+            "<tr>"
+            f"<td>{escape(licenca.nome)}</td>"
+            f"<td>{escape(licenca.get_status_display())}</td>"
+            f"<td>{licenca.quantidade_total}</td>"
+            f"<td>{item['em_uso']}</td>"
+            f"<td>{item['saldo']}</td>"
+            "</tr>"
+        )
+    response.write("</table><br>")
+
+    cabecalhos = [
+        "Nome",
+        "IP",
+        "MAC",
+        "Tipo",
+        "Setor",
+        "Fabricante",
+        "Modelo",
+        "Serial",
+        "Sistema operacional",
+        "Status",
+        "Origem",
+        "Ultima coleta",
+    ]
+    response.write("<h2>Ativos filtrados</h2>")
+    response.write("<table border='1'><tr>")
+    for cabecalho in cabecalhos:
+        response.write(f"<th>{escape(cabecalho)}</th>")
+    response.write("</tr>")
+    for ativo in ativos:
+        valores = [
+            ativo.nome,
+            ativo.ip or "",
+            ativo.mac,
+            ativo.tipo.nome if ativo.tipo else "",
+            ativo.setor.nome if ativo.setor else "",
+            ativo.fabricante,
+            ativo.modelo,
+            ativo.numero_serie,
+            ativo.sistema_operacional,
+            ativo.get_status_display(),
+            ativo.get_origem_display(),
+            ativo.ultima_coleta_em.strftime("%d/%m/%Y %H:%M") if ativo.ultima_coleta_em else "",
+        ]
+        response.write("<tr>")
+        for valor in valores:
+            response.write(f"<td>{escape(str(valor))}</td>")
+        response.write("</tr>")
+    response.write("</table><br>")
+
+    response.write("<h2>Ultimas varreduras</h2>")
+    response.write("<table border='1'><tr><th>Faixa</th><th>Metodo</th><th>Status</th><th>Encontrados</th><th>Inicio</th><th>Conclusao</th></tr>")
+    for varredura in indicadores["ultimas_varreduras"]:
+        response.write(
+            "<tr>"
+            f"<td>{escape(str(varredura.faixa))}</td>"
+            f"<td>{escape(varredura.get_metodo_display())}</td>"
+            f"<td>{escape(varredura.get_status_display())}</td>"
+            f"<td>{varredura.ativos_encontrados}</td>"
+            f"<td>{varredura.iniciado_em.strftime('%d/%m/%Y %H:%M')}</td>"
+            f"<td>{varredura.concluido_em.strftime('%d/%m/%Y %H:%M') if varredura.concluido_em else ''}</td>"
+            "</tr>"
+        )
+    response.write("</table></body></html>")
+    return response
+
+
+@login_required
+def exportar_relatorio_inventario_pdf(request):
+    form, ativos, filtro_aplicado = filtrar_ativos_relatorio(request.GET)
+    indicadores = dados_relatorio_inventario(ativos, filtro_aplicado)
+    config = ConfiguracaoInstitucional.atual()
+
+    linhas = [
+        config.nome_instituicao,
+        f"CNPJ: {config.cnpj or '-'}",
+        f"Endereco: {config.endereco or '-'}",
+        "",
+        "RELATORIO DE INVENTARIO",
+        f"Total filtrado: {indicadores['total']}",
+        f"Softwares detectados: {indicadores['softwares_total']}",
+        f"Licencas cadastradas: {indicadores['licencas_total']}",
+        f"Posicoes de licenca: {indicadores['licencas_posicoes']}",
+        f"Licencas em uso: {indicadores['licencas_em_uso']}",
+        f"Saldo de licencas: {indicadores['licencas_saldo']}",
+        f"Online: {indicadores['online']}",
+        f"Offline: {indicadores['offline']}",
+        f"Sem coleta: {indicadores['sem_coleta']}",
+        "",
+        "COBERTURA DOS DADOS",
+        f"Sem fabricante: {indicadores['sem_fabricante']}",
+        f"Sem modelo: {indicadores['sem_modelo']}",
+        f"Sem serial: {indicadores['sem_serial']}",
+        f"Com interfaces: {indicadores['com_interfaces']}",
+        "",
+        "ATIVOS POR TIPO",
+    ]
+    for item in indicadores["por_tipo"]:
+        linhas.append(f"{item.get('tipo__nome') or 'Nao informado'}: {item['total']}")
+
+    linhas.extend(["", "ATIVOS POR STATUS"])
+    for item in indicadores["por_status"]:
+        linhas.append(f"{item.get('status') or 'Nao informado'}: {item['total']}")
+
+    linhas.extend(["", "ATIVOS POR ORIGEM"])
+    for item in indicadores["por_origem"]:
+        linhas.append(f"{item.get('origem') or 'Nao informado'}: {item['total']}")
+
+    linhas.extend(["", "LICENCAS POR STATUS"])
+    for item in indicadores["licencas_por_status"]:
+        linhas.append(f"{item.get('status') or 'Nao informado'}: {item['total']}")
+
+    linhas.extend(["", "SOFTWARES MAIS DETECTADOS"])
+    for item in indicadores["softwares"][:30]:
+        cobertura = "licenciado" if item["coberto"] else "sem vinculo"
+        linhas.append(f"{item['nome']}: {item['total']} ocorrencia(s), {cobertura}")
+
+    linhas.extend(["", "LICENCAS"])
+    for item in indicadores["licencas_lista"][:30]:
+        licenca = item["licenca"]
+        linhas.append(
+            f"{licenca.nome} | {licenca.get_status_display()} | total {licenca.quantidade_total} | "
+            f"uso {item['em_uso']} | saldo {item['saldo']}"
+        )
+
+    linhas.extend(["", "ATIVOS FILTRADOS", "Nome | IP | Tipo | Fabricante | Modelo | Status | Coleta"])
+    for ativo in ativos[:200]:
+        coleta = ativo.ultima_coleta_em.strftime("%d/%m/%Y %H:%M") if ativo.ultima_coleta_em else "-"
+        linhas.append(
+            f"{ativo.nome} | {ativo.ip or '-'} | {ativo.tipo or '-'} | "
+            f"{ativo.fabricante or '-'} | {ativo.modelo or '-'} | {ativo.get_status_display()} | {coleta}"
+        )
+
+    response = HttpResponse(montar_pdf(linhas), content_type="application/pdf")
+    response["Content-Disposition"] = 'attachment; filename="relatorio_inventario.pdf"'
     return response
 
 
@@ -786,6 +1139,69 @@ def excluir_ativos_lote(request):
     return redirect("inventario:ativos")
 
 
+def atualizar_status_por_ping(ativo, timeout_ms=800):
+    if ativo.status in {AtivoRede.Status.DESATIVADO, AtivoRede.Status.MANUTENCAO}:
+        return "ignorado"
+    if not ativo.ip:
+        if ativo.status != AtivoRede.Status.DESCONHECIDO:
+            ativo.status = AtivoRede.Status.DESCONHECIDO
+            ativo.save(update_fields=["status", "atualizado_em"])
+        return "sem_ip"
+
+    novo_status = AtivoRede.Status.ONLINE if ping_host(ativo.ip, timeout_ms=timeout_ms) else AtivoRede.Status.OFFLINE
+    if ativo.status != novo_status:
+        antes = {"status": ativo.status}
+        ativo.status = novo_status
+        ativo.save(update_fields=["status", "atualizado_em"])
+        registrar_alteracoes_ativo(ativo, antes, ["status"], "validacao_ping")
+    return novo_status
+
+
+@login_required
+@require_POST
+def verificar_status_ativo(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk)
+    resultado = atualizar_status_por_ping(ativo)
+    if resultado == "ignorado":
+        messages.info(request, "Status administrativo mantido. Ativos em manutencao ou desativados nao sao alterados por ping.")
+    elif resultado == "sem_ip":
+        messages.warning(request, "Este ativo nao possui IP cadastrado para validar por ping.")
+    elif resultado == AtivoRede.Status.ONLINE:
+        messages.success(request, f"{ativo.nome} respondeu ao ping e foi marcado como Online.")
+    else:
+        messages.warning(request, f"{ativo.nome} nao respondeu ao ping e foi marcado como Offline.")
+    return redirect(ativo)
+
+
+@login_required
+@require_POST
+def verificar_status_ativos_lote(request):
+    ids = request.POST.getlist("ativos")
+    if not ids:
+        messages.warning(request, "Selecione ao menos um ativo para verificar.")
+        return redirect("inventario:ativos")
+
+    totais = {"online": 0, "offline": 0, "sem_ip": 0, "ignorado": 0}
+    for ativo in AtivoRede.objects.filter(id__in=ids):
+        resultado = atualizar_status_por_ping(ativo)
+        if resultado == AtivoRede.Status.ONLINE:
+            totais["online"] += 1
+        elif resultado == AtivoRede.Status.OFFLINE:
+            totais["offline"] += 1
+        elif resultado == "sem_ip":
+            totais["sem_ip"] += 1
+        else:
+            totais["ignorado"] += 1
+
+    messages.success(
+        request,
+        "Validacao concluida. "
+        f"Online: {totais['online']}. Offline: {totais['offline']}. "
+        f"Sem IP: {totais['sem_ip']}. Ignorados: {totais['ignorado']}.",
+    )
+    return redirect("inventario:ativos")
+
+
 class TipoAtivoListView(LoginRequiredMixin, ListView):
     model = TipoAtivo
     template_name = "inventario/cadastros/tipo_list.html"
@@ -921,7 +1337,12 @@ def aplicar_descoberta_no_ativo(ativo, descoberta, origem="varredura manual"):
         "nome",
         "hostname",
         "ip",
+        "mac",
+        "fabricante",
+        "modelo",
+        "numero_serie",
         "sistema_operacional",
+        "localizacao",
         "origem",
         "observacoes",
         "status",
@@ -933,14 +1354,33 @@ def aplicar_descoberta_no_ativo(ativo, descoberta, origem="varredura manual"):
         ativo.nome = descoberta.nome
     ativo.hostname = descoberta.hostname or ativo.hostname
     ativo.ip = descoberta.ip or ativo.ip
+    ativo.mac = descoberta.mac or ativo.mac
+    ativo.fabricante = descoberta.fabricante or ativo.fabricante
+    ativo.modelo = descoberta.modelo or ativo.modelo
+    ativo.numero_serie = descoberta.numero_serie or ativo.numero_serie
     ativo.sistema_operacional = descoberta.sistema_operacional or ativo.sistema_operacional
+    ativo.localizacao = descoberta.localizacao or ativo.localizacao
     ativo.origem = descoberta.origem or ativo.origem
     ativo.status = AtivoRede.Status.ONLINE
     if descoberta.observacoes:
         ativo.observacoes = descoberta.observacoes
     ativo.ultima_coleta_em = timezone.now()
     ativo.save(update_fields=campos + ["atualizado_em"])
+    sincronizar_interfaces_descobertas(ativo, descoberta)
     registrar_alteracoes_ativo(ativo, antes, campos, origem)
+
+
+def sincronizar_interfaces_descobertas(ativo, descoberta):
+    for item in getattr(descoberta, "interfaces", []) or []:
+        nome = (item.get("nome") or item.get("descricao") or "").strip()[:120]
+        if not nome:
+            continue
+        interface, _ = InterfaceRede.objects.get_or_create(ativo=ativo, nome=nome)
+        interface.descricao = (item.get("descricao") or interface.descricao)[:250]
+        interface.mac = (item.get("mac") or interface.mac)[:30]
+        interface.velocidade = (item.get("velocidade") or interface.velocidade)[:80]
+        interface.status = (item.get("status") or interface.status)[:80]
+        interface.save()
 
 
 @login_required
@@ -1037,7 +1477,12 @@ def iniciar_varredura_snmp(request, pk):
                     "tipo": tipo_padrao,
                     "status": AtivoRede.Status.DESCONHECIDO,
                     "origem": item.origem,
+                    "mac": item.mac,
+                    "fabricante": item.fabricante,
+                    "modelo": item.modelo,
+                    "numero_serie": item.numero_serie,
                     "sistema_operacional": item.sistema_operacional,
+                    "localizacao": item.localizacao,
                     "observacoes": item.observacoes or mensagem_pre_inventario(metodo, portas),
                     "ultima_coleta_em": timezone.now(),
                 },
@@ -1045,10 +1490,16 @@ def iniciar_varredura_snmp(request, pk):
             if not criado:
                 ativo.origem = item.origem
                 ativo.hostname = item.hostname or ativo.hostname
+                ativo.mac = item.mac or ativo.mac
+                ativo.fabricante = item.fabricante or ativo.fabricante
+                ativo.modelo = item.modelo or ativo.modelo
+                ativo.numero_serie = item.numero_serie or ativo.numero_serie
                 ativo.sistema_operacional = item.sistema_operacional or ativo.sistema_operacional
+                ativo.localizacao = item.localizacao or ativo.localizacao
                 ativo.observacoes = item.observacoes or ativo.observacoes
                 ativo.ultima_coleta_em = timezone.now()
-                ativo.save(update_fields=["origem", "hostname", "sistema_operacional", "observacoes", "ultima_coleta_em", "atualizado_em"])
+                ativo.save(update_fields=["origem", "hostname", "mac", "fabricante", "modelo", "numero_serie", "sistema_operacional", "localizacao", "observacoes", "ultima_coleta_em", "atualizado_em"])
+            sincronizar_interfaces_descobertas(ativo, item)
             encontrados += 1
 
         varredura.ativos_encontrados = encontrados
@@ -1101,7 +1552,12 @@ def executar_varredura(faixa, metodo, portas="", usuario=None):
                 "tipo": tipo_padrao,
                 "status": AtivoRede.Status.DESCONHECIDO,
                 "origem": item.origem,
+                "mac": item.mac,
+                "fabricante": item.fabricante,
+                "modelo": item.modelo,
+                "numero_serie": item.numero_serie,
                 "sistema_operacional": item.sistema_operacional,
+                "localizacao": item.localizacao,
                 "observacoes": item.observacoes,
                 "ultima_coleta_em": timezone.now(),
             },
@@ -1109,10 +1565,16 @@ def executar_varredura(faixa, metodo, portas="", usuario=None):
         if not criado:
             ativo.origem = item.origem
             ativo.hostname = item.hostname or ativo.hostname
+            ativo.mac = item.mac or ativo.mac
+            ativo.fabricante = item.fabricante or ativo.fabricante
+            ativo.modelo = item.modelo or ativo.modelo
+            ativo.numero_serie = item.numero_serie or ativo.numero_serie
             ativo.sistema_operacional = item.sistema_operacional or ativo.sistema_operacional
+            ativo.localizacao = item.localizacao or ativo.localizacao
             ativo.observacoes = item.observacoes or ativo.observacoes
             ativo.ultima_coleta_em = timezone.now()
-            ativo.save(update_fields=["origem", "hostname", "sistema_operacional", "observacoes", "ultima_coleta_em", "atualizado_em"])
+            ativo.save(update_fields=["origem", "hostname", "mac", "fabricante", "modelo", "numero_serie", "sistema_operacional", "localizacao", "observacoes", "ultima_coleta_em", "atualizado_em"])
+        sincronizar_interfaces_descobertas(ativo, item)
     varredura.ativos_encontrados = len(descobertos)
     varredura.mensagem = mensagem_varredura(metodo, portas, len(descobertos))
     varredura.concluido_em = timezone.now()
