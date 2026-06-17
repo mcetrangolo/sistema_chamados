@@ -212,7 +212,7 @@ class BackupConfiguracaoView(LoginRequiredMixin, TemplateView):
         return redirect("core:backup")
 
 
-class AtualizacaoSistemaView(LoginRequiredMixin, TemplateView):
+class AtualizacaoSistemaView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateView):
     template_name = "core/atualizacoes.html"
 
     def get_context_data(self, **kwargs):
@@ -220,6 +220,7 @@ class AtualizacaoSistemaView(LoginRequiredMixin, TemplateView):
         context["git_info"] = self._git_info()
         context["diagnostico_atualizacao"] = self._diagnostico(request=self.request)
         context["ultimo_resultado"] = self.request.session.pop("ultimo_resultado_atualizacao", "")
+        context["deploy_info"] = self._deploy_info()
         context["comando_servidor"] = "cd /opt/sistema-chamados && bash scripts/deploy_linux.sh"
         return context
 
@@ -235,7 +236,30 @@ class AtualizacaoSistemaView(LoginRequiredMixin, TemplateView):
     def _git_disponivel(self):
         return bool(shutil.which("git")) and (settings.BASE_DIR / ".git").exists()
 
-    def _rodar(self, comando, timeout=120):
+    def _deploy_info(self):
+        script = settings.BASE_DIR / "scripts" / "deploy_linux.sh"
+        bash = shutil.which("bash")
+        docker_compose = ""
+        if shutil.which("docker"):
+            codigo, _ = self._rodar(["docker", "compose", "version"], timeout=15)
+            if codigo == 0:
+                docker_compose = "docker compose"
+        if not docker_compose and shutil.which("docker-compose"):
+            docker_compose = "docker-compose"
+
+        sistema_linux = platform.system().lower() == "linux"
+        pode_usar_script = bool(sistema_linux and bash and script.exists() and docker_compose)
+        return {
+            "script": script,
+            "script_existe": script.exists(),
+            "bash": bash or "",
+            "sistema_linux": sistema_linux,
+            "docker_compose": docker_compose,
+            "modo": "deploy_script" if pode_usar_script else "fallback",
+            "pode_usar_script": pode_usar_script,
+        }
+
+    def _rodar(self, comando, timeout=120, env=None):
         try:
             resultado = subprocess.run(
                 comando,
@@ -244,6 +268,7 @@ class AtualizacaoSistemaView(LoginRequiredMixin, TemplateView):
                 text=True,
                 timeout=timeout,
                 check=False,
+                env=env,
             )
         except FileNotFoundError:
             return 127, f"Comando nao encontrado: {comando[0]}"
@@ -282,6 +307,7 @@ class AtualizacaoSistemaView(LoginRequiredMixin, TemplateView):
             "csrf_trusted_origins": ", ".join(settings.CSRF_TRUSTED_ORIGINS) or "-",
             "git_binario": shutil.which("git") or "",
             "git_pasta": (settings.BASE_DIR / ".git").exists(),
+            "deploy_script": (settings.BASE_DIR / "scripts" / "deploy_linux.sh").exists(),
             "github_ok": github_ok,
             "github_msg": github_msg,
         }
@@ -342,7 +368,21 @@ class AtualizacaoSistemaView(LoginRequiredMixin, TemplateView):
         try:
             if settings.DATABASES["default"]["ENGINE"].endswith("sqlite3"):
                 call_command("backup_local")
-                saidas.append("Backup local criado antes da atualização.")
+                saidas.append("Backup local criado antes da atualizacao.")
+
+            deploy_info = self._deploy_info()
+            if deploy_info["pode_usar_script"]:
+                comando = ["bash", "scripts/deploy_linux.sh"]
+                ambiente = os.environ.copy()
+                ambiente["PROJECT_DIR"] = str(settings.BASE_DIR)
+                codigo, saida = self._rodar(comando, timeout=900, env=ambiente)
+                saidas.append(f"$ {' '.join(comando)}\n{saida or '(sem saida)'}")
+                request.session["ultimo_resultado_atualizacao"] = "\n\n".join(saidas)
+                if codigo == 0:
+                    messages.success(request, "Atualizacao concluida pelo script scripts/deploy_linux.sh.")
+                else:
+                    messages.error(request, "Atualizacao pelo script falhou. Veja o resultado na tela.")
+                return redirect("core:atualizacoes")
 
             for comando in [
                 ["git", "fetch", "--prune"],

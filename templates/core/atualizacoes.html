@@ -43,9 +43,20 @@
     {% if git_info.disponivel %}
       <section class="detail-section">
         <h2 class="h5">Atualizar pelo sistema</h2>
+        {% if deploy_info.pode_usar_script %}
+          <div class="alert alert-info">
+            Modo de atualizacao: <strong>script de deploy do README</strong>
+            <code>bash scripts/deploy_linux.sh</code>.
+          </div>
+        {% else %}
+          <div class="alert alert-secondary">
+            Modo de atualizacao: <strong>fallback interno</strong>
+            (<code>git fetch</code>, <code>git pull --ff-only</code>, migrations e collectstatic).
+          </div>
+        {% endif %}
         <p class="text-secondary">
-          Esta ação cria um backup local, baixa atualizações do GitHub, aplica migrations e coleta arquivos estáticos.
-          Em produção, reinicie o serviço após concluir.
+          Esta ação cria um backup local e aplica atualizações vindas do GitHub.
+          Quando o modo README estiver disponível, o deploy também reconstrói/reinicia os containers e executa as validações do script.
         </p>
         {% if not git_info.limpo %}
           <div class="alert alert-warning">
@@ -83,6 +94,16 @@
         </dd>
         <dt class="col-sm-4">Pasta .git</dt>
         <dd class="col-sm-8">{{ diagnostico_atualizacao.git_pasta|yesno:"Encontrada,Não encontrada" }}</dd>
+        <dt class="col-sm-4">Modo do botao</dt>
+        <dd class="col-sm-8">
+          {% if deploy_info.pode_usar_script %}
+            <span class="badge text-bg-info">README</span> bash scripts/deploy_linux.sh
+          {% else %}
+            <span class="badge text-bg-secondary">Fallback</span> rotina interna do Django
+          {% endif %}
+        </dd>
+        <dt class="col-sm-4">Docker Compose</dt>
+        <dd class="col-sm-8">{{ deploy_info.docker_compose|default:"-" }}</dd>
         <dt class="col-sm-4">Acesso ao GitHub</dt>
         <dd class="col-sm-8">
           {% if diagnostico_atualizacao.github_ok %}

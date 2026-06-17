@@ -45,7 +45,7 @@
     Em redes corporativas e comum ICMP estar bloqueado; nesses casos TCP, SNMP, AD ou agente costumam ser mais confiaveis.
   </p>
   <ul class="text-secondary mb-0">
-    <li>Para servidores Linux, instale <code>nmap</code> para melhorar a descoberta: <code>sudo apt install nmap</code>.</li>
+    <li>No deploy Docker, o <code>nmap</code> ja vai empacotado. Em instalacoes Linux sem Docker, instale com <code>sudo apt install nmap</code>.</li>
     <li>Se o servidor esta em outra VLAN, confirme rota, firewall e ACL entre o servidor e a faixa informada.</li>
     <li>Para Windows de usuario, portas como <code>135,139,445,3389</code> podem estar bloqueadas por firewall local.</li>
   </ul>
