@@ -9,7 +9,7 @@ import urllib.request
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -70,7 +70,7 @@ class AuditoriaListView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateView
         return context
 
 
-class BackupConfiguracaoView(LoginRequiredMixin, TemplateView):
+class BackupConfiguracaoView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateView):
     template_name = "core/backup.html"
 
     def get_context_data(self, **kwargs):
@@ -517,6 +517,7 @@ class ControleServicosView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateV
 
 
 @login_required
+@user_passes_test(lambda user: user.is_superuser)
 def baixar_backup(request, nome):
     pasta = (settings.BASE_DIR / "backups").resolve()
     caminho = (pasta / Path(nome).name).resolve()

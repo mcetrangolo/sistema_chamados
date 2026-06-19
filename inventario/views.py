@@ -15,6 +15,7 @@ from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
+from django.utils.crypto import constant_time_compare
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -249,7 +250,7 @@ def configuracao_agente(request):
 def receber_coleta_agente(request):
     token_configurado = settings.INVENTARIO_AGENT_TOKEN
     token_recebido = request.headers.get("Authorization", "").replace("Bearer ", "", 1).strip()
-    if not token_configurado or token_recebido != token_configurado:
+    if not token_configurado or not constant_time_compare(token_recebido, token_configurado):
         return JsonResponse({"erro": "Token invalido ou nao configurado."}, status=403)
 
     try:
@@ -1370,6 +1371,41 @@ def aplicar_descoberta_no_ativo(ativo, descoberta, origem="varredura manual"):
     registrar_alteracoes_ativo(ativo, antes, campos, origem)
 
 
+def localizar_ou_criar_ativo_descoberto(item, tipo_padrao, origem="varredura"):
+    ativo = None
+    if item.ip:
+        ativo = AtivoRede.objects.filter(ip=item.ip).order_by("id").first()
+    if not ativo:
+        identidade = item.hostname or item.nome
+        if identidade:
+            ativo = AtivoRede.objects.filter(
+                Q(hostname__iexact=identidade) | Q(nome__iexact=identidade)
+            ).order_by("id").first()
+
+    if ativo:
+        aplicar_descoberta_no_ativo(ativo, item, origem=origem)
+        return ativo, False
+
+    ativo = AtivoRede.objects.create(
+        ip=item.ip or None,
+        hostname=item.hostname,
+        nome=item.nome or item.hostname or "Ativo descoberto",
+        tipo=tipo_padrao,
+        status=AtivoRede.Status.DESCONHECIDO,
+        origem=item.origem,
+        mac=item.mac,
+        fabricante=item.fabricante,
+        modelo=item.modelo,
+        numero_serie=item.numero_serie,
+        sistema_operacional=item.sistema_operacional,
+        localizacao=item.localizacao,
+        observacoes=item.observacoes,
+        ultima_coleta_em=timezone.now(),
+    )
+    sincronizar_interfaces_descobertas(ativo, item)
+    return ativo, True
+
+
 def sincronizar_interfaces_descobertas(ativo, descoberta):
     for item in getattr(descoberta, "interfaces", []) or []:
         nome = (item.get("nome") or item.get("descricao") or "").strip()[:120]
@@ -1467,39 +1503,9 @@ def iniciar_varredura_snmp(request, pk):
         descobertos = descobrir_por_faixa(faixa, metodo, portas)
         encontrados = 0
         for item in descobertos:
-            filtro = {"ip": item.ip} if item.ip else {"hostname": item.hostname or item.nome}
-            ativo, criado = AtivoRede.objects.get_or_create(
-                **filtro,
-                defaults={
-                    "ip": item.ip or None,
-                    "hostname": item.hostname,
-                    "nome": item.nome or item.hostname or "Ativo descoberto",
-                    "tipo": tipo_padrao,
-                    "status": AtivoRede.Status.DESCONHECIDO,
-                    "origem": item.origem,
-                    "mac": item.mac,
-                    "fabricante": item.fabricante,
-                    "modelo": item.modelo,
-                    "numero_serie": item.numero_serie,
-                    "sistema_operacional": item.sistema_operacional,
-                    "localizacao": item.localizacao,
-                    "observacoes": item.observacoes or mensagem_pre_inventario(metodo, portas),
-                    "ultima_coleta_em": timezone.now(),
-                },
-            )
-            if not criado:
-                ativo.origem = item.origem
-                ativo.hostname = item.hostname or ativo.hostname
-                ativo.mac = item.mac or ativo.mac
-                ativo.fabricante = item.fabricante or ativo.fabricante
-                ativo.modelo = item.modelo or ativo.modelo
-                ativo.numero_serie = item.numero_serie or ativo.numero_serie
-                ativo.sistema_operacional = item.sistema_operacional or ativo.sistema_operacional
-                ativo.localizacao = item.localizacao or ativo.localizacao
-                ativo.observacoes = item.observacoes or ativo.observacoes
-                ativo.ultima_coleta_em = timezone.now()
-                ativo.save(update_fields=["origem", "hostname", "mac", "fabricante", "modelo", "numero_serie", "sistema_operacional", "localizacao", "observacoes", "ultima_coleta_em", "atualizado_em"])
-            sincronizar_interfaces_descobertas(ativo, item)
+            if not item.observacoes:
+                item.observacoes = mensagem_pre_inventario(metodo, portas)
+            localizar_ou_criar_ativo_descoberto(item, tipo_padrao, origem="varredura manual")
             encontrados += 1
 
         varredura.ativos_encontrados = encontrados
@@ -1542,39 +1548,7 @@ def executar_varredura(faixa, metodo, portas="", usuario=None):
 
     descobertos = descobrir_por_faixa(faixa, metodo, portas)
     for item in descobertos:
-        filtro = {"ip": item.ip} if item.ip else {"hostname": item.hostname or item.nome}
-        ativo, criado = AtivoRede.objects.get_or_create(
-            **filtro,
-            defaults={
-                "ip": item.ip or None,
-                "hostname": item.hostname,
-                "nome": item.nome or item.hostname or "Ativo descoberto",
-                "tipo": tipo_padrao,
-                "status": AtivoRede.Status.DESCONHECIDO,
-                "origem": item.origem,
-                "mac": item.mac,
-                "fabricante": item.fabricante,
-                "modelo": item.modelo,
-                "numero_serie": item.numero_serie,
-                "sistema_operacional": item.sistema_operacional,
-                "localizacao": item.localizacao,
-                "observacoes": item.observacoes,
-                "ultima_coleta_em": timezone.now(),
-            },
-        )
-        if not criado:
-            ativo.origem = item.origem
-            ativo.hostname = item.hostname or ativo.hostname
-            ativo.mac = item.mac or ativo.mac
-            ativo.fabricante = item.fabricante or ativo.fabricante
-            ativo.modelo = item.modelo or ativo.modelo
-            ativo.numero_serie = item.numero_serie or ativo.numero_serie
-            ativo.sistema_operacional = item.sistema_operacional or ativo.sistema_operacional
-            ativo.localizacao = item.localizacao or ativo.localizacao
-            ativo.observacoes = item.observacoes or ativo.observacoes
-            ativo.ultima_coleta_em = timezone.now()
-            ativo.save(update_fields=["origem", "hostname", "mac", "fabricante", "modelo", "numero_serie", "sistema_operacional", "localizacao", "observacoes", "ultima_coleta_em", "atualizado_em"])
-        sincronizar_interfaces_descobertas(ativo, item)
+        localizar_ou_criar_ativo_descoberto(item, tipo_padrao, origem="varredura agendada")
     varredura.ativos_encontrados = len(descobertos)
     varredura.mensagem = mensagem_varredura(metodo, portas, len(descobertos))
     varredura.concluido_em = timezone.now()

@@ -64,9 +64,12 @@ class ChamadoForm(BootstrapFormMixin, forms.ModelForm):
         if self.instance and self.instance.setor_id:
             setores = setores | Setor.objects.filter(pk=self.instance.setor_id)
         self.fields["setor"].queryset = setores.distinct()
-        self.fields["categoria"].required = False
-        self.fields["topico_ajuda"].queryset = TopicoAjuda.objects.filter(ativo=True)
-        self.fields["equipe_responsavel"].queryset = EquipeAtendimento.objects.filter(ativo=True)
+        if "categoria" in self.fields:
+            self.fields["categoria"].required = False
+        if "topico_ajuda" in self.fields:
+            self.fields["topico_ajuda"].queryset = TopicoAjuda.objects.filter(ativo=True)
+        if "equipe_responsavel" in self.fields:
+            self.fields["equipe_responsavel"].queryset = EquipeAtendimento.objects.filter(ativo=True)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -87,6 +90,18 @@ class ChamadoForm(BootstrapFormMixin, forms.ModelForm):
 class PortalChamadoForm(ChamadoForm):
     email = forms.EmailField(label="E-mail")
 
+    class Meta(ChamadoForm.Meta):
+        fields = [
+            "nome_solicitante",
+            "setor",
+            "telefone",
+            "email",
+            "tipo",
+            "categoria",
+            "prioridade",
+            "descricao",
+        ]
+
     def __init__(
         self,
         *args,
@@ -96,6 +111,12 @@ class PortalChamadoForm(ChamadoForm):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
+        self.fields["descricao"].label = "Descreva o problema ou solicitação"
+        self.fields["descricao"].help_text = "Inclua local, equipamento afetado, mensagem de erro e desde quando acontece, se souber."
+        self.fields["prioridade"].label = "Prioridade percebida"
+        self.fields["tipo"].label = "Tipo de atendimento"
+        self.instance.impacto = self.instance.impacto or Chamado.Impacto.MEDIO
+        self.instance.urgencia = self.instance.urgencia or Chamado.Urgencia.MEDIA
         campo_ativo = self.fields.get("ativo_rede")
         if not campo_ativo:
             return

@@ -139,7 +139,9 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "15"))
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "helpdesk@localhost")
-INVENTARIO_AGENT_TOKEN = os.getenv("INVENTARIO_AGENT_TOKEN") or "sistema-chamados-agent-local"
+INVENTARIO_AGENT_TOKEN = os.getenv("INVENTARIO_AGENT_TOKEN") or (
+    "sistema-chamados-agent-local" if DEBUG else ""
+)
 
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)

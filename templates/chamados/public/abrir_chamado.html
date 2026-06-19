@@ -7,9 +7,6 @@
     <h1>{{ config_institucional.portal_titulo|default:"Abrir chamado de TI" }}</h1>
     <p>{{ config_institucional.portal_subtitulo|default:"Registre sua solicitacao para a equipe tecnica acompanhar, priorizar e documentar o atendimento." }}</p>
   </div>
-  <div class="public-actions">
-    <a class="btn btn-outline-primary" href="{% url 'chamados:portal_consultar' %}">Consultar chamado</a>
-  </div>
 </div>
 
 <div class="row g-4 align-items-start">
@@ -23,17 +20,6 @@
       </div>
       <form method="post" class="professional-form">
         {% csrf_token %}
-        {% if ativo_detectado %}
-          <div class="alert alert-info">
-            Equipamento detectado pela rede: <strong>{{ ativo_detectado }}</strong>.
-            Confira o campo Ativo/equipamento antes de enviar.
-          </div>
-        {% elif ip_cliente %}
-          <div class="alert alert-light border">
-            IP detectado: <strong>{{ ip_cliente }}</strong>{% if hostname_cliente %} | Nome: <strong>{{ hostname_cliente }}</strong>{% endif %}.
-            Se este equipamento ja estiver no inventario, selecione-o no campo Ativo/equipamento.
-          </div>
-        {% endif %}
         <div class="row g-3">
           {% for field in form %}
             <div class="{% if field.name == 'descricao' %}col-12{% else %}col-md-6{% endif %}">
@@ -62,6 +48,7 @@
     <aside class="support-panel mt-3">
       <h2>Acompanhamento</h2>
       <p>Guarde o número do chamado exibido após o envio. Ele será usado junto com seu e-mail para consultar o status.</p>
+      <a class="btn btn-outline-primary w-100" href="{% url 'chamados:portal_consultar' %}">Consultar chamado</a>
     </aside>
   </div>
 </div>
