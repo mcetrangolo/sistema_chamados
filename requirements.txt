@@ -6,3 +6,5 @@ waitress>=3.0,<4.0
 gunicorn>=22.0,<24.0
 Pillow>=10.0,<12.0
 reportlab>=4.0,<5.0
+cryptography>=42.0,<47.0
+qrcode>=7.4,<9.0

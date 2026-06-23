@@ -9,19 +9,21 @@ import urllib.request
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connections
 from django.http import FileResponse, Http404, HttpResponse
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import TemplateView, UpdateView
 
-from .forms import ConfiguracaoInstitucionalForm, PerfilUsuarioForm
-from .models import ConfiguracaoInstitucional, RegistroAuditoria
+from .backup_utils import descriptografar_backup, sha256_arquivo, validar_backup_zip
+from .forms import ConfiguracaoBackupForm, ConfiguracaoInstitucionalForm, ConfiguracaoLDAPForm, PerfilUsuarioForm
+from .models import ConfiguracaoBackup, ConfiguracaoInstitucional, ConfiguracaoLDAP, Notificacao, RegistroAuditoria, RegistroBackup
 
 
 class SuperuserRequiredMixin(UserPassesTestMixin):
@@ -70,6 +72,120 @@ class AuditoriaListView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateView
         return context
 
 
+class NotificacaoListView(LoginRequiredMixin, TemplateView):
+    template_name = "core/notificacoes.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["notificacoes"] = self.request.user.notificacoes.all()[:200]
+        return context
+
+
+@login_required
+def marcar_notificacao_lida(request, pk):
+    notificacao = get_object_or_404(Notificacao, pk=pk, usuario=request.user)
+    if request.method == "POST":
+        notificacao.lida_em = timezone.now()
+        notificacao.save(update_fields=["lida_em"])
+    return redirect(notificacao.link or "core:notificacoes")
+
+
+@login_required
+def marcar_todas_notificacoes_lidas(request):
+    if request.method == "POST":
+        request.user.notificacoes.filter(lida_em__isnull=True).update(lida_em=timezone.now())
+    return redirect("core:notificacoes")
+
+
+class ConfiguracaoLDAPView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateView):
+    template_name = "core/ldap.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        configuracao = ConfiguracaoLDAP.atual()
+        context["configuracao"] = configuracao
+        context["form"] = kwargs.get("form") or ConfiguracaoLDAPForm(instance=configuracao)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        acao = request.POST.get("acao", "salvar")
+        configuracao = ConfiguracaoLDAP.atual()
+        if acao == "salvar":
+            form = ConfiguracaoLDAPForm(request.POST, instance=configuracao)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Configuracao LDAP atualizada.")
+                return redirect("core:ldap")
+            return self.render_to_response(self.get_context_data(form=form))
+        try:
+            conexao = self._conectar(configuracao)
+            if acao == "testar":
+                conexao.unbind()
+                messages.success(request, "Conexao LDAP realizada com sucesso.")
+            elif acao == "sincronizar":
+                total = self._sincronizar(conexao, configuracao)
+                configuracao.ultima_sincronizacao = timezone.now()
+                configuracao.ultima_mensagem = f"{total} usuario(s) sincronizados."
+                configuracao.save(update_fields=["ultima_sincronizacao", "ultima_mensagem", "atualizado_em"])
+                messages.success(request, configuracao.ultima_mensagem)
+        except Exception as exc:
+            configuracao.ultima_mensagem = str(exc)
+            configuracao.save(update_fields=["ultima_mensagem", "atualizado_em"])
+            messages.error(request, f"Falha LDAP: {exc}")
+        return redirect("core:ldap")
+
+    def _conectar(self, configuracao):
+        if not configuracao.ativo:
+            raise ValueError("Ative a integracao LDAP antes de testar.")
+        from ldap3 import ALL, Connection, Server
+
+        servidor = Server(
+            configuracao.servidor,
+            port=configuracao.porta,
+            use_ssl=configuracao.usar_ssl,
+            get_info=ALL,
+        )
+        return Connection(
+            servidor,
+            user=configuracao.usuario_bind,
+            password=configuracao.obter_senha(),
+            auto_bind=True,
+        )
+
+    def _sincronizar(self, conexao, configuracao):
+        atributos = [
+            configuracao.atributo_login,
+            configuracao.atributo_nome,
+            configuracao.atributo_sobrenome,
+            configuracao.atributo_email,
+        ]
+        conexao.search(configuracao.base_dn, configuracao.filtro_usuarios, attributes=atributos)
+        total = 0
+        User = get_user_model()
+        for entrada in conexao.entries:
+            def valor(nome):
+                atributo = getattr(entrada, nome, None)
+                return str(atributo.value or "").strip() if atributo else ""
+
+            login = valor(configuracao.atributo_login)
+            if not login:
+                continue
+            usuario = User.objects.filter(username__iexact=login).first()
+            criado = usuario is None
+            if criado:
+                usuario = User(username=login.lower())
+                usuario.set_unusable_password()
+            usuario.first_name = valor(configuracao.atributo_nome)[:150]
+            usuario.last_name = valor(configuracao.atributo_sobrenome)[:150]
+            usuario.email = valor(configuracao.atributo_email)[:254]
+            if configuracao.sincronizar_ativos:
+                usuario.is_active = True
+            usuario.save()
+            total += 1
+        conexao.unbind()
+        return total
+
+
 class BackupConfiguracaoView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateView):
     template_name = "core/backup.html"
 
@@ -79,7 +195,7 @@ class BackupConfiguracaoView(LoginRequiredMixin, SuperuserRequiredMixin, Templat
 
         arquivos = []
         for caminho in sorted(pasta.glob("*"), key=lambda item: item.stat().st_mtime, reverse=True):
-            if caminho.suffix.lower() != ".zip":
+            if not (caminho.name.lower().endswith(".zip") or caminho.name.lower().endswith(".zip.enc")):
                 continue
             stat = caminho.stat()
             arquivos.append(
@@ -94,6 +210,9 @@ class BackupConfiguracaoView(LoginRequiredMixin, SuperuserRequiredMixin, Templat
 
         context["backups"] = arquivos
         context["backups_sqlite"] = [item for item in arquivos if item["restauravel"]]
+        context["configuracao_backup"] = ConfiguracaoBackup.atual()
+        context["configuracao_backup_form"] = ConfiguracaoBackupForm(instance=context["configuracao_backup"])
+        context["historico_backups"] = RegistroBackup.objects.all()[:50]
         return context
 
     def post(self, request, *args, **kwargs):
@@ -105,6 +224,50 @@ class BackupConfiguracaoView(LoginRequiredMixin, SuperuserRequiredMixin, Templat
         if acao == "criar":
             call_command("backup_local")
             messages.success(request, "Backup criado com sucesso.")
+            return redirect("core:backup")
+
+        if acao == "salvar_configuracao":
+            form = ConfiguracaoBackupForm(request.POST, instance=ConfiguracaoBackup.atual())
+            if form.is_valid():
+                configuracao = form.save(commit=False)
+                if configuracao.ativo and not configuracao.proxima_execucao:
+                    configuracao.proxima_execucao = timezone.now()
+                configuracao.save()
+                messages.success(request, "Agendamento de backup atualizado.")
+            else:
+                messages.error(request, "Revise a configuracao do backup.")
+            return redirect("core:backup")
+
+        if acao == "validar":
+            caminho = self._resolver_backup_existente(request.POST.get("backup", ""), extensoes=(".zip", ".enc"))
+            if not caminho:
+                messages.error(request, "Backup nao encontrado.")
+                return redirect("core:backup")
+            temporario = None
+            try:
+                arquivo_zip, temporario = descriptografar_backup(caminho)
+                validar_backup_zip(arquivo_zip)
+                RegistroBackup.objects.create(
+                    nome_arquivo=caminho.name,
+                    status=RegistroBackup.Status.SUCESSO,
+                    tamanho_bytes=caminho.stat().st_size,
+                    sha256=sha256_arquivo(caminho),
+                    destino=str(caminho),
+                    mensagem="Validacao manual concluida.",
+                    validado_em=timezone.now(),
+                )
+                messages.success(request, "Backup valido: ZIP, CRC e banco SQLite verificados.")
+            except Exception as exc:
+                RegistroBackup.objects.create(
+                    nome_arquivo=caminho.name,
+                    status=RegistroBackup.Status.INVALIDO,
+                    destino=str(caminho),
+                    mensagem=str(exc),
+                )
+                messages.error(request, f"Backup invalido: {exc}")
+            finally:
+                if temporario:
+                    arquivo_zip.unlink(missing_ok=True)
             return redirect("core:backup")
 
         if acao == "restaurar":
@@ -123,7 +286,7 @@ class BackupConfiguracaoView(LoginRequiredMixin, SuperuserRequiredMixin, Templat
         caminho = (pasta / Path(nome).name).resolve()
         if not str(caminho).startswith(str(pasta)):
             return None
-        if caminho.suffix.lower() not in extensoes:
+        if not any(caminho.name.lower().endswith(extensao) for extensao in extensoes):
             return None
         if not caminho.exists():
             return None
@@ -133,8 +296,8 @@ class BackupConfiguracaoView(LoginRequiredMixin, SuperuserRequiredMixin, Templat
         if not arquivo:
             return None
         nome_original = Path(arquivo.name).name
-        if not nome_original.lower().endswith(".zip"):
-            raise CommandError("Envie um arquivo de backup .zip.")
+        if not (nome_original.lower().endswith(".zip") or nome_original.lower().endswith(".zip.enc")):
+            raise CommandError("Envie um arquivo de backup .zip ou .zip.enc.")
 
         nome_limpo = sub(r"[^A-Za-z0-9_.-]", "_", nome_original)
         destino = self._pasta_backups() / f"restore_upload_{timezone.now():%Y%m%d_%H%M%S}_{nome_limpo}"
@@ -158,14 +321,18 @@ class BackupConfiguracaoView(LoginRequiredMixin, SuperuserRequiredMixin, Templat
                     messages.error(request, "Selecione um arquivo .zip do seu computador.")
                     return redirect("core:backup")
             else:
-                caminho = self._resolver_backup_existente(request.POST.get("backup", ""), extensoes=(".zip",))
+                caminho = self._resolver_backup_existente(request.POST.get("backup", ""), extensoes=(".zip", ".enc"))
                 if not caminho:
                     messages.error(request, "Backup inválido ou não encontrado.")
                     return redirect("core:backup")
 
+            arquivo_zip, temporario = descriptografar_backup(caminho)
+            validar_backup_zip(arquivo_zip)
             connections.close_all()
-            call_command("restaurar_backup_local", str(caminho), confirmar=True)
+            call_command("restaurar_backup_local", str(arquivo_zip), confirmar=True)
             connections.close_all()
+            if temporario:
+                arquivo_zip.unlink(missing_ok=True)
         except CommandError as exc:
             messages.error(request, str(exc))
             return redirect("core:backup")
@@ -521,7 +688,9 @@ class ControleServicosView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateV
 def baixar_backup(request, nome):
     pasta = (settings.BASE_DIR / "backups").resolve()
     caminho = (pasta / Path(nome).name).resolve()
-    if not str(caminho).startswith(str(pasta)) or caminho.suffix.lower() not in {".zip", ".dump"}:
+    if not str(caminho).startswith(str(pasta)) or not (
+        caminho.name.lower().endswith(".zip") or caminho.name.lower().endswith(".zip.enc")
+    ):
         raise Http404("Backup não encontrado.")
     if not caminho.exists():
         raise Http404("Backup não encontrado.")

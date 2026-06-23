@@ -9,8 +9,11 @@ from .models import (
     FaixaRede,
     LicencaSoftware,
     MetodoDescoberta,
+    MovimentacaoAtivo,
     OcorrenciaAtivo,
     RelacionamentoAtivo,
+    SondaRemota,
+    TermoResponsabilidadeAtivo,
     TipoAtivo,
 )
 
@@ -56,6 +59,7 @@ class AtivoRedeForm(BootstrapFormMixin, forms.ModelForm):
             "fabricante",
             "modelo",
             "numero_serie",
+            "patrimonio",
             "sistema_operacional",
             "arquitetura",
             "processador",
@@ -69,12 +73,21 @@ class AtivoRedeForm(BootstrapFormMixin, forms.ModelForm):
             "responsavel",
             "funcao",
             "status",
+            "ciclo_vida",
+            "data_aquisicao",
+            "garantia_ate",
+            "data_baixa",
+            "motivo_baixa",
             "origem",
             "observacoes",
         ]
         widgets = {
             "observacoes": forms.Textarea(attrs={"rows": 4}),
             "softwares_instalados": forms.Textarea(attrs={"rows": 8}),
+            "data_aquisicao": forms.DateInput(attrs={"type": "date"}),
+            "garantia_ate": forms.DateInput(attrs={"type": "date"}),
+            "data_baixa": forms.DateInput(attrs={"type": "date"}),
+            "motivo_baixa": forms.Textarea(attrs={"rows": 3}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -100,6 +113,59 @@ class RelacionamentoAtivoForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = RelacionamentoAtivo
         fields = ["destino", "tipo", "descricao"]
+
+
+class MovimentacaoAtivoForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = MovimentacaoAtivo
+        fields = [
+            "setor_destino",
+            "local_destino",
+            "responsavel_destino",
+            "ciclo_novo",
+            "motivo",
+        ]
+        widgets = {"motivo": forms.Textarea(attrs={"rows": 4})}
+
+
+class TermoResponsabilidadeAtivoForm(BootstrapFormMixin, forms.ModelForm):
+    confirmar_aceite = forms.BooleanField(label="Confirmo a assinatura/aceite informado", required=True)
+
+    class Meta:
+        model = TermoResponsabilidadeAtivo
+        fields = [
+            "tipo", "responsavel", "matricula", "setor", "finalidade", "data_evento",
+            "assinatura_nome", "confirmar_aceite",
+        ]
+        widgets = {
+            "finalidade": forms.Textarea(attrs={"rows": 3}),
+            "data_evento": forms.DateInput(attrs={"type": "date"}),
+        }
+
+
+class MesclarAtivosForm(BootstrapFormMixin, forms.Form):
+    principal = forms.ModelChoiceField(queryset=AtivoRede.objects.all(), label="Registro principal")
+    duplicados = forms.ModelMultipleChoiceField(
+        queryset=AtivoRede.objects.all(), label="Registros que serao incorporados"
+    )
+
+    def clean(self):
+        dados = super().clean()
+        principal = dados.get("principal")
+        duplicados = dados.get("duplicados")
+        if principal and duplicados and principal in duplicados:
+            self.add_error("duplicados", "O registro principal nao pode ser marcado como duplicado.")
+        return dados
+
+
+class SondaRemotaForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = SondaRemota
+        fields = ["nome", "localidade", "descricao", "faixas", "ativa"]
+        widgets = {
+            "descricao": forms.Textarea(attrs={"rows": 3}),
+            "faixas": forms.SelectMultiple(attrs={"size": 8}),
+        }
 
 
 class LicencaSoftwareForm(BootstrapFormMixin, forms.ModelForm):
@@ -178,7 +244,14 @@ class RelatorioInventarioForm(BootstrapFormMixin, forms.Form):
     status = forms.ChoiceField(
         label="Status",
         required=False,
-        choices=[("", "Todos")] + list(AtivoRede.Status.choices),
+        choices=[("", "Todos ativos")] + [
+            escolha for escolha in AtivoRede.Status.choices if escolha[0] != AtivoRede.Status.DESATIVADO
+        ],
+    )
+    ciclo_vida = forms.ChoiceField(
+        label="Ciclo de vida",
+        required=False,
+        choices=[("", "Todos")] + list(AtivoRede.CicloVida.choices),
     )
     origem = forms.ChoiceField(
         label="Origem",
@@ -226,13 +299,15 @@ class RelatorioInventarioForm(BootstrapFormMixin, forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         sistemas = (
-            AtivoRede.objects.exclude(sistema_operacional="")
+            AtivoRede.objects.exclude(status=AtivoRede.Status.DESATIVADO)
+            .exclude(sistema_operacional="")
             .values_list("sistema_operacional", flat=True)
             .order_by("sistema_operacional")
             .distinct()
         )
         fabricantes = (
-            AtivoRede.objects.exclude(fabricante="")
+            AtivoRede.objects.exclude(status=AtivoRede.Status.DESATIVADO)
+            .exclude(fabricante="")
             .values_list("fabricante", flat=True)
             .order_by("fabricante")
             .distinct()

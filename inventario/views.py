@@ -2,6 +2,7 @@ import csv
 import io
 import ipaddress
 import json
+import secrets
 import socket
 from html import escape
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -11,6 +12,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -31,9 +33,13 @@ from .forms import (
     FaixaRedeForm,
     ImportacaoAtivosCSVForm,
     LicencaSoftwareForm,
+    MesclarAtivosForm,
+    MovimentacaoAtivoForm,
     OcorrenciaAtivoForm,
     RelacionamentoAtivoForm,
     RelatorioInventarioForm,
+    SondaRemotaForm,
+    TermoResponsabilidadeAtivoForm,
     TipoAtivoForm,
     VarreduraRedeForm,
 )
@@ -47,17 +53,44 @@ from .models import (
     LicencaSoftware,
     HistoricoAlteracaoAtivo,
     MetodoDescoberta,
+    MovimentacaoAtivo,
     OcorrenciaAtivo,
     RelacionamentoAtivo,
+    RegistroColetaAgente,
+    SondaRemota,
+    TermoResponsabilidadeAtivo,
+    ExecucaoSonda,
     TipoAtivo,
     VarreduraRede,
 )
-from .services import descobrir_por_faixa, descobrir_por_host, ping_host
+from .services import DescobertaAtivo, descobrir_por_faixa, descobrir_por_host, ping_host
 
 
 AGENTE_WINDOWS_EXE = "SistemaChamadosAgentSetup.exe"
 AGENTE_WINDOWS_ZIP = "SistemaChamadosAgentSource.zip"
 AGENTE_LINUX_INSTALLER = "install.sh"
+
+
+def ip_origem_request(request):
+    encaminhado = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+    return encaminhado or request.META.get("REMOTE_ADDR") or None
+
+
+def limite_ativos_sem_comunicacao():
+    return timezone.now() - timezone.timedelta(days=settings.INVENTARIO_DIAS_SEM_COMUNICACAO)
+
+
+def filtro_ativos_sem_comunicacao():
+    limite = limite_ativos_sem_comunicacao()
+    return Q(ultima_coleta_em__lt=limite) | Q(ultima_coleta_em__isnull=True, criado_em__lt=limite)
+
+
+def queryset_ativos_sem_comunicacao():
+    return (
+        AtivoRede.objects.select_related("tipo", "setor")
+        .filter(filtro_ativos_sem_comunicacao())
+        .exclude(status=AtivoRede.Status.DESATIVADO)
+    )
 
 
 def _caminho_agente_windows():
@@ -103,6 +136,51 @@ def _normalizar_texto(valor, limite=250):
     if valor is None:
         return ""
     return str(valor).strip()[:limite]
+
+
+def _identificador_valido(valor):
+    normalizado = (valor or "").strip().lower()
+    invalidos = {
+        "",
+        "none",
+        "unknown",
+        "default string",
+        "to be filled by o.e.m.",
+        "to be filled by oem",
+        "system serial number",
+        "00000000",
+        "000000000000",
+    }
+    return normalizado not in invalidos
+
+
+def localizar_ativo_por_identidade(serial="", mac="", hostname="", ip=None):
+    if _identificador_valido(serial):
+        ativo = AtivoRede.objects.filter(numero_serie__iexact=serial).order_by("id").first()
+        if ativo:
+            return ativo
+    if _identificador_valido(mac) and mac.replace(":", "").replace("-", "") != "000000000000":
+        ativo = AtivoRede.objects.filter(mac__iexact=mac).order_by("id").first()
+        if ativo:
+            return ativo
+    if _identificador_valido(hostname):
+        ativo = AtivoRede.objects.filter(
+            Q(hostname__iexact=hostname) | Q(nome__iexact=hostname)
+        ).order_by("id").first()
+        if ativo:
+            return ativo
+    if not ip:
+        return None
+
+    candidato = AtivoRede.objects.filter(ip=ip).order_by("id").first()
+    if not candidato:
+        return None
+    conflitos = [
+        (_identificador_valido(serial) and _identificador_valido(candidato.numero_serie) and serial.lower() != candidato.numero_serie.lower()),
+        (_identificador_valido(mac) and _identificador_valido(candidato.mac) and mac.lower() != candidato.mac.lower()),
+        (_identificador_valido(hostname) and _identificador_valido(candidato.hostname) and hostname.lower() != candidato.hostname.lower()),
+    ]
+    return None if any(conflitos) else candidato
 
 
 def _base_url_agente(request):
@@ -251,37 +329,41 @@ def receber_coleta_agente(request):
     token_configurado = settings.INVENTARIO_AGENT_TOKEN
     token_recebido = request.headers.get("Authorization", "").replace("Bearer ", "", 1).strip()
     if not token_configurado or not constant_time_compare(token_recebido, token_configurado):
+        RegistroColetaAgente.objects.create(
+            status=RegistroColetaAgente.Status.REJEITADA,
+            mensagem="Token invalido ou nao configurado.",
+            ip_origem=ip_origem_request(request),
+        )
         return JsonResponse({"erro": "Token invalido ou nao configurado."}, status=403)
 
     try:
         dados = json.loads(request.body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
+        RegistroColetaAgente.objects.create(
+            status=RegistroColetaAgente.Status.ERRO,
+            mensagem="JSON invalido.",
+            ip_origem=ip_origem_request(request),
+        )
         return JsonResponse({"erro": "JSON invalido."}, status=400)
 
     hostname = _normalizar_texto(dados.get("hostname"), 150)
     ip = _normalizar_texto(dados.get("ip"), 45) or None
     serial = _normalizar_texto(dados.get("numero_serie") or dados.get("serial"), 120)
     mac = _normalizar_texto(dados.get("mac"), 30)
+    if not _identificador_valido(serial):
+        serial = ""
 
     if not any([hostname, ip, serial, mac]):
+        RegistroColetaAgente.objects.create(
+            hostname=hostname,
+            status=RegistroColetaAgente.Status.ERRO,
+            mensagem="Coleta sem identificador valido.",
+            ip_origem=ip_origem_request(request),
+        )
         return JsonResponse({"erro": "Informe hostname, IP, serial ou MAC."}, status=400)
 
     tipo_padrao, _ = TipoAtivo.objects.get_or_create(nome="Computador")
-    filtros = []
-    if serial:
-        filtros.append(Q(numero_serie__iexact=serial))
-    if hostname:
-        filtros.append(Q(hostname__iexact=hostname) | Q(nome__iexact=hostname))
-    if ip:
-        filtros.append(Q(ip=ip))
-    if mac:
-        filtros.append(Q(mac__iexact=mac))
-
-    consulta = filtros[0]
-    for filtro in filtros[1:]:
-        consulta |= filtro
-
-    ativo = AtivoRede.objects.filter(consulta).order_by("id").first()
+    ativo = localizar_ativo_por_identidade(serial=serial, mac=mac, hostname=hostname, ip=ip)
     criado = ativo is None
     if criado:
         ativo = AtivoRede(tipo=tipo_padrao)
@@ -359,8 +441,17 @@ def receber_coleta_agente(request):
     ativo.origem = AtivoRede.Origem.AGENTE
     ativo.observacoes = "\n".join(observacoes)
     ativo.ultima_coleta_em = timezone.now()
+    ativo.coleta_solicitada_em = None
     ativo.save()
     registrar_alteracoes_ativo(ativo, antes, campos_monitorados, "agente")
+    RegistroColetaAgente.objects.create(
+        ativo=ativo,
+        hostname=hostname,
+        status=RegistroColetaAgente.Status.SUCESSO,
+        mensagem="Inventario recebido e processado.",
+        ip_origem=ip_origem_request(request),
+        versao_agente=_normalizar_texto(dados.get("versao_agente"), 40),
+    )
 
     for interface in interfaces[:20]:
         nome_interface = _normalizar_texto(interface.get("nome"), 120)
@@ -402,7 +493,8 @@ class InventarioPainelView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        ativos = AtivoRede.objects.select_related("tipo", "setor")
+        todos_ativos = AtivoRede.objects.select_related("tipo", "setor")
+        ativos = todos_ativos.exclude(status=AtivoRede.Status.DESATIVADO)
         context["contadores"] = {
             "total": ativos.count(),
             "online": ativos.filter(status=AtivoRede.Status.ONLINE).count(),
@@ -410,11 +502,177 @@ class InventarioPainelView(LoginRequiredMixin, TemplateView):
             "snmp": ativos.filter(origem=AtivoRede.Origem.SNMP).count(),
             "licencas": LicencaSoftware.objects.count(),
             "relacoes": RelacionamentoAtivo.objects.count(),
+            "sem_comunicacao": queryset_ativos_sem_comunicacao().count(),
+            "arquivados": todos_ativos.filter(status=AtivoRede.Status.DESATIVADO).count(),
         }
         context["por_tipo"] = ativos.values("tipo__nome").annotate(total=Count("id")).order_by("tipo__nome")
         context["ultimos_ativos"] = ativos.order_by("-atualizado_em")[:10]
         context["ultimas_varreduras"] = VarreduraRede.objects.select_related("faixa")[:5]
         return context
+
+
+class SaudeAgentesView(LoginRequiredMixin, TemplateView):
+    template_name = "inventario/saude_agentes.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        agora = timezone.now()
+        agentes = list(
+            AtivoRede.objects.filter(origem=AtivoRede.Origem.AGENTE)
+            .exclude(status=AtivoRede.Status.DESATIVADO)
+            .select_related("tipo", "setor")
+            .order_by("nome")
+        )
+        contadores = {"saudavel": 0, "atrasado": 0, "critico": 0}
+        for agente in agentes:
+            if not agente.ultima_coleta_em:
+                agente.estado_agente = "critico"
+                agente.tempo_sem_coleta = "Nunca coletou"
+            else:
+                horas = int((agora - agente.ultima_coleta_em).total_seconds() // 3600)
+                agente.tempo_sem_coleta = f"{horas} hora(s)"
+                if horas <= 24:
+                    agente.estado_agente = "saudavel"
+                elif horas <= 168:
+                    agente.estado_agente = "atrasado"
+                else:
+                    agente.estado_agente = "critico"
+            contadores[agente.estado_agente] += 1
+        context["agentes"] = agentes
+        context["contadores"] = contadores
+        context["eventos"] = RegistroColetaAgente.objects.select_related("ativo")[:100]
+        context["rejeitadas_24h"] = RegistroColetaAgente.objects.filter(
+            status=RegistroColetaAgente.Status.REJEITADA,
+            criado_em__gte=agora - timezone.timedelta(hours=24),
+        ).count()
+        return context
+
+
+@login_required
+@require_POST
+def solicitar_coleta_agente(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk, origem=AtivoRede.Origem.AGENTE)
+    ativo.coleta_solicitada_em = timezone.now()
+    ativo.save(update_fields=["coleta_solicitada_em", "atualizado_em"])
+    messages.success(request, "Nova coleta solicitada. A pendencia sera encerrada quando o agente enviar o proximo inventario.")
+    return redirect("inventario:agentes_saude")
+
+
+class SondaRemotaListView(LoginRequiredMixin, ListView):
+    model = SondaRemota
+    template_name = "inventario/sonda_list.html"
+    context_object_name = "sondas"
+
+    def get_queryset(self):
+        return SondaRemota.objects.prefetch_related("faixas")
+
+
+class SondaRemotaCreateView(LoginRequiredMixin, CreateView):
+    model = SondaRemota
+    form_class = SondaRemotaForm
+    template_name = "inventario/sonda_form.html"
+
+    def form_valid(self, form):
+        token = secrets.token_urlsafe(32)
+        self.object = form.save(commit=False)
+        self.object.definir_token(token)
+        self.object.save()
+        form.save_m2m()
+        self.request.session[f"sonda_token_{self.object.pk}"] = token
+        messages.success(self.request, "Sonda criada. Guarde o token exibido; ele nao sera recuperado depois.")
+        return redirect("inventario:sonda_detalhe", pk=self.object.pk)
+
+
+class SondaRemotaUpdateView(LoginRequiredMixin, UpdateView):
+    model = SondaRemota
+    form_class = SondaRemotaForm
+    template_name = "inventario/sonda_form.html"
+
+    def get_success_url(self):
+        return reverse_lazy("inventario:sonda_detalhe", kwargs={"pk": self.object.pk})
+
+
+class SondaRemotaDetailView(LoginRequiredMixin, DetailView):
+    model = SondaRemota
+    template_name = "inventario/sonda_detail.html"
+    context_object_name = "sonda"
+
+    def get_queryset(self):
+        return SondaRemota.objects.prefetch_related("faixas", "execucoes")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["token"] = self.request.session.get(f"sonda_token_{self.object.pk}", "")
+        return context
+
+
+@login_required
+@require_POST
+def regenerar_token_sonda(request, pk):
+    sonda = get_object_or_404(SondaRemota, pk=pk)
+    token = secrets.token_urlsafe(32)
+    sonda.definir_token(token)
+    sonda.save(update_fields=["token_hash", "token_prefixo", "atualizado_em"])
+    request.session[f"sonda_token_{sonda.pk}"] = token
+    messages.success(request, "Token regenerado. Atualize o script instalado na sonda.")
+    return redirect("inventario:sonda_detalhe", pk=sonda.pk)
+
+
+@login_required
+def baixar_script_sonda(request, pk):
+    sonda = get_object_or_404(SondaRemota.objects.prefetch_related("faixas"), pk=pk)
+    token = request.session.get(f"sonda_token_{sonda.pk}", "")
+    if not token:
+        messages.error(request, "Regenerar o token e necessario antes de baixar um novo script.")
+        return redirect("inventario:sonda_detalhe", pk=sonda.pk)
+    template_path = settings.BASE_DIR / "scripts" / "probe" / "sonda.py.template"
+    conteudo = template_path.read_text(encoding="utf-8")
+    conteudo = conteudo.replace("__SERVER_URL__", _base_url_agente(request))
+    conteudo = conteudo.replace("__TOKEN__", token)
+    conteudo = conteudo.replace("__CIDRS__", json.dumps(list(sonda.faixas.values_list("cidr", flat=True))))
+    resposta = HttpResponse(conteudo, content_type="text/x-python; charset=utf-8")
+    resposta["Content-Disposition"] = f'attachment; filename="sonda-{sonda.pk}.py"'
+    return resposta
+
+
+@csrf_exempt
+@require_POST
+def receber_coleta_sonda(request):
+    token = request.headers.get("Authorization", "").replace("Bearer ", "", 1).strip()
+    sonda = next((item for item in SondaRemota.objects.filter(ativa=True) if item.verificar_token(token)), None)
+    if not sonda:
+        return JsonResponse({"erro": "Token de sonda invalido."}, status=403)
+    try:
+        dados = json.loads(request.body.decode("utf-8"))
+        ativos_recebidos = dados.get("ativos") or []
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        ExecucaoSonda.objects.create(sonda=sonda, status=ExecucaoSonda.Status.ERRO, mensagem="JSON invalido")
+        return JsonResponse({"erro": "JSON invalido."}, status=400)
+
+    tipo, _ = TipoAtivo.objects.get_or_create(nome="Dispositivo descoberto")
+    processados = 0
+    for item in ativos_recebidos[:5000]:
+        ip = _normalizar_texto(item.get("ip"), 45)
+        if not ip:
+            continue
+        descoberta = DescobertaAtivo(
+            ip=ip,
+            nome=_normalizar_texto(item.get("nome"), 150) or f"Host {ip}",
+            hostname=_normalizar_texto(item.get("hostname"), 150),
+            observacoes=f"Detectado pela sonda {sonda.nome}. Portas: {item.get('portas') or []}",
+        )
+        localizar_ou_criar_ativo_descoberto(descoberta, tipo, origem=f"sonda:{sonda.pk}")
+        processados += 1
+    sonda.ultima_comunicacao_em = timezone.now()
+    sonda.ultima_mensagem = _normalizar_texto(dados.get("mensagem"), 500) or f"{processados} ativo(s) processados"
+    sonda.save(update_fields=["ultima_comunicacao_em", "ultima_mensagem", "atualizado_em"])
+    ExecucaoSonda.objects.create(
+        sonda=sonda,
+        status=ExecucaoSonda.Status.SUCESSO,
+        ativos_encontrados=processados,
+        mensagem=sonda.ultima_mensagem,
+    )
+    return JsonResponse({"ok": True, "processados": processados})
 
 
 class AtivoRedeListView(LoginRequiredMixin, ListView):
@@ -428,6 +686,7 @@ class AtivoRedeListView(LoginRequiredMixin, ListView):
         q = self.request.GET.get("q", "").strip()
         tipo = self.request.GET.get("tipo", "")
         status = self.request.GET.get("status", "")
+        ciclo_vida = self.request.GET.get("ciclo_vida", "")
         if q:
             queryset = queryset.filter(
                 Q(nome__icontains=q)
@@ -442,19 +701,157 @@ class AtivoRedeListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(tipo_id=tipo)
         if status:
             queryset = queryset.filter(status=status)
+        else:
+            queryset = queryset.exclude(status=AtivoRede.Status.DESATIVADO)
+        if ciclo_vida:
+            queryset = queryset.filter(ciclo_vida=ciclo_vida)
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["tipos"] = TipoAtivo.objects.filter(ativo=True)
         context["status_choices"] = AtivoRede.Status.choices
+        context["ciclo_vida_choices"] = AtivoRede.CicloVida.choices
         context["filtros"] = self.request.GET
+        context["total_sem_comunicacao"] = queryset_ativos_sem_comunicacao().count()
         return context
+
+
+class AtivosSemComunicacaoView(LoginRequiredMixin, ListView):
+    model = AtivoRede
+    template_name = "inventario/ativos_sem_comunicacao.html"
+    context_object_name = "ativos"
+    paginate_by = 30
+
+    def get_queryset(self):
+        situacao = self.request.GET.get("situacao", "pendentes")
+        if situacao == "arquivados":
+            queryset = AtivoRede.objects.select_related("tipo", "setor").filter(
+                status=AtivoRede.Status.DESATIVADO
+            )
+        else:
+            queryset = queryset_ativos_sem_comunicacao()
+
+        agora = timezone.now()
+        ativos = list(queryset.order_by("ultima_coleta_em", "criado_em"))
+        for ativo in ativos:
+            referencia = ativo.ultima_coleta_em or ativo.criado_em
+            ativo.dias_sem_comunicacao = max(0, (agora - referencia).days)
+        return ativos
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["situacao"] = self.request.GET.get("situacao", "pendentes")
+        context["dias_limite"] = settings.INVENTARIO_DIAS_SEM_COMUNICACAO
+        context["total_pendentes"] = queryset_ativos_sem_comunicacao().count()
+        context["total_arquivados"] = AtivoRede.objects.filter(status=AtivoRede.Status.DESATIVADO).count()
+        return context
+
+
+class AtivosDuplicadosView(LoginRequiredMixin, TemplateView):
+    template_name = "inventario/ativos_duplicados.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        grupos = []
+        campos = [
+            ("numero_serie", "Numero de serie"),
+            ("patrimonio", "Patrimonio"),
+            ("mac", "MAC"),
+            ("hostname", "Hostname"),
+            ("ip", "IP"),
+        ]
+        ativos_base = AtivoRede.objects.select_related("tipo", "setor")
+        for campo, rotulo in campos:
+            consulta = ativos_base
+            if campo == "ip":
+                consulta = consulta.exclude(ip__isnull=True)
+            else:
+                consulta = consulta.exclude(**{campo: ""})
+            repetidos = consulta.values(campo).annotate(total=Count("id")).filter(total__gt=1)
+            for repetido in repetidos:
+                valor = repetido[campo]
+                ativos = list(ativos_base.filter(**{campo: valor}).order_by("id"))
+                grupos.append({"campo": rotulo, "valor": valor, "ativos": ativos, "ids": ",".join(str(a.pk) for a in ativos)})
+        context["grupos"] = grupos
+        context["total_grupos"] = len(grupos)
+        return context
+
+
+class MesclarAtivosView(LoginRequiredMixin, TemplateView):
+    template_name = "inventario/mesclar_ativos.html"
+
+    def ids_sugeridos(self):
+        return [int(item) for item in self.request.GET.get("ids", "").split(",") if item.isdigit()]
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ids = self.ids_sugeridos()
+        form = kwargs.get("form") or MesclarAtivosForm()
+        if ids:
+            form.fields["principal"].queryset = AtivoRede.objects.filter(pk__in=ids)
+            form.fields["duplicados"].queryset = AtivoRede.objects.filter(pk__in=ids)
+        context["form"] = form
+        context["ativos_sugeridos"] = AtivoRede.objects.filter(pk__in=ids)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        form = MesclarAtivosForm(request.POST)
+        if not form.is_valid():
+            return self.render_to_response(self.get_context_data(form=form))
+        principal = form.cleaned_data["principal"]
+        duplicados = list(form.cleaned_data["duplicados"])
+        mesclar_ativos(principal, duplicados, request.user)
+        messages.success(request, f"{len(duplicados)} registro(s) incorporado(s) ao ativo {principal.nome}.")
+        return redirect(principal)
+
+
+@transaction.atomic
+def mesclar_ativos(principal, duplicados, usuario):
+    principal = AtivoRede.objects.select_for_update().get(pk=principal.pk)
+    campos = [
+        "ip", "mac", "hostname", "fabricante", "modelo", "numero_serie", "patrimonio",
+        "sistema_operacional", "arquitetura", "processador", "memoria_total_gb", "disco_total_gb",
+        "office", "softwares_instalados", "usuario_logado", "dominio", "localizacao", "responsavel",
+        "funcao", "observacoes", "ultima_coleta_em", "data_aquisicao", "garantia_ate",
+    ]
+    incorporados = []
+    for duplicado in AtivoRede.objects.select_for_update().filter(pk__in=[item.pk for item in duplicados]).exclude(pk=principal.pk):
+        incorporados.append(f"{duplicado.pk}:{duplicado.nome}")
+        for campo in campos:
+            atual = getattr(principal, campo)
+            valor = getattr(duplicado, campo)
+            if not atual and valor:
+                setattr(principal, campo, valor)
+        duplicado.interfaces.update(ativo=principal)
+        duplicado.ocorrencias.update(ativo=principal)
+        duplicado.historico_alteracoes.update(ativo=principal)
+        duplicado.movimentacoes.update(ativo=principal)
+        duplicado.registros_coleta.update(ativo=principal)
+        duplicado.chamados.update(ativo_rede=principal)
+        for licenca in duplicado.licencas.all():
+            licenca.ativos.add(principal)
+        RelacionamentoAtivo.objects.filter(origem=duplicado).update(origem=principal)
+        RelacionamentoAtivo.objects.filter(destino=duplicado).update(destino=principal)
+        RelacionamentoAtivo.objects.filter(origem=principal, destino=principal).delete()
+        duplicado.delete()
+    principal.save()
+    HistoricoAlteracaoAtivo.objects.create(
+        ativo=principal,
+        campo="mesclagem",
+        valor_anterior="",
+        valor_novo="; ".join(incorporados),
+        origem=f"mesclagem_por_{usuario.pk}",
+    )
 
 
 def filtrar_ativos_relatorio(params):
     form = RelatorioInventarioForm(params or None)
-    ativos = AtivoRede.objects.select_related("tipo", "setor").order_by("nome")
+    ativos = (
+        AtivoRede.objects.select_related("tipo", "setor")
+        .exclude(status=AtivoRede.Status.DESATIVADO)
+        .order_by("nome")
+    )
     filtro_aplicado = False
     if form.is_valid():
         dados = form.cleaned_data
@@ -479,6 +876,8 @@ def filtrar_ativos_relatorio(params):
             ativos = ativos.filter(setor=dados["setor"])
         if dados.get("status"):
             ativos = ativos.filter(status=dados["status"])
+        if dados.get("ciclo_vida"):
+            ativos = ativos.filter(ciclo_vida=dados["ciclo_vida"])
         if dados.get("origem"):
             ativos = ativos.filter(origem=dados["origem"])
         if dados.get("familia_so") == "windows":
@@ -531,13 +930,21 @@ def dados_relatorio_inventario(ativos, filtro_aplicado=False):
             }
         )
     softwares = softwares_detectados_relatorio(ativos)
+    duplicados_ip = ativos.exclude(ip__isnull=True).values("ip").annotate(total=Count("id")).filter(total__gt=1)
+    duplicados_mac = ativos.exclude(mac="").values("mac").annotate(total=Count("id")).filter(total__gt=1)
+    duplicados_serial = ativos.exclude(numero_serie="").values("numero_serie").annotate(total=Count("id")).filter(total__gt=1)
     return {
         "total": ativos.count(),
         "online": ativos.filter(status=AtivoRede.Status.ONLINE).count(),
         "offline": ativos.filter(status=AtivoRede.Status.OFFLINE).count(),
         "sem_coleta": ativos.filter(ultima_coleta_em__isnull=True).count(),
+        "sem_comunicacao": ativos.filter(filtro_ativos_sem_comunicacao()).count(),
+        "ips_duplicados": duplicados_ip.count(),
+        "macs_duplicados": duplicados_mac.count(),
+        "seriais_duplicados": duplicados_serial.count(),
         "por_tipo": ativos.values("tipo__nome").annotate(total=Count("id")).order_by("tipo__nome"),
         "por_status": ativos.values("status").annotate(total=Count("id")).order_by("status"),
+        "por_ciclo_vida": ativos.values("ciclo_vida").annotate(total=Count("id")).order_by("ciclo_vida"),
         "por_origem": ativos.values("origem").annotate(total=Count("id")).order_by("origem"),
         "por_fabricante": (
             ativos.exclude(fabricante="")
@@ -620,7 +1027,11 @@ class RelatorioInventarioView(LoginRequiredMixin, TemplateView):
 
 @login_required
 def exportar_ativos_xls(request):
-    ativos = AtivoRede.objects.select_related("tipo", "setor").order_by("nome")
+    ativos = (
+        AtivoRede.objects.select_related("tipo", "setor")
+        .exclude(status=AtivoRede.Status.DESATIVADO)
+        .order_by("nome")
+    )
     response = HttpResponse(content_type="application/vnd.ms-excel; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="inventario_ativos.xls"'
     response.write("<html><head><meta charset='utf-8'></head><body>")
@@ -639,6 +1050,8 @@ def exportar_ativos_xls(request):
         "Fabricante",
         "Modelo",
         "Serial",
+        "Patrimonio",
+        "Ciclo de vida",
         "Sistema operacional",
         "Arquitetura",
         "Processador",
@@ -665,6 +1078,8 @@ def exportar_ativos_xls(request):
             ativo.fabricante,
             ativo.modelo,
             ativo.numero_serie,
+            ativo.patrimonio,
+            ativo.get_ciclo_vida_display(),
             ativo.sistema_operacional,
             ativo.arquitetura,
             ativo.processador,
@@ -686,6 +1101,50 @@ def exportar_ativos_xls(request):
 
 
 @login_required
+def qr_code_ativo(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk)
+    import qrcode
+
+    url = request.build_absolute_uri(ativo.get_absolute_url())
+    imagem = qrcode.make(url)
+    buffer = io.BytesIO()
+    imagem.save(buffer, format="PNG")
+    return HttpResponse(buffer.getvalue(), content_type="image/png")
+
+
+@login_required
+def etiqueta_ativo_pdf(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk)
+    import qrcode
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+
+    qr = qrcode.make(request.build_absolute_uri(ativo.get_absolute_url()))
+    qr_buffer = io.BytesIO()
+    qr.save(qr_buffer, format="PNG")
+    saida = io.BytesIO()
+    pdf = canvas.Canvas(saida, pagesize=A4)
+    largura, altura = A4
+    x, y, w, h = 40, altura - 190, 360, 130
+    pdf.roundRect(x, y, w, h, 6)
+    pdf.drawImage(ImageReader(io.BytesIO(qr_buffer.getvalue())), x + 10, y + 10, 110, 110)
+    pdf.setFont("Helvetica-Bold", 13)
+    pdf.drawString(x + 135, y + 98, str(ativo.nome)[:34])
+    pdf.setFont("Helvetica", 10)
+    pdf.drawString(x + 135, y + 78, f"Patrimonio: {ativo.patrimonio or '-'}")
+    pdf.drawString(x + 135, y + 62, f"Serial: {ativo.numero_serie or '-'}"[:42])
+    pdf.drawString(x + 135, y + 46, f"Tipo: {ativo.tipo}")
+    pdf.drawString(x + 135, y + 30, f"Setor: {ativo.setor or '-'}"[:42])
+    pdf.setFont("Helvetica", 7)
+    pdf.drawString(x + 135, y + 14, "Leia o QR Code para consultar a ficha no inventario.")
+    pdf.save()
+    resposta = HttpResponse(saida.getvalue(), content_type="application/pdf")
+    resposta["Content-Disposition"] = f'inline; filename="etiqueta-ativo-{ativo.pk}.pdf"'
+    return resposta
+
+
+@login_required
 def exportar_relatorio_inventario_xls(request):
     form, ativos, filtro_aplicado = filtrar_ativos_relatorio(request.GET)
     indicadores = dados_relatorio_inventario(ativos, filtro_aplicado)
@@ -698,6 +1157,12 @@ def exportar_relatorio_inventario_xls(request):
     response.write(f"<p>{escape(config.cnpj)} {escape(config.endereco)}</p>")
     response.write("<h1>Relatorio de inventario</h1>")
     response.write(f"<p>Total filtrado: {indicadores['total']}</p>")
+    response.write("<p>Ativos arquivados/desativados foram excluidos deste relatorio.</p>")
+    response.write(f"<p>Sem comunicacao: {indicadores['sem_comunicacao']}</p>")
+    response.write(
+        f"<p>Duplicidades: IP {indicadores['ips_duplicados']}, MAC {indicadores['macs_duplicados']}, "
+        f"serial {indicadores['seriais_duplicados']}.</p>"
+    )
 
     for titulo, linhas, campo in [
         ("Ativos por tipo", indicadores["por_tipo"], "tipo__nome"),
@@ -749,6 +1214,8 @@ def exportar_relatorio_inventario_xls(request):
         "Fabricante",
         "Modelo",
         "Serial",
+        "Patrimonio",
+        "Ciclo de vida",
         "Sistema operacional",
         "Status",
         "Origem",
@@ -769,6 +1236,8 @@ def exportar_relatorio_inventario_xls(request):
             ativo.fabricante,
             ativo.modelo,
             ativo.numero_serie,
+            ativo.patrimonio,
+            ativo.get_ciclo_vida_display(),
             ativo.sistema_operacional,
             ativo.get_status_display(),
             ativo.get_origem_display(),
@@ -818,12 +1287,17 @@ def exportar_relatorio_inventario_pdf(request):
         f"Online: {indicadores['online']}",
         f"Offline: {indicadores['offline']}",
         f"Sem coleta: {indicadores['sem_coleta']}",
+        f"Sem comunicacao: {indicadores['sem_comunicacao']}",
+        "Ativos arquivados/desativados excluidos dos totais operacionais.",
         "",
         "COBERTURA DOS DADOS",
         f"Sem fabricante: {indicadores['sem_fabricante']}",
         f"Sem modelo: {indicadores['sem_modelo']}",
         f"Sem serial: {indicadores['sem_serial']}",
         f"Com interfaces: {indicadores['com_interfaces']}",
+        f"IPs duplicados: {indicadores['ips_duplicados']}",
+        f"MACs duplicados: {indicadores['macs_duplicados']}",
+        f"Seriais duplicados: {indicadores['seriais_duplicados']}",
         "",
         "ATIVOS POR TIPO",
     ]
@@ -855,12 +1329,12 @@ def exportar_relatorio_inventario_pdf(request):
             f"uso {item['em_uso']} | saldo {item['saldo']}"
         )
 
-    linhas.extend(["", "ATIVOS FILTRADOS", "Nome | IP | Tipo | Fabricante | Modelo | Status | Coleta"])
+    linhas.extend(["", "ATIVOS FILTRADOS", "Nome | Patrimonio | IP | Tipo | Ciclo | Status | Coleta"])
     for ativo in ativos[:200]:
         coleta = ativo.ultima_coleta_em.strftime("%d/%m/%Y %H:%M") if ativo.ultima_coleta_em else "-"
         linhas.append(
-            f"{ativo.nome} | {ativo.ip or '-'} | {ativo.tipo or '-'} | "
-            f"{ativo.fabricante or '-'} | {ativo.modelo or '-'} | {ativo.get_status_display()} | {coleta}"
+            f"{ativo.nome} | {ativo.patrimonio or '-'} | {ativo.ip or '-'} | {ativo.tipo or '-'} | "
+            f"{ativo.get_ciclo_vida_display()} | {ativo.get_status_display()} | {coleta}"
         )
 
     response = HttpResponse(montar_pdf(linhas), content_type="application/pdf")
@@ -1009,7 +1483,7 @@ class AtivoRedeDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return AtivoRede.objects.select_related("tipo", "setor").prefetch_related(
-            "interfaces", "ocorrencias", "chamados", "relacoes_origem__destino", "relacoes_destino__origem", "licencas", "historico_alteracoes"
+            "interfaces", "ocorrencias", "chamados", "relacoes_origem__destino", "relacoes_destino__origem", "licencas", "historico_alteracoes", "movimentacoes", "termos_responsabilidade"
         )
 
     def get_context_data(self, **kwargs):
@@ -1017,6 +1491,12 @@ class AtivoRedeDetailView(LoginRequiredMixin, DetailView):
         context["ocorrencia_form"] = OcorrenciaAtivoForm()
         context["relacionamento_form"] = RelacionamentoAtivoForm()
         context["varredura_form"] = VarreduraRedeForm()
+        context["movimentacao_form"] = MovimentacaoAtivoForm(initial={"ciclo_novo": self.object.ciclo_vida})
+        context["termo_form"] = TermoResponsabilidadeAtivoForm(initial={
+            "responsavel": self.object.responsavel,
+            "setor": self.object.setor,
+            "data_evento": timezone.localdate(),
+        })
         return context
 
 
@@ -1054,6 +1534,8 @@ class LicencaSoftwareDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["anexo_form"] = AnexoLicencaSoftwareForm()
+        context["ativos_vigentes"] = self.object.ativos.exclude(status=AtivoRede.Status.DESATIVADO)
+        context["ativos_arquivados"] = self.object.ativos.filter(status=AtivoRede.Status.DESATIVADO)
         return context
 
 
@@ -1102,7 +1584,9 @@ class ConciliacaoLicencasView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         licencas = list(LicencaSoftware.objects.values_list("nome", flat=True))
         encontrados = {}
-        for ativo in AtivoRede.objects.exclude(softwares_instalados="").only("id", "nome", "softwares_instalados"):
+        for ativo in AtivoRede.objects.exclude(
+            status=AtivoRede.Status.DESATIVADO
+        ).exclude(softwares_instalados="").only("id", "nome", "softwares_instalados"):
             for linha in ativo.softwares_instalados.splitlines():
                 software = linha.strip()
                 if not software:
@@ -1117,9 +1601,92 @@ class ConciliacaoLicencasView(LoginRequiredMixin, TemplateView):
 
 
 @login_required
+@require_POST
+def verificar_ativo_sem_comunicacao(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk)
+    resultado = atualizar_status_por_ping(ativo)
+    if resultado == AtivoRede.Status.ONLINE:
+        messages.success(request, f"{ativo.nome} respondeu e saiu da fila de revisão.")
+    elif resultado == "sem_ip":
+        messages.warning(request, "O ativo nao possui IP para verificacao. Revise ou arquive manualmente.")
+    elif resultado == "ignorado":
+        messages.info(request, "O ativo esta em manutencao ou ja foi desativado.")
+    else:
+        messages.warning(request, f"{ativo.nome} continua sem responder.")
+    return redirect("inventario:ativos_sem_comunicacao")
+
+
+@login_required
+@require_POST
+def arquivar_ativo_sem_comunicacao(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk)
+    if ativo.status == AtivoRede.Status.DESATIVADO:
+        messages.info(request, "O ativo ja esta arquivado.")
+        return redirect("inventario:ativos_sem_comunicacao")
+    if not AtivoRede.objects.filter(pk=ativo.pk).filter(filtro_ativos_sem_comunicacao()).exists():
+        messages.warning(request, "O ativo voltou a comunicar e nao precisa ser arquivado.")
+        return redirect("inventario:ativos_sem_comunicacao")
+
+    antes = {"status": ativo.status, "ciclo_vida": ativo.ciclo_vida, "data_baixa": ativo.data_baixa}
+    ativo.status = AtivoRede.Status.DESATIVADO
+    ativo.ciclo_vida = AtivoRede.CicloVida.BAIXADO
+    ativo.data_baixa = timezone.localdate()
+    ativo.motivo_baixa = f"Sem comunicacao por mais de {settings.INVENTARIO_DIAS_SEM_COMUNICACAO} dias."
+    ativo.save(update_fields=["status", "ciclo_vida", "data_baixa", "motivo_baixa", "atualizado_em"])
+    registrar_alteracoes_ativo(ativo, antes, ["status", "ciclo_vida", "data_baixa"], "revisao_sem_comunicacao")
+    OcorrenciaAtivo.objects.create(
+        ativo=ativo,
+        tipo=OcorrenciaAtivo.Tipo.OBSERVACAO,
+        titulo="Ativo arquivado por falta de comunicacao",
+        descricao=(
+            f"Arquivado apos mais de {settings.INVENTARIO_DIAS_SEM_COMUNICACAO} dias sem comunicacao. "
+            "O registro foi preservado para revisao antes de eventual exclusao."
+        ),
+        registrado_por=request.user,
+    )
+    messages.success(request, f"{ativo.nome} foi arquivado sem perder o historico.")
+    return redirect("inventario:ativos_sem_comunicacao")
+
+
+@login_required
+@require_POST
+def reativar_ativo_arquivado(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk, status=AtivoRede.Status.DESATIVADO)
+    antes = {"status": ativo.status, "ciclo_vida": ativo.ciclo_vida, "data_baixa": ativo.data_baixa}
+    ativo.status = AtivoRede.Status.DESCONHECIDO
+    ativo.ciclo_vida = AtivoRede.CicloVida.EM_USO
+    ativo.data_baixa = None
+    ativo.motivo_baixa = ""
+    ativo.save(update_fields=["status", "ciclo_vida", "data_baixa", "motivo_baixa", "atualizado_em"])
+    registrar_alteracoes_ativo(ativo, antes, ["status", "ciclo_vida", "data_baixa"], "reativacao_manual")
+    OcorrenciaAtivo.objects.create(
+        ativo=ativo,
+        tipo=OcorrenciaAtivo.Tipo.OBSERVACAO,
+        titulo="Ativo reativado",
+        descricao="Ativo devolvido ao inventario ativo durante a revisao dos arquivados.",
+        registrado_por=request.user,
+    )
+    messages.success(request, f"{ativo.nome} foi reativado.")
+    return redirect("inventario:ativos_sem_comunicacao")
+
+
+@login_required
+@require_POST
+def excluir_ativo_arquivado(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk, status=AtivoRede.Status.DESATIVADO)
+    nome = ativo.nome
+    ativo.delete()
+    messages.success(request, f"Ativo arquivado {nome} excluido definitivamente.")
+    return redirect("inventario:ativos_sem_comunicacao")
+
+
+@login_required
 def excluir_ativo(request, pk):
     ativo = get_object_or_404(AtivoRede, pk=pk)
     if request.method == "POST":
+        if ativo.status != AtivoRede.Status.DESATIVADO:
+            messages.warning(request, "Arquive o ativo antes de realizar a exclusao definitiva.")
+            return redirect("inventario:ativos_sem_comunicacao")
         nome = ativo.nome
         ativo.delete()
         messages.success(request, f"Ativo {nome} excluído com sucesso.")
@@ -1135,7 +1702,11 @@ def excluir_ativos_lote(request):
         if not ids:
             messages.warning(request, "Selecione ao menos um ativo para excluir.")
             return redirect("inventario:ativos")
-        total, _ = AtivoRede.objects.filter(id__in=ids).delete()
+        elegiveis = AtivoRede.objects.filter(id__in=ids, status=AtivoRede.Status.DESATIVADO)
+        if not elegiveis.exists():
+            messages.warning(request, "Somente ativos arquivados podem ser excluidos definitivamente.")
+            return redirect("inventario:ativos_sem_comunicacao")
+        total, _ = elegiveis.delete()
         messages.success(request, f"{total} registro(s) excluído(s) do inventário.")
     return redirect("inventario:ativos")
 
@@ -1150,11 +1721,17 @@ def atualizar_status_por_ping(ativo, timeout_ms=800):
         return "sem_ip"
 
     novo_status = AtivoRede.Status.ONLINE if ping_host(ativo.ip, timeout_ms=timeout_ms) else AtivoRede.Status.OFFLINE
+    antes = {"status": ativo.status, "ultima_coleta_em": ativo.ultima_coleta_em}
+    campos_alterados = []
     if ativo.status != novo_status:
-        antes = {"status": ativo.status}
         ativo.status = novo_status
-        ativo.save(update_fields=["status", "atualizado_em"])
-        registrar_alteracoes_ativo(ativo, antes, ["status"], "validacao_ping")
+        campos_alterados.append("status")
+    if novo_status == AtivoRede.Status.ONLINE:
+        ativo.ultima_coleta_em = timezone.now()
+        campos_alterados.append("ultima_coleta_em")
+    if campos_alterados:
+        ativo.save(update_fields=[*campos_alterados, "atualizado_em"])
+        registrar_alteracoes_ativo(ativo, antes, campos_alterados, "validacao_ping")
     return novo_status
 
 
@@ -1319,6 +1896,121 @@ def registrar_relacionamento(request, pk):
     return redirect(ativo)
 
 
+@login_required
+@require_POST
+def movimentar_ativo(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk)
+    form = MovimentacaoAtivoForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Revise os dados da movimentacao.")
+        return redirect(ativo)
+    movimento = form.save(commit=False)
+    movimento.ativo = ativo
+    movimento.setor_origem = ativo.setor
+    movimento.local_origem = ativo.localizacao
+    movimento.responsavel_origem = ativo.responsavel
+    movimento.ciclo_anterior = ativo.ciclo_vida
+    movimento.movimentado_por = request.user
+    movimento.save()
+
+    antes = {
+        "setor": ativo.setor,
+        "localizacao": ativo.localizacao,
+        "responsavel": ativo.responsavel,
+        "ciclo_vida": ativo.ciclo_vida,
+        "status": ativo.status,
+        "data_baixa": ativo.data_baixa,
+    }
+    ativo.setor = movimento.setor_destino
+    ativo.localizacao = movimento.local_destino
+    ativo.responsavel = movimento.responsavel_destino
+    ativo.ciclo_vida = movimento.ciclo_novo
+    if movimento.ciclo_novo in {AtivoRede.CicloVida.BAIXADO, AtivoRede.CicloVida.DESCARTADO}:
+        ativo.status = AtivoRede.Status.DESATIVADO
+        ativo.data_baixa = timezone.localdate()
+        ativo.motivo_baixa = movimento.motivo
+    elif ativo.status == AtivoRede.Status.DESATIVADO:
+        ativo.status = AtivoRede.Status.DESCONHECIDO
+        ativo.data_baixa = None
+        ativo.motivo_baixa = ""
+    ativo.save()
+    registrar_alteracoes_ativo(
+        ativo,
+        antes,
+        ["setor", "localizacao", "responsavel", "ciclo_vida", "status", "data_baixa"],
+        "movimentacao",
+    )
+    messages.success(request, "Movimentacao patrimonial registrada.")
+    return redirect(ativo)
+
+
+@login_required
+@require_POST
+def criar_termo_responsabilidade(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk)
+    form = TermoResponsabilidadeAtivoForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Revise os dados do termo de responsabilidade.")
+        return redirect(ativo)
+    termo = form.save(commit=False)
+    termo.ativo = ativo
+    termo.criado_por = request.user
+    termo.aceite_em = timezone.now()
+    termo.texto_termo = (
+        f"O responsavel {termo.responsavel}, matricula {termo.matricula or '-'}, declara receber/devolver "
+        f"o equipamento {ativo.nome}, patrimonio {ativo.patrimonio or '-'}, serial {ativo.numero_serie or '-'}, "
+        "comprometendo-se com sua guarda, uso institucional e devolucao nas condicoes registradas."
+    )
+    termo.save()
+    antes = {"responsavel": ativo.responsavel, "setor": ativo.setor, "ciclo_vida": ativo.ciclo_vida}
+    if termo.tipo in {TermoResponsabilidadeAtivo.Tipo.ENTREGA, TermoResponsabilidadeAtivo.Tipo.EMPRESTIMO}:
+        ativo.responsavel = termo.responsavel
+        ativo.setor = termo.setor
+        ativo.ciclo_vida = (
+            AtivoRede.CicloVida.EMPRESTADO if termo.tipo == TermoResponsabilidadeAtivo.Tipo.EMPRESTIMO
+            else AtivoRede.CicloVida.EM_USO
+        )
+    elif termo.tipo == TermoResponsabilidadeAtivo.Tipo.DEVOLUCAO:
+        ativo.responsavel = ""
+        ativo.ciclo_vida = AtivoRede.CicloVida.ESTOQUE
+    ativo.save(update_fields=["responsavel", "setor", "ciclo_vida", "atualizado_em"])
+    registrar_alteracoes_ativo(ativo, antes, ["responsavel", "setor", "ciclo_vida"], "termo_responsabilidade")
+    messages.success(request, "Termo registrado e disponivel em PDF.")
+    return redirect(ativo)
+
+
+@login_required
+def termo_responsabilidade_pdf(request, pk):
+    termo = get_object_or_404(TermoResponsabilidadeAtivo.objects.select_related("ativo", "setor"), pk=pk)
+    ativo = termo.ativo
+    linhas = [
+        "TERMO DE RESPONSABILIDADE DE EQUIPAMENTO",
+        "",
+        f"Tipo: {termo.get_tipo_display()}",
+        f"Data: {termo.data_evento:%d/%m/%Y}",
+        f"Responsavel: {termo.responsavel}",
+        f"Matricula: {termo.matricula or '-'}",
+        f"Setor: {termo.setor or '-'}",
+        "",
+        f"Equipamento: {ativo.nome}",
+        f"Tipo: {ativo.tipo}",
+        f"Patrimonio: {ativo.patrimonio or '-'}",
+        f"Serial: {ativo.numero_serie or '-'}",
+        f"Fabricante/modelo: {ativo.fabricante or '-'} / {ativo.modelo or '-'}",
+        "",
+        termo.texto_termo,
+        "",
+        f"Finalidade/observacoes: {termo.finalidade or '-'}",
+        f"Aceite registrado em: {termo.aceite_em:%d/%m/%Y %H:%M:%S}",
+        f"Assinatura declarada por: {termo.assinatura_nome or termo.responsavel}",
+        "",
+        "Assinatura: ______________________________________________",
+    ]
+    resposta = HttpResponse(montar_pdf(linhas), content_type="application/pdf")
+    resposta["Content-Disposition"] = f'inline; filename="termo-{termo.pk}.pdf"'
+    return resposta
+
+
 def faixa_por_ip(ip):
     try:
         endereco = ipaddress.ip_address(ip)
@@ -1372,15 +2064,12 @@ def aplicar_descoberta_no_ativo(ativo, descoberta, origem="varredura manual"):
 
 
 def localizar_ou_criar_ativo_descoberto(item, tipo_padrao, origem="varredura"):
-    ativo = None
-    if item.ip:
-        ativo = AtivoRede.objects.filter(ip=item.ip).order_by("id").first()
-    if not ativo:
-        identidade = item.hostname or item.nome
-        if identidade:
-            ativo = AtivoRede.objects.filter(
-                Q(hostname__iexact=identidade) | Q(nome__iexact=identidade)
-            ).order_by("id").first()
+    ativo = localizar_ativo_por_identidade(
+        serial=getattr(item, "numero_serie", ""),
+        mac=getattr(item, "mac", ""),
+        hostname=item.hostname or item.nome,
+        ip=item.ip or None,
+    )
 
     if ativo:
         aplicar_descoberta_no_ativo(ativo, item, origem=origem)

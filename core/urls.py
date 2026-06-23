@@ -13,4 +13,8 @@ urlpatterns = [
     path("atualizacoes/", views.AtualizacaoSistemaView.as_view(), name="atualizacoes"),
     path("servicos/", views.ControleServicosView.as_view(), name="servicos"),
     path("auditoria/", views.AuditoriaListView.as_view(), name="auditoria"),
+    path("notificacoes/", views.NotificacaoListView.as_view(), name="notificacoes"),
+    path("notificacoes/<int:pk>/lida/", views.marcar_notificacao_lida, name="notificacao_lida"),
+    path("notificacoes/lidas/", views.marcar_todas_notificacoes_lidas, name="notificacoes_lidas"),
+    path("ldap/", views.ConfiguracaoLDAPView.as_view(), name="ldap"),
 ]

@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Sondas remotas | Inventario{% endblock %}
+{% block content %}
+<div class="page-heading mb-4"><div><span class="section-label">Descoberta distribuida</span><h1>Sondas remotas</h1><p>Execute scans dentro de VLANs e localidades sem liberar acesso amplo ao servidor central.</p></div><a class="btn btn-primary" href="{% url 'inventario:sonda_nova' %}">Nova sonda</a></div>
+<section class="detail-section"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Nome</th><th>Localidade</th><th>Faixas</th><th>Status</th><th>Ultima comunicacao</th><th class="text-end">Acao</th></tr></thead><tbody>{% for sonda in sondas %}<tr><td><a href="{% url 'inventario:sonda_detalhe' sonda.pk %}">{{ sonda.nome }}</a></td><td>{{ sonda.localidade|default:"-" }}</td><td>{% for faixa in sonda.faixas.all %}<code class="d-block">{{ faixa.cidr }}</code>{% empty %}-{% endfor %}</td><td>{{ sonda.ativa|yesno:"Ativa,Inativa" }}</td><td>{{ sonda.ultima_comunicacao_em|date:"d/m/Y H:i"|default:"Nunca" }}</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'inventario:sonda_detalhe' sonda.pk %}">Abrir</a></td></tr>{% empty %}<tr><td colspan="6" class="text-center text-secondary">Nenhuma sonda cadastrada.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

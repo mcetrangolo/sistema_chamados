@@ -10,8 +10,13 @@ from .models import (
     LicencaSoftware,
     HistoricoAlteracaoAtivo,
     MetodoDescoberta,
+    MovimentacaoAtivo,
     OcorrenciaAtivo,
     RelacionamentoAtivo,
+    RegistroColetaAgente,
+    SondaRemota,
+    TermoResponsabilidadeAtivo,
+    ExecucaoSonda,
     TipoAtivo,
     VarreduraRede,
 )
@@ -33,6 +38,12 @@ class HistoricoAlteracaoInline(admin.TabularInline):
     extra = 0
     readonly_fields = ("campo", "valor_anterior", "valor_novo", "origem", "criado_em")
     can_delete = False
+
+
+class MovimentacaoInline(admin.TabularInline):
+    model = MovimentacaoAtivo
+    extra = 0
+    readonly_fields = ("criado_em", "movimentado_por")
 
 
 class RelacionamentoOrigemInline(admin.TabularInline):
@@ -74,7 +85,41 @@ class AtivoRedeAdmin(admin.ModelAdmin):
     list_display = ("nome", "tipo", "ip", "hostname", "sistema_operacional", "office", "status", "origem", "ultima_coleta_em")
     list_filter = ("tipo", "status", "origem", "setor", "sistema_operacional", "office")
     search_fields = ("nome", "ip", "mac", "hostname", "fabricante", "modelo", "numero_serie", "processador", "office")
-    inlines = [InterfaceInline, RelacionamentoOrigemInline, OcorrenciaInline, HistoricoAlteracaoInline]
+    inlines = [InterfaceInline, RelacionamentoOrigemInline, OcorrenciaInline, HistoricoAlteracaoInline, MovimentacaoInline]
+
+
+@admin.register(RegistroColetaAgente)
+class RegistroColetaAgenteAdmin(admin.ModelAdmin):
+    list_display = ("criado_em", "ativo", "hostname", "status", "ip_origem", "versao_agente")
+    list_filter = ("status", "criado_em")
+    search_fields = ("ativo__nome", "hostname", "mensagem", "ip_origem")
+    readonly_fields = ("ativo", "hostname", "status", "mensagem", "ip_origem", "versao_agente", "criado_em")
+
+
+@admin.register(SondaRemota)
+class SondaRemotaAdmin(admin.ModelAdmin):
+    list_display = ("nome", "localidade", "ativa", "ultima_comunicacao_em", "token_prefixo")
+    list_filter = ("ativa",)
+    filter_horizontal = ("faixas",)
+
+
+@admin.register(ExecucaoSonda)
+class ExecucaoSondaAdmin(admin.ModelAdmin):
+    list_display = ("sonda", "status", "ativos_encontrados", "criado_em")
+    list_filter = ("status", "sonda")
+
+
+@admin.register(MovimentacaoAtivo)
+class MovimentacaoAtivoAdmin(admin.ModelAdmin):
+    list_display = ("ativo", "ciclo_anterior", "ciclo_novo", "setor_destino", "movimentado_por", "criado_em")
+    list_filter = ("ciclo_novo", "setor_destino", "criado_em")
+
+
+@admin.register(TermoResponsabilidadeAtivo)
+class TermoResponsabilidadeAtivoAdmin(admin.ModelAdmin):
+    list_display = ("ativo", "tipo", "responsavel", "matricula", "data_evento", "aceite_em")
+    list_filter = ("tipo", "data_evento", "setor")
+    search_fields = ("ativo__nome", "ativo__patrimonio", "responsavel", "matricula")
 
 
 @admin.register(VarreduraRede)

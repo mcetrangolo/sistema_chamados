@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Ativos sem comunicacao | Inventario{% endblock %}
+{% block content %}
+<div class="page-heading mb-4">
+  <div>
+    <span class="section-label">Higiene do inventario</span>
+    <h1>Ativos sem comunicacao</h1>
+    <p>Equipamentos sem coleta ou resposta ha mais de {{ dias_limite }} dias aguardam revisao antes de serem removidos.</p>
+  </div>
+  <a class="btn btn-outline-primary" href="{% url 'inventario:ativos' %}">Voltar aos ativos</a>
+</div>
+
+<div class="d-flex gap-2 mb-3">
+  <a class="btn {% if situacao != 'arquivados' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'inventario:ativos_sem_comunicacao' %}">
+    Para revisar ({{ total_pendentes }})
+  </a>
+  <a class="btn {% if situacao == 'arquivados' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'inventario:ativos_sem_comunicacao' %}?situacao=arquivados">
+    Arquivados ({{ total_arquivados }})
+  </a>
+</div>
+
+<section class="detail-section">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Ativo</th>
+          <th>IP / hostname</th>
+          <th>Tipo</th>
+          <th>Setor</th>
+          <th>Ultima comunicacao</th>
+          <th>Dias</th>
+          <th class="text-end">Acoes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ativo in ativos %}
+          <tr>
+            <td><a href="{{ ativo.get_absolute_url }}">{{ ativo.nome }}</a></td>
+            <td>{{ ativo.ip|default:"-" }}<br><span class="text-secondary small">{{ ativo.hostname|default:"" }}</span></td>
+            <td>{{ ativo.tipo }}</td>
+            <td>{{ ativo.setor|default:"-" }}</td>
+            <td>{{ ativo.ultima_coleta_em|date:"d/m/Y H:i"|default:"Nunca coletou" }}</td>
+            <td><strong>{{ ativo.dias_sem_comunicacao }}</strong></td>
+            <td class="text-end">
+              <div class="d-inline-flex gap-2">
+                {% if situacao == 'arquivados' %}
+                  <form method="post" action="{% url 'inventario:ativo_arquivado_reativar' ativo.pk %}">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-success" type="submit">Reativar</button>
+                  </form>
+                  <form method="post" action="{% url 'inventario:ativo_arquivado_excluir' ativo.pk %}" onsubmit="return confirm('Excluir definitivamente este ativo e seus registros relacionados?');">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+                  </form>
+                {% else %}
+                  <form method="post" action="{% url 'inventario:ativo_sem_comunicacao_verificar' ativo.pk %}">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-success" type="submit">Verificar</button>
+                  </form>
+                  <form method="post" action="{% url 'inventario:ativo_sem_comunicacao_arquivar' ativo.pk %}" onsubmit="return confirm('Arquivar este ativo? O historico sera preservado.');">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">Arquivar</button>
+                  </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-center text-secondary py-4">Nenhum ativo nesta lista.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% if is_paginated %}
+  <nav class="mt-3" aria-label="Paginacao">
+    {% if page_obj.has_previous %}<a class="btn btn-sm btn-outline-primary" href="?situacao={{ situacao }}&page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}
+    <span class="mx-2 text-secondary">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="btn btn-sm btn-outline-primary" href="?situacao={{ situacao }}&page={{ page_obj.next_page_number }}">Proxima</a>{% endif %}
+  </nav>
+{% endif %}
+{% endblock %}

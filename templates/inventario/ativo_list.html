@@ -4,6 +4,8 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1 class="h3 mb-0">Ativos de rede</h1>
   <div class="d-flex gap-2">
+    <a class="btn btn-outline-warning" href="{% url 'inventario:ativos_sem_comunicacao' %}">Sem comunicacao ({{ total_sem_comunicacao }})</a>
+    <a class="btn btn-outline-secondary" href="{% url 'inventario:ativos_duplicados' %}">Duplicidades</a>
     <a class="btn btn-outline-secondary" href="{% url 'inventario:agente_windows_download' %}">Baixar agente Windows</a>
     <a class="btn btn-outline-primary" href="{% url 'inventario:ativos_importar_csv' %}">Importar CSV</a>
     <a class="btn btn-outline-primary" href="{% url 'inventario:ativos_xls' %}">Exportar XLS</a>
@@ -12,8 +14,8 @@
 </div>
 
 <form method="get" class="row g-2 mb-3 filters">
-  <div class="col-md-5"><input class="form-control" name="q" value="{{ filtros.q }}" placeholder="Buscar por nome, IP, MAC, hostname, modelo ou serial"></div>
-  <div class="col-md-3">
+  <div class="col-md-4"><input class="form-control" name="q" value="{{ filtros.q }}" placeholder="Buscar por nome, IP, MAC, hostname, modelo, patrimonio ou serial"></div>
+  <div class="col-md-2">
     <select class="form-select" name="tipo">
       <option value="">Tipo</option>
       {% for tipo in tipos %}<option value="{{ tipo.id }}" {% if filtros.tipo == tipo.id|stringformat:"s" %}selected{% endif %}>{{ tipo.nome }}</option>{% endfor %}
@@ -25,32 +27,32 @@
       {% for value,label in status_choices %}<option value="{{ value }}" {% if filtros.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
     </select>
   </div>
+  <div class="col-md-2"><select class="form-select" name="ciclo_vida"><option value="">Ciclo de vida</option>{% for value,label in ciclo_vida_choices %}<option value="{{ value }}" {% if filtros.ciclo_vida == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   <div class="col-md-2 d-grid"><button class="btn btn-outline-primary" type="submit">Filtrar</button></div>
 </form>
 
 <form method="post" class="detail-section">
   {% csrf_token %}
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <span class="text-secondary small">Selecione registros para verificar status ou excluir em lote.</span>
+    <span class="text-secondary small">Selecione registros para verificar o status. Para remover ativos, use a fila sem comunicacao.</span>
     <div class="d-flex gap-2">
       <button class="btn btn-outline-success btn-sm" type="submit" formaction="{% url 'inventario:ativos_verificar_status' %}">Verificar status</button>
-      <button class="btn btn-outline-danger btn-sm" type="submit" formaction="{% url 'inventario:ativos_excluir_lote' %}" onclick="return confirm('Excluir os ativos selecionados? Esta acao nao pode ser desfeita.');">Excluir selecionados</button>
     </div>
   </div>
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
-      <thead><tr><th style="width: 36px;"></th><th>Nome</th><th>Tipo</th><th>IP</th><th>MAC</th><th>Setor</th><th>Status</th><th>Origem</th><th class="text-end">Acoes</th></tr></thead>
+      <thead><tr><th style="width: 36px;"></th><th>Nome</th><th>Patrimonio</th><th>Tipo</th><th>IP</th><th>Setor</th><th>Ciclo</th><th>Status</th><th class="text-end">Acoes</th></tr></thead>
       <tbody>
         {% for ativo in ativos %}
           <tr>
             <td><input class="form-check-input" type="checkbox" name="ativos" value="{{ ativo.id }}"></td>
             <td><a href="{{ ativo.get_absolute_url }}">{{ ativo.nome }}</a></td>
+            <td>{{ ativo.patrimonio|default:"-" }}</td>
             <td>{{ ativo.tipo }}</td>
             <td>{{ ativo.ip|default:"-" }}</td>
-            <td>{{ ativo.mac|default:"-" }}</td>
             <td>{{ ativo.setor|default:"-" }}</td>
+            <td>{{ ativo.get_ciclo_vida_display }}</td>
             <td><span class="badge text-bg-light">{{ ativo.get_status_display }}</span></td>
-            <td>{{ ativo.get_origem_display }}</td>
             <td class="text-end">
               <div class="d-inline-flex gap-2">
                 <button class="btn btn-sm btn-outline-success" type="submit" formaction="{% url 'inventario:ativo_verificar_status' ativo.pk %}">Ping</button>

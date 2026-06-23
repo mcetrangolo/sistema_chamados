@@ -166,6 +166,7 @@ function Get-AgentPayload {
     }
 
     return @{
+        versao_agente = "1.3.0"
         hostname = [string]$env:COMPUTERNAME
         ip = $ip
         mac = $mac

@@ -42,6 +42,10 @@
                 <td class="text-end">
                   <div class="d-inline-flex gap-2">
                     <a class="btn btn-outline-primary btn-sm" href="{% url 'core:backup_baixar' backup.nome %}">Baixar</a>
+                    <form method="post">
+                      {% csrf_token %}<input type="hidden" name="acao" value="validar"><input type="hidden" name="backup" value="{{ backup.nome }}">
+                      <button class="btn btn-outline-success btn-sm" type="submit">Validar</button>
+                    </form>
                     <form method="post" onsubmit="return confirm('Apagar este backup definitivamente?');">
                       {% csrf_token %}
                       <input type="hidden" name="acao" value="apagar">
@@ -89,8 +93,8 @@
 
             <div class="col-md-6">
               <label class="form-label" for="arquivo_backup">Arquivo de backup do PC</label>
-              <input class="form-control" id="arquivo_backup" name="arquivo_backup" type="file" accept=".zip">
-              <div class="form-text">Use o arquivo `.zip` baixado anteriormente pela tela de backup.</div>
+              <input class="form-control" id="arquivo_backup" name="arquivo_backup" type="file" accept=".zip,.enc">
+              <div class="form-text">Use um arquivo `.zip` ou `.zip.enc` criado pelo sistema.</div>
             </div>
 
             <div class="col-md-6">
@@ -115,6 +119,12 @@
   </div>
 
   <aside class="col-lg-4">
+    <form class="side-panel mb-3" method="post">
+      {% csrf_token %}<input type="hidden" name="acao" value="salvar_configuracao">
+      <h2 class="h6">Agendamento e destino</h2>
+      {% include "chamados/partials/form_fields.html" with form=configuracao_backup_form %}
+      <button class="btn btn-primary w-100" type="submit">Salvar configuracao</button>
+    </form>
     <section class="side-panel">
       <h2 class="h6">Ambiente atual</h2>
       <p class="mb-2"><strong>Banco local SQLite</strong></p>
@@ -139,4 +149,8 @@
     </section>
   </aside>
 </div>
+<section class="detail-section mt-4">
+  <h2 class="h5">Historico de execucoes e validacoes</h2>
+  <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Data</th><th>Arquivo</th><th>Status</th><th>Tamanho</th><th>SHA-256</th><th>Mensagem</th></tr></thead><tbody>{% for item in historico_backups %}<tr><td>{{ item.criado_em|date:"d/m/Y H:i" }}</td><td>{{ item.nome_arquivo }}</td><td>{{ item.get_status_display }}</td><td>{{ item.tamanho_bytes|filesizeformat }}</td><td><code>{{ item.sha256|slice:":12" }}</code></td><td>{{ item.mensagem }}</td></tr>{% empty %}<tr><td colspan="6" class="text-secondary">Nenhuma execucao registrada.</td></tr>{% endfor %}</tbody></table></div>
+</section>
 {% endblock %}

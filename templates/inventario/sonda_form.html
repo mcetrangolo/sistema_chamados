@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block title %}Sonda remota | Inventario{% endblock %}
+{% block content %}<div class="page-heading mb-4"><div><span class="section-label">Descoberta distribuida</span><h1>{% if object %}Editar sonda{% else %}Nova sonda{% endif %}</h1></div></div><section class="detail-section content-narrow"><form method="post">{% csrf_token %}{% include "chamados/partials/form_fields.html" with form=form %}<button class="btn btn-primary" type="submit">Salvar</button></form></section>{% endblock %}

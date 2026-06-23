@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Saude dos agentes | Inventario{% endblock %}
+{% block content %}
+<div class="page-heading mb-4"><div><span class="section-label">Monitoramento</span><h1>Saude dos agentes</h1><p>Acompanhamento de coleta, atraso e rejeicoes de autenticacao.</p></div><a class="btn btn-outline-primary" href="{% url 'inventario:agente_config' %}">Configuracao</a></div>
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="metric"><span>Saudaveis ate 24h</span><strong>{{ contadores.saudavel }}</strong></div></div>
+  <div class="col-md-3"><div class="metric metric-warning"><span>Atrasados 1 a 7 dias</span><strong>{{ contadores.atrasado }}</strong></div></div>
+  <div class="col-md-3"><div class="metric metric-danger"><span>Criticos acima de 7 dias</span><strong>{{ contadores.critico }}</strong></div></div>
+  <div class="col-md-3"><div class="metric metric-danger"><span>Tokens rejeitados em 24h</span><strong>{{ rejeitadas_24h }}</strong></div></div>
+</div>
+<section class="detail-section mb-4">
+  <h2 class="h5">Agentes instalados</h2>
+  <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Ativo</th><th>IP</th><th>Setor</th><th>Ultima coleta</th><th>Intervalo</th><th>Estado</th><th class="text-end">Acao</th></tr></thead><tbody>
+  {% for agente in agentes %}<tr><td><a href="{{ agente.get_absolute_url }}">{{ agente.nome }}</a></td><td>{{ agente.ip|default:"-" }}</td><td>{{ agente.setor|default:"-" }}</td><td>{{ agente.ultima_coleta_em|date:"d/m/Y H:i"|default:"-" }}</td><td>{{ agente.tempo_sem_coleta }}</td><td><span class="badge {% if agente.estado_agente == 'saudavel' %}text-bg-success{% elif agente.estado_agente == 'atrasado' %}text-bg-warning{% else %}text-bg-danger{% endif %}">{{ agente.estado_agente|title }}</span>{% if agente.coleta_solicitada_em %}<span class="badge text-bg-info">Coleta solicitada</span>{% endif %}</td><td class="text-end"><form method="post" action="{% url 'inventario:agente_solicitar_coleta' agente.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary" type="submit">Solicitar coleta</button></form></td></tr>{% empty %}<tr><td colspan="7" class="text-center text-secondary">Nenhum agente registrado.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+<section class="detail-section"><h2 class="h5">Ultimos eventos</h2><div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Data</th><th>Ativo/hostname</th><th>Status</th><th>IP origem</th><th>Versao</th><th>Mensagem</th></tr></thead><tbody>{% for evento in eventos %}<tr><td>{{ evento.criado_em|date:"d/m/Y H:i" }}</td><td>{{ evento.ativo|default:evento.hostname|default:"-" }}</td><td>{{ evento.get_status_display }}</td><td>{{ evento.ip_origem|default:"-" }}</td><td>{{ evento.versao_agente|default:"-" }}</td><td>{{ evento.mensagem }}</td></tr>{% empty %}<tr><td colspan="6" class="text-secondary">Nenhum evento registrado.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

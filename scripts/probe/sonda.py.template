@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+import concurrent.futures
+import ipaddress
+import json
+import platform
+import socket
+import subprocess
+import urllib.request
+
+SERVER_URL = "__SERVER_URL__"
+TOKEN = "__TOKEN__"
+CIDRS = __CIDRS__
+PORTS = [22, 80, 135, 139, 443, 445, 3389, 8000]
+
+
+def ping(ip):
+    cmd = ["ping", "-n" if platform.system() == "Windows" else "-c", "1"]
+    cmd += (["-w", "800"] if platform.system() == "Windows" else ["-W", "1"])
+    cmd.append(ip)
+    try:
+        return subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2).returncode == 0
+    except Exception:
+        return False
+
+
+def portas_abertas(ip):
+    abertas = []
+    for porta in PORTS:
+        try:
+            with socket.create_connection((ip, porta), timeout=0.25):
+                abertas.append(porta)
+        except OSError:
+            pass
+    return abertas
+
+
+def scan(ip):
+    ip = str(ip)
+    ativo = ping(ip)
+    portas = portas_abertas(ip)
+    if not ativo and not portas:
+        return None
+    try:
+        hostname = socket.gethostbyaddr(ip)[0]
+    except OSError:
+        hostname = ""
+    return {"ip": ip, "hostname": hostname, "nome": hostname or "Host " + ip, "portas": portas}
+
+
+def main():
+    hosts = []
+    for cidr in CIDRS:
+        hosts.extend(list(ipaddress.ip_network(cidr, strict=False).hosts())[:1024])
+    with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+        ativos = [item for item in executor.map(scan, hosts) if item]
+    corpo = json.dumps({"ativos": ativos, "mensagem": "Varredura remota concluida"}).encode("utf-8")
+    requisicao = urllib.request.Request(
+        SERVER_URL.rstrip("/") + "/inventario/sondas/coleta/",
+        data=corpo,
+        headers={"Authorization": "Bearer " + TOKEN, "Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(requisicao, timeout=60) as resposta:
+        print(resposta.read().decode("utf-8"))
+
+
+if __name__ == "__main__":
+    main()

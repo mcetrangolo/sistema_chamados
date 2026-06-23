@@ -62,6 +62,8 @@
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="{% url 'inventario:painel' %}">Painel</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:ativos' %}">Ativos</a></li>
+              <li><a class="dropdown-item" href="{% url 'inventario:ativos_sem_comunicacao' %}">Ativos sem comunicacao</a></li>
+              <li><a class="dropdown-item" href="{% url 'inventario:ativos_duplicados' %}">Revisar duplicidades</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:ativos_importar_csv' %}">Importar ativos CSV</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:licencas' %}">Licencas de software</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:licencas_conciliacao' %}">Conciliação de licenças</a></li>
@@ -69,6 +71,8 @@
               {% if user.is_superuser %}
                 <li><a class="dropdown-item" href="{% url 'inventario:agente_config' %}">Agente Windows</a></li>
               {% endif %}
+              <li><a class="dropdown-item" href="{% url 'inventario:agentes_saude' %}">Saude dos agentes</a></li>
+              <li><a class="dropdown-item" href="{% url 'inventario:sondas' %}">Sondas remotas</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:faixas' %}">Faixas de rede</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:agendamentos' %}">Agendamentos</a></li>
             </ul>
@@ -97,6 +101,7 @@
               {% if user.is_superuser %}
                 <li><a class="dropdown-item" href="{% url 'core:servicos' %}">Controle de serviços</a></li>
                 <li><a class="dropdown-item" href="{% url 'core:auditoria' %}">Auditoria</a></li>
+                <li><a class="dropdown-item" href="{% url 'core:ldap' %}">LDAP / Active Directory</a></li>
               {% endif %}
               <li><a class="dropdown-item" href="{% url 'admin:auth_user_changelist' %}">Usuários do sistema</a></li>
               <li><hr class="dropdown-divider"></li>
@@ -122,6 +127,7 @@
           </li>
         </ul>
         {% if user.is_authenticated %}
+          <a class="btn user-menu-toggle me-2" href="{% url 'core:notificacoes' %}" title="Notificacoes">Notificacoes{% if notificacoes_nao_lidas %} ({{ notificacoes_nao_lidas }}){% endif %}</a>
           <div class="nav-item dropdown user-menu">
             <button class="btn user-menu-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
               {{ user.get_full_name|default:user.get_username }}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Mesclar ativos | Inventario{% endblock %}
+{% block content %}
+<div class="page-heading mb-4"><div><span class="section-label">Qualidade dos dados</span><h1>Mesclar ativos</h1><p>Escolha o registro que sera preservado e quais registros serao incorporados.</p></div></div>
+<section class="detail-section content-narrow">
+  {% if ativos_sugeridos %}<ul>{% for ativo in ativos_sugeridos %}<li>#{{ ativo.pk }} {{ ativo.nome }} - {{ ativo.ip|default:"sem IP" }} - {{ ativo.numero_serie|default:"sem serial" }}</li>{% endfor %}</ul>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+    {% include "chamados/partials/form_fields.html" with form=form %}
+    <div class="d-flex gap-2"><button class="btn btn-danger" type="submit" onclick="return confirm('Confirmar a mesclagem? Os registros duplicados serao removidos depois da transferencia.');">Mesclar registros</button><a class="btn btn-outline-secondary" href="{% url 'inventario:ativos_duplicados' %}">Cancelar</a></div>
+  </form>
+</section>
+{% endblock %}

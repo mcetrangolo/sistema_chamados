@@ -24,6 +24,9 @@
     Relatorio filtrado. As exportacoes em XLS e PDF usam exatamente este recorte.
   </div>
 {% endif %}
+<div class="alert alert-secondary py-2">
+  Ativos arquivados/desativados nao participam dos totais, graficos, licencas em uso ou exportacoes operacionais.
+</div>
 
 <form method="get" class="filters report-filters mb-4">
   <div class="row g-3">
@@ -48,10 +51,11 @@
   <div class="col-md-3"><div class="metric"><span>Posicoes livres</span><strong>{{ indicadores.licencas_saldo }}</strong></div></div>
 </div>
 <div class="row g-3 mb-4">
-  <div class="col-md-3"><div class="metric"><span>Online</span><strong>{{ indicadores.online }}</strong></div></div>
-  <div class="col-md-3"><div class="metric"><span>Offline</span><strong>{{ indicadores.offline }}</strong></div></div>
-  <div class="col-md-3"><div class="metric"><span>Sem coleta</span><strong>{{ indicadores.sem_coleta }}</strong></div></div>
-  <div class="col-md-3"><div class="metric"><span>Interfaces mapeadas</span><strong>{{ indicadores.com_interfaces }}</strong></div></div>
+  <div class="col-md"><div class="metric"><span>Online</span><strong>{{ indicadores.online }}</strong></div></div>
+  <div class="col-md"><div class="metric"><span>Offline</span><strong>{{ indicadores.offline }}</strong></div></div>
+  <div class="col-md"><div class="metric"><span>Sem coleta</span><strong>{{ indicadores.sem_coleta }}</strong></div></div>
+  <div class="col-md"><a class="metric metric-link metric-warning" href="{% url 'inventario:ativos_sem_comunicacao' %}"><span>Sem comunicacao</span><strong>{{ indicadores.sem_comunicacao }}</strong></a></div>
+  <div class="col-md"><div class="metric"><span>Interfaces mapeadas</span><strong>{{ indicadores.com_interfaces }}</strong></div></div>
 </div>
 
 <div class="row g-4 mb-4">
@@ -103,6 +107,10 @@
           <tr><td>Sem modelo</td><td class="text-end fw-semibold">{{ indicadores.sem_modelo }}</td></tr>
           <tr><td>Sem serial</td><td class="text-end fw-semibold">{{ indicadores.sem_serial }}</td></tr>
           <tr><td>Com interfaces</td><td class="text-end fw-semibold">{{ indicadores.com_interfaces }}</td></tr>
+          <tr><td>IPs duplicados</td><td class="text-end fw-semibold">{{ indicadores.ips_duplicados }}</td></tr>
+          <tr><td>MACs duplicados</td><td class="text-end fw-semibold">{{ indicadores.macs_duplicados }}</td></tr>
+          <tr><td>Seriais duplicados</td><td class="text-end fw-semibold">{{ indicadores.seriais_duplicados }}</td></tr>
+          {% for item in indicadores.por_ciclo_vida %}<tr><td>Ciclo: {{ item.ciclo_vida }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>{% endfor %}
         </tbody>
       </table>
     </section>
@@ -161,11 +169,13 @@
           <thead>
             <tr>
               <th>Nome</th>
+              <th>Patrimonio</th>
               <th>IP</th>
               <th>Tipo</th>
               <th>Fabricante</th>
               <th>Modelo</th>
               <th>Status</th>
+              <th>Ciclo</th>
               <th>Coleta</th>
             </tr>
           </thead>
@@ -173,15 +183,17 @@
             {% for ativo in ativos %}
               <tr>
                 <td><a href="{{ ativo.get_absolute_url }}">{{ ativo.nome }}</a></td>
+                <td>{{ ativo.patrimonio|default:"-" }}</td>
                 <td>{{ ativo.ip|default:"-" }}</td>
                 <td>{{ ativo.tipo|default:"-" }}</td>
                 <td>{{ ativo.fabricante|default:"-" }}</td>
                 <td>{{ ativo.modelo|default:"-" }}</td>
                 <td><span class="badge text-bg-light">{{ ativo.get_status_display }}</span></td>
+                <td>{{ ativo.get_ciclo_vida_display }}</td>
                 <td>{{ ativo.ultima_coleta_em|date:"d/m/Y H:i"|default:"-" }}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="7" class="text-center text-secondary py-4">Nenhum equipamento encontrado.</td></tr>
+              <tr><td colspan="9" class="text-center text-secondary py-4">Nenhum equipamento encontrado.</td></tr>
             {% endfor %}
           </tbody>
         </table>

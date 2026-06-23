@@ -99,6 +99,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 AUTHENTICATION_BACKENDS = [
     "core.auth_backends.CaseInsensitiveModelBackend",
+    "core.auth_backends.LDAPOpcionalBackend",
 ]
 
 LANGUAGE_CODE = "pt-br"
@@ -142,6 +143,11 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "helpdesk@localhost")
 INVENTARIO_AGENT_TOKEN = os.getenv("INVENTARIO_AGENT_TOKEN") or (
     "sistema-chamados-agent-local" if DEBUG else ""
 )
+INVENTARIO_DIAS_SEM_COMUNICACAO = max(
+    1,
+    int(os.getenv("INVENTARIO_DIAS_SEM_COMUNICACAO", "30")),
+)
+BACKUP_ENCRYPTION_KEY = os.getenv("BACKUP_ENCRYPTION_KEY", "").strip()
 
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)

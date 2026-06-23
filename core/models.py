@@ -124,3 +124,113 @@ class RegistroAuditoria(models.Model):
 
     def __str__(self):
         return f"{self.get_acao_display()} - {self.modelo} - {self.objeto}"
+
+
+class ConfiguracaoBackup(models.Model):
+    ativo = models.BooleanField(default=False)
+    intervalo_horas = models.PositiveIntegerField(default=24)
+    pasta_destino = models.CharField(max_length=500, blank=True)
+    manter_ultimos = models.PositiveIntegerField(default=15)
+    validar_automaticamente = models.BooleanField(default=True)
+    ultima_execucao = models.DateTimeField(null=True, blank=True)
+    proxima_execucao = models.DateTimeField(null=True, blank=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def atual(cls):
+        objeto, _ = cls.objects.get_or_create(pk=1)
+        return objeto
+
+
+class RegistroBackup(models.Model):
+    class Status(models.TextChoices):
+        SUCESSO = "sucesso", "Sucesso"
+        ERRO = "erro", "Erro"
+        INVALIDO = "invalido", "Invalido"
+
+    nome_arquivo = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=Status.choices)
+    tamanho_bytes = models.BigIntegerField(default=0)
+    sha256 = models.CharField(max_length=64, blank=True)
+    destino = models.CharField(max_length=500, blank=True)
+    mensagem = models.TextField(blank=True)
+    validado_em = models.DateTimeField(null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+
+
+class Notificacao(models.Model):
+    class Nivel(models.TextChoices):
+        INFO = "info", "Informacao"
+        SUCESSO = "sucesso", "Sucesso"
+        ALERTA = "alerta", "Alerta"
+        CRITICO = "critico", "Critico"
+
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notificacoes")
+    titulo = models.CharField(max_length=180)
+    mensagem = models.TextField()
+    nivel = models.CharField(max_length=20, choices=Nivel.choices, default=Nivel.INFO)
+    link = models.CharField(max_length=500, blank=True)
+    chave = models.CharField(max_length=180, blank=True, db_index=True)
+    lida_em = models.DateTimeField(null=True, blank=True)
+    email_enviado_em = models.DateTimeField(null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+        indexes = [models.Index(fields=["usuario", "lida_em", "criado_em"])]
+
+
+class ConfiguracaoLDAP(models.Model):
+    ativo = models.BooleanField(default=False)
+    servidor = models.CharField(max_length=255, blank=True)
+    porta = models.PositiveIntegerField(default=389)
+    usar_ssl = models.BooleanField(default=False)
+    usuario_bind = models.CharField(max_length=255, blank=True)
+    senha_criptografada = models.TextField(blank=True, editable=False)
+    base_dn = models.CharField(max_length=255, blank=True)
+    filtro_usuarios = models.CharField(max_length=255, default="(objectClass=user)")
+    filtro_computadores = models.CharField(max_length=255, default="(objectClass=computer)")
+    atributo_login = models.CharField(max_length=80, default="sAMAccountName")
+    atributo_nome = models.CharField(max_length=80, default="givenName")
+    atributo_sobrenome = models.CharField(max_length=80, default="sn")
+    atributo_email = models.CharField(max_length=80, default="mail")
+    sincronizar_ativos = models.BooleanField(default=True)
+    ultima_sincronizacao = models.DateTimeField(null=True, blank=True)
+    ultima_mensagem = models.TextField(blank=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def atual(cls):
+        objeto, _ = cls.objects.get_or_create(pk=1)
+        return objeto
+
+    def definir_senha(self, senha):
+        if not senha:
+            return
+        import base64
+        import hashlib
+        from cryptography.fernet import Fernet
+
+        chave = base64.urlsafe_b64encode(hashlib.sha256(settings.SECRET_KEY.encode()).digest())
+        self.senha_criptografada = Fernet(chave).encrypt(senha.encode()).decode()
+
+    def obter_senha(self):
+        if not self.senha_criptografada:
+            return ""
+        import base64
+        import hashlib
+        from cryptography.fernet import Fernet
+
+        chave = base64.urlsafe_b64encode(hashlib.sha256(settings.SECRET_KEY.encode()).digest())
+        return Fernet(chave).decrypt(self.senha_criptografada.encode()).decode()

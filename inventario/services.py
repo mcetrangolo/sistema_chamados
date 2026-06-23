@@ -520,18 +520,37 @@ def descobrir_por_faixa(faixa, metodo, portas=""):
 
 
 def descobrir_ad():
-    if not all([settings.AD_SERVER, settings.AD_USER, settings.AD_PASSWORD, settings.AD_BASE_DN]):
+    from core.models import ConfiguracaoLDAP
+
+    configuracao = ConfiguracaoLDAP.atual()
+    if configuracao.ativo:
+        servidor_ldap = configuracao.servidor
+        porta = configuracao.porta
+        usar_ssl = configuracao.usar_ssl
+        usuario = configuracao.usuario_bind
+        senha = configuracao.obter_senha()
+        base_dn = configuracao.base_dn
+        filtro = configuracao.filtro_computadores
+    else:
+        servidor_ldap = settings.AD_SERVER
+        porta = 389
+        usar_ssl = False
+        usuario = settings.AD_USER
+        senha = settings.AD_PASSWORD
+        base_dn = settings.AD_BASE_DN
+        filtro = settings.AD_COMPUTERS_FILTER
+    if not all([servidor_ldap, usuario, senha, base_dn]):
         raise RuntimeError("Configurações do Active Directory não foram informadas no .env.")
     try:
         from ldap3 import ALL, Connection, Server
     except Exception as exc:
         raise RuntimeError("Biblioteca ldap3 não está instalada.") from exc
 
-    server = Server(settings.AD_SERVER, get_info=ALL)
-    conn = Connection(server, user=settings.AD_USER, password=settings.AD_PASSWORD, auto_bind=True)
+    server = Server(servidor_ldap, port=porta, use_ssl=usar_ssl, get_info=ALL)
+    conn = Connection(server, user=usuario, password=senha, auto_bind=True)
     conn.search(
-        settings.AD_BASE_DN,
-        settings.AD_COMPUTERS_FILTER,
+        base_dn,
+        filtro,
         attributes=["cn", "dNSHostName", "operatingSystem", "description"],
     )
     descobertos = []

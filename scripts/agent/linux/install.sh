@@ -181,6 +181,7 @@ def payload(config):
     cpu = run(["sh", "-c", "awk -F: '/model name/ {print $2; exit}' /proc/cpuinfo | sed 's/^ //'"])
     office = run(["sh", "-c", "command -v libreoffice >/dev/null 2>&1 && libreoffice --version | head -n1 || true"])
     return {
+        "versao_agente": "1.3.0",
         "hostname": socket.gethostname(),
         "ip": ip,
         "mac": primary.get("mac", ""),

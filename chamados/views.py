@@ -303,7 +303,7 @@ class PainelView(LoginRequiredMixin, TemplateView):
                 "agentes_sem_coleta": AtivoRede.objects.filter(
                     origem=AtivoRede.Origem.AGENTE,
                     ultima_coleta_em__lt=limite_coleta,
-                ).count(),
+                ).exclude(status=AtivoRede.Status.DESATIVADO).count(),
                 "licencas_vencidas": LicencaSoftware.objects.filter(status=LicencaSoftware.Status.VENCIDA).count(),
             }
         except Exception:
@@ -1371,7 +1371,11 @@ def dados_inventario_relatorio():
             "ativos": [],
         }
 
-    ativos = AtivoRede.objects.select_related("tipo", "setor").order_by("nome")
+    ativos = (
+        AtivoRede.objects.select_related("tipo", "setor")
+        .exclude(status=AtivoRede.Status.DESATIVADO)
+        .order_by("nome")
+    )
     return {
         "disponivel": True,
         "total": ativos.count(),

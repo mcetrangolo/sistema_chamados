@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
 from django.urls import reverse
 
@@ -102,6 +103,14 @@ class AtivoRede(models.Model):
         AGENTE = "agente", "Agente"
         IMPORTACAO = "importacao", "Importação"
 
+    class CicloVida(models.TextChoices):
+        ESTOQUE = "estoque", "Em estoque"
+        EM_USO = "em_uso", "Em uso"
+        MANUTENCAO = "manutencao", "Em manutencao"
+        EMPRESTADO = "emprestado", "Emprestado"
+        BAIXADO = "baixado", "Baixado"
+        DESCARTADO = "descartado", "Descartado"
+
     nome = models.CharField(max_length=150)
     tipo = models.ForeignKey(TipoAtivo, on_delete=models.PROTECT, related_name="ativos")
     setor = models.ForeignKey(
@@ -117,6 +126,7 @@ class AtivoRede(models.Model):
     fabricante = models.CharField(max_length=120, blank=True)
     modelo = models.CharField(max_length=120, blank=True)
     numero_serie = models.CharField("número de série", max_length=120, blank=True)
+    patrimonio = models.CharField(max_length=80, blank=True, db_index=True)
     sistema_operacional = models.CharField(max_length=150, blank=True)
     arquitetura = models.CharField(max_length=40, blank=True)
     processador = models.CharField(max_length=180, blank=True)
@@ -130,9 +140,15 @@ class AtivoRede(models.Model):
     responsavel = models.CharField(max_length=150, blank=True)
     funcao = models.CharField("função", max_length=150, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DESCONHECIDO)
+    ciclo_vida = models.CharField(max_length=20, choices=CicloVida.choices, default=CicloVida.EM_USO)
+    data_aquisicao = models.DateField(null=True, blank=True)
+    garantia_ate = models.DateField(null=True, blank=True)
+    data_baixa = models.DateField(null=True, blank=True)
+    motivo_baixa = models.TextField(blank=True)
     origem = models.CharField(max_length=20, choices=Origem.choices, default=Origem.MANUAL)
     observacoes = models.TextField("observações", blank=True)
     ultima_coleta_em = models.DateTimeField(null=True, blank=True)
+    coleta_solicitada_em = models.DateTimeField(null=True, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
@@ -199,7 +215,7 @@ class LicencaSoftware(models.Model):
 
     @property
     def quantidade_em_uso(self):
-        return self.ativos.count()
+        return self.ativos.exclude(status=AtivoRede.Status.DESATIVADO).count()
 
     @property
     def saldo(self):
@@ -237,6 +253,116 @@ class HistoricoAlteracaoAtivo(models.Model):
 
     def __str__(self):
         return f"{self.ativo} - {self.campo}"
+
+
+class MovimentacaoAtivo(models.Model):
+    ativo = models.ForeignKey(AtivoRede, on_delete=models.CASCADE, related_name="movimentacoes")
+    setor_origem = models.ForeignKey(
+        Setor, on_delete=models.SET_NULL, null=True, blank=True, related_name="movimentacoes_origem"
+    )
+    setor_destino = models.ForeignKey(
+        Setor, on_delete=models.SET_NULL, null=True, blank=True, related_name="movimentacoes_destino"
+    )
+    local_origem = models.CharField(max_length=150, blank=True)
+    local_destino = models.CharField(max_length=150, blank=True)
+    responsavel_origem = models.CharField(max_length=150, blank=True)
+    responsavel_destino = models.CharField(max_length=150, blank=True)
+    ciclo_anterior = models.CharField(max_length=20, choices=AtivoRede.CicloVida.choices)
+    ciclo_novo = models.CharField(max_length=20, choices=AtivoRede.CicloVida.choices)
+    motivo = models.TextField()
+    movimentado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+
+
+class TermoResponsabilidadeAtivo(models.Model):
+    class Tipo(models.TextChoices):
+        ENTREGA = "entrega", "Entrega"
+        DEVOLUCAO = "devolucao", "Devolucao"
+        EMPRESTIMO = "emprestimo", "Emprestimo"
+
+    ativo = models.ForeignKey(AtivoRede, on_delete=models.CASCADE, related_name="termos_responsabilidade")
+    tipo = models.CharField(max_length=20, choices=Tipo.choices)
+    responsavel = models.CharField(max_length=180)
+    matricula = models.CharField(max_length=80, blank=True)
+    setor = models.ForeignKey(Setor, on_delete=models.SET_NULL, null=True, blank=True)
+    finalidade = models.TextField(blank=True)
+    texto_termo = models.TextField()
+    data_evento = models.DateField()
+    assinatura_nome = models.CharField(max_length=180, blank=True)
+    aceite_em = models.DateTimeField(null=True, blank=True)
+    criado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+
+
+class RegistroColetaAgente(models.Model):
+    class Status(models.TextChoices):
+        SUCESSO = "sucesso", "Sucesso"
+        ERRO = "erro", "Erro"
+        REJEITADA = "rejeitada", "Rejeitada"
+
+    ativo = models.ForeignKey(
+        AtivoRede, on_delete=models.CASCADE, null=True, blank=True, related_name="registros_coleta"
+    )
+    hostname = models.CharField(max_length=150, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices)
+    mensagem = models.CharField(max_length=500, blank=True)
+    ip_origem = models.GenericIPAddressField(null=True, blank=True)
+    versao_agente = models.CharField(max_length=40, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+        indexes = [models.Index(fields=["status", "criado_em"])]
+
+
+class SondaRemota(models.Model):
+    nome = models.CharField(max_length=120, unique=True)
+    localidade = models.CharField(max_length=180, blank=True)
+    descricao = models.TextField(blank=True)
+    faixas = models.ManyToManyField(FaixaRede, related_name="sondas", blank=True)
+    token_hash = models.CharField(max_length=256, editable=False)
+    token_prefixo = models.CharField(max_length=12, blank=True, editable=False)
+    ativa = models.BooleanField(default=True)
+    ultima_comunicacao_em = models.DateTimeField(null=True, blank=True)
+    ultima_mensagem = models.CharField(max_length=500, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["nome"]
+
+    def definir_token(self, token):
+        self.token_hash = make_password(token)
+        self.token_prefixo = token[:8]
+
+    def verificar_token(self, token):
+        return bool(self.token_hash and check_password(token, self.token_hash))
+
+    def __str__(self):
+        return self.nome
+
+
+class ExecucaoSonda(models.Model):
+    class Status(models.TextChoices):
+        SUCESSO = "sucesso", "Sucesso"
+        ERRO = "erro", "Erro"
+
+    sonda = models.ForeignKey(SondaRemota, on_delete=models.CASCADE, related_name="execucoes")
+    status = models.CharField(max_length=20, choices=Status.choices)
+    ativos_encontrados = models.PositiveIntegerField(default=0)
+    mensagem = models.CharField(max_length=500, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
 
 
 class InterfaceRede(models.Model):
