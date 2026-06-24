@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Ajuda | Sistema de Chamados{% endblock %}
+
+{% block content %}
+<div class="page-header help-header">
+  <div>
+    <div class="eyebrow">CENTRAL DE AJUDA</div>
+    <h1>Ajuda do sistema</h1>
+    <p>Orientacoes para operar o service desk, o inventario e os recursos administrativos.</p>
+  </div>
+  <span class="badge text-bg-light border">{{ sistema_versao }}</span>
+</div>
+
+<div class="help-search mb-4">
+  <label class="form-label" for="help-search-input">Buscar nesta ajuda</label>
+  <input class="form-control" id="help-search-input" type="search"
+         placeholder="Ex.: trocar token, atualizar sistema, encerrar chamado"
+         autocomplete="off">
+  <div class="form-text" id="help-search-status" aria-live="polite"></div>
+</div>
+
+<div class="help-layout">
+  <nav class="help-nav" aria-label="Topicos da ajuda">
+    <a href="#primeiros-passos">Primeiros passos</a>
+    <a href="#chamados">Chamados</a>
+    <a href="#sla">SLA</a>
+    <a href="#catalogo">Catalogo</a>
+    <a href="#inventario">Inventario</a>
+    <a href="#agentes">Agentes e token</a>
+    <a href="#usuarios">Usuarios e LDAP</a>
+    <a href="#contratos">Contratos</a>
+    <a href="#relatorios">Relatorios</a>
+    <a href="#backup">Backup</a>
+    <a href="#atualizacao">Atualizacao</a>
+    <a href="#diagnostico">Diagnostico</a>
+  </nav>
+
+  <div class="help-content" id="help-content">
+    <section class="help-section" id="primeiros-passos" data-help-section>
+      <h2>Primeiros passos e perfil</h2>
+      <p>O menu principal concentra chamados, inventario, relatorios, governanca e configuracoes conforme as permissoes do usuario.</p>
+      <ul>
+        <li><strong>Solicitante:</strong> abre e acompanha os proprios chamados.</li>
+        <li><strong>Atendente:</strong> trata chamados, registra interacoes, tarefas e solucoes.</li>
+        <li><strong>Administrador:</strong> configura usuarios, catalogo, SLA, inventario e operacao do servidor.</li>
+      </ul>
+      <p>No menu com seu nome, use <strong>Minhas informacoes</strong> para atualizar e-mail, telefone e outros dados. A opcao <strong>Alterar senha</strong> exige a senha atual.</p>
+      <div class="help-actions">
+        <a href="{% url 'core:perfil' %}">Minhas informacoes</a>
+        <a href="{% url 'password_change' %}">Alterar senha</a>
+        <a href="{% url 'core:notificacoes' %}">Notificacoes</a>
+      </div>
+    </section>
+
+    <section class="help-section" id="chamados" data-help-section>
+      <h2>Chamados</h2>
+      <p>Todo atendimento deve permanecer registrado no chamado para preservar historico, responsabilidade e indicadores.</p>
+      <ul>
+        <li>Na fila, passe o mouse sobre o numero para ver a descricao do problema.</li>
+        <li>Use filtros e a busca global para localizar chamados por numero, texto, solicitante e periodo.</li>
+        <li>Na tela de tratamento, atribua o atendente ou encaminhe para outra equipe quando a responsabilidade mudar.</li>
+        <li>Respostas publicas ficam visiveis ao solicitante; registros internos devem ser usados apenas pela equipe.</li>
+        <li>Ao resolver ou encerrar, informe claramente a solucao aplicada.</li>
+      </ul>
+      <div class="help-actions">
+        <a href="{% url 'chamados:lista' %}">Fila de chamados</a>
+        <a href="{% url 'chamados:novo' %}">Abrir chamado interno</a>
+        <a href="{% url 'chamados:busca_global' %}">Busca global</a>
+      </div>
+    </section>
+
+    <section class="help-section" id="sla" data-help-section>
+      <h2>SLA e prazos</h2>
+      <p>O SLA mede o prazo de primeira resposta e de solucao. A regra aplicavel pode variar por prioridade e categoria.</p>
+      <ul>
+        <li><strong>Primeira resposta:</strong> tempo ate a primeira atuacao registrada pela equipe.</li>
+        <li><strong>Solucao:</strong> tempo ate o chamado ser resolvido.</li>
+        <li>Status de espera podem pausar a contagem quando isso estiver previsto na regra.</li>
+      </ul>
+      {% if user.is_superuser %}
+        <div class="help-actions"><a href="{% url 'chamados:sla_regras' %}">Configurar regras de SLA</a></div>
+      {% endif %}
+    </section>
+
+    <section class="help-section" id="catalogo" data-help-section>
+      <h2>Catalogo de servicos e governanca</h2>
+      <p>O catalogo oferece formularios padronizados e gera chamados com o topico correto. Fluxos de aprovacao devem ser ativados somente para servicos que realmente exigem autorizacao.</p>
+      <div class="help-actions">
+        <a href="{% url 'chamados:catalogo' %}">Abrir catalogo</a>
+        {% if user.is_superuser %}<a href="{% url 'chamados:servicos' %}">Administrar servicos</a>{% endif %}
+      </div>
+    </section>
+
+    <section class="help-section" id="inventario" data-help-section>
+      <h2>Inventario, CMDB e licencas</h2>
+      <p>Os ativos podem ser cadastrados manualmente, descobertos pela rede ou atualizados pelos agentes. A CMDB relaciona ativos, usuarios, setores, chamados e dependencias.</p>
+      <ul>
+        <li>Revise duplicidades antes de mesclar registros para evitar perda de historico.</li>
+        <li>Ativos sem comunicacao por mais de 30 dias ficam em uma lista separada para verificacao, arquivamento ou exclusao.</li>
+        <li>Ativos arquivados nao entram nos indicadores operacionais correntes.</li>
+        <li>Licencas podem ser por prazo ou perpetuas. Para uma licenca perpetua, marque essa modalidade sem vencimento.</li>
+        <li>O QR Code identifica o ativo e abre sua pagina publica de identificacao.</li>
+      </ul>
+      <div class="help-actions">
+        <a href="{% url 'inventario:painel' %}">Painel do inventario</a>
+        <a href="{% url 'inventario:ativos' %}">Ativos</a>
+        <a href="{% url 'inventario:ativos_sem_comunicacao' %}">Sem comunicacao</a>
+        <a href="{% url 'inventario:ativos_duplicados' %}">Duplicados</a>
+        <a href="{% url 'inventario:licencas' %}">Licencas</a>
+      </div>
+    </section>
+
+    <section class="help-section" id="agentes" data-help-section>
+      <h2>Agentes de inventario e troca de token</h2>
+      <p>O agente Windows coleta no inicio do computador e periodicamente. O icone na bandeja permite ajustar servidor, porta e token, solicitar uma coleta, reiniciar o agente e consultar o log. No Linux, a coleta usa um servico e temporizador do systemd.</p>
+      <h3>Quando o servidor ou o token mudar</h3>
+      <ol>
+        <li>O administrador altera <code>INVENTARIO_AGENT_TOKEN</code> no arquivo <code>.env</code> do servidor e reinicia a aplicacao.</li>
+        <li>No Windows, abra o icone do agente na bandeja e atualize servidor e token. Tambem e possivel executar o instalador atual sobre a instalacao existente.</li>
+        <li>No Linux, atualize <code>/etc/sistema-chamados-agent/config.env</code> e reinicie o temporizador.</li>
+      </ol>
+      <p>O erro <strong>403 - Token invalido ou nao configurado</strong> significa que o token salvo no equipamento nao coincide com o token do servidor.</p>
+      {% if user.is_superuser %}
+        <div class="help-actions"><a href="{% url 'inventario:agente_config' %}">Baixar e configurar agentes</a></div>
+      {% endif %}
+    </section>
+
+    <section class="help-section" id="usuarios" data-help-section>
+      <h2>Usuarios, senhas e LDAP</h2>
+      <p>O login local nao diferencia letras maiusculas e minusculas no nome do usuario. Cada pessoa deve usar uma conta individual para que a auditoria seja confiavel.</p>
+      <ul>
+        <li>Usuarios alteram os proprios dados e senha pelo menu do perfil.</li>
+        <li>Administradores podem criar, desativar e redefinir contas.</li>
+        <li>A integracao LDAP/Active Directory e opcional e configurada pela interface web.</li>
+      </ul>
+      {% if user.is_superuser %}
+        <div class="help-actions">
+          <a href="{% url 'admin:auth_user_changelist' %}">Administrar usuarios</a>
+          <a href="{% url 'core:ldap' %}">Configurar LDAP</a>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="help-section" id="contratos" data-help-section>
+      <h2>Contratos publicos</h2>
+      <p>O modulo registra fornecedores, vigencia, fiscais, anexos, aditivos, pedidos de prorrogacao e alertas. Ele apoia a gestao administrativa relacionada as Leis 14.133/2021 e 8.666/1993, mas nao substitui analise juridica nem os procedimentos oficiais do orgao.</p>
+      <div class="help-actions"><a href="{% url 'contratos:lista' %}">Contratos</a></div>
+    </section>
+
+    <section class="help-section" id="relatorios" data-help-section>
+      <h2>Relatorios, conhecimento e documentacao</h2>
+      <p>Use os filtros antes de exportar PDF ou planilha. Os relatorios de inventario excluem ativos arquivados dos totais operacionais. A base de conhecimento registra solucoes reutilizaveis; a documentacao de infraestrutura guarda procedimentos internos e anexos.</p>
+      <div class="help-actions">
+        <a href="{% url 'chamados:relatorio' %}">Relatorio de chamados</a>
+        <a href="{% url 'inventario:relatorio' %}">Relatorio de inventario</a>
+        <a href="{% url 'chamados:conhecimento' %}">Base de conhecimento</a>
+        <a href="{% url 'documentacao:lista' %}">Documentacao interna</a>
+      </div>
+    </section>
+
+    <section class="help-section" id="backup" data-help-section>
+      <h2>Backup e restauracao</h2>
+      <p>Faca backup antes de atualizar e mantenha uma copia fora do servidor. O backup deve proteger banco de dados, anexos e configuracao. Teste periodicamente a restauracao em ambiente separado.</p>
+      {% if user.is_superuser %}
+        <div class="help-actions"><a href="{% url 'core:backup' %}">Gerenciar backups</a></div>
+      {% endif %}
+    </section>
+
+    <section class="help-section" id="atualizacao" data-help-section>
+      <h2>Atualizacao do sistema</h2>
+      <p>Antes de atualizar, confirme que o repositorio esta acessivel, gere um backup e reserve uma janela de manutencao. A atualizacao pela interface executa o fluxo do servidor e apresenta o resultado.</p>
+      {% if user.is_superuser %}
+        <pre class="help-code"><code>cd /opt/sistema-chamados
+docker compose exec web python manage.py backup_local
+bash scripts/deploy_linux.sh</code></pre>
+        <div class="help-actions"><a href="{% url 'core:atualizacoes' %}">Verificar atualizacoes</a></div>
+      {% else %}
+        <p>Somente administradores podem executar atualizacoes.</p>
+      {% endif %}
+    </section>
+
+    <section class="help-section" id="diagnostico" data-help-section>
+      <h2>Diagnostico e seguranca</h2>
+      <dl class="help-diagnostics">
+        <dt>Pagina indisponivel</dt><dd>Verifique o controle de servicos e os logs do container web.</dd>
+        <dt>Agente retorna 403</dt><dd>Compare o token do equipamento com <code>INVENTARIO_AGENT_TOKEN</code>.</dd>
+        <dt>Scan nao encontra IPs</dt><dd>Revise a faixa, a rota da rede, firewall, ICMP, portas TCP, Nmap e permissoes do servidor.</dd>
+        <dt>Dados desatualizados</dt><dd>Confira a ultima coleta, o agendamento e o relogio do servidor e do equipamento.</dd>
+      </dl>
+      <p>Nunca publique o arquivo <code>.env</code>, tokens, senhas ou backups no GitHub. Use HTTPS quando o sistema sair da rede interna.</p>
+      {% if user.is_superuser %}
+        <div class="help-actions">
+          <a href="{% url 'core:servicos' %}">Controle de servicos</a>
+          <a href="{% url 'core:auditoria' %}">Auditoria</a>
+          <a href="https://github.com/mcetrangolo/sistema_chamados" target="_blank" rel="noopener">Repositorio no GitHub</a>
+        </div>
+      {% endif %}
+    </section>
+
+    <p class="help-empty" id="help-empty" hidden>Nenhum topico corresponde a essa busca.</p>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const input = document.getElementById('help-search-input');
+    const sections = Array.from(document.querySelectorAll('[data-help-section]'));
+    const status = document.getElementById('help-search-status');
+    const empty = document.getElementById('help-empty');
+    const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    input.addEventListener('input', function () {
+      const query = normalize(input.value.trim());
+      let visible = 0;
+      sections.forEach(function (section) {
+        const matches = !query || normalize(section.textContent).includes(query);
+        section.hidden = !matches;
+        if (matches) visible += 1;
+      });
+      empty.hidden = visible !== 0;
+      status.textContent = query ? visible + (visible === 1 ? ' topico encontrado.' : ' topicos encontrados.') : '';
+    });
+  }());
+</script>
+{% endblock %}

@@ -6,6 +6,7 @@ from . import views
 app_name = "core"
 
 urlpatterns = [
+    path("ajuda/", views.AjudaSistemaView.as_view(), name="ajuda"),
     path("perfil/", views.PerfilUsuarioView.as_view(), name="perfil"),
     path("institucional/", views.ConfiguracaoInstitucionalView.as_view(), name="configuracao"),
     path("backup/", views.BackupConfiguracaoView.as_view(), name="backup"),

@@ -58,6 +58,10 @@ class PerfilUsuarioView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
+class AjudaSistemaView(LoginRequiredMixin, TemplateView):
+    template_name = "core/ajuda.html"
+
+
 class AuditoriaListView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateView):
     template_name = "core/auditoria.html"
 

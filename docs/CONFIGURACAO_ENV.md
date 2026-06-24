@@ -64,9 +64,9 @@ Se os agentes Windows/Linux foram instalados apontando para o IP antigo, eles po
 
 Nesses casos:
 
-- reinstale o agente usando o novo endereco; ou
-- ajuste o `config.json` no Windows em `C:\ProgramData\SistemaChamadosAgent`; ou
-- ajuste a configuracao do agente Linux em `/opt/sistema-chamados-agent`, conforme instalacao.
+- no Windows, use o icone do agente na bandeja para alterar servidor e token, ou execute o instalador atual sobre a instalacao existente;
+- no Linux, ajuste `/etc/sistema-chamados-agent/config.env` e reinicie o temporizador;
+- valide uma coleta manual antes de aguardar o proximo ciclo automatico.
 
 ## E-mail SMTP
 
@@ -107,4 +107,4 @@ docker compose exec web python manage.py testar_ad
 - Nunca envie `.env` para o GitHub.
 - Em producao, use `DEBUG=False`.
 - Para HTTPS publico, revise `SECURE_PROXY_SSL_HEADER`, `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE` e `CSRF_COOKIE_SECURE`.
-- Se trocar `INVENTARIO_AGENT_TOKEN`, gere novamente o instalador Windows ou use o ZIP com o token atualizado.
+- Se trocar `INVENTARIO_AGENT_TOKEN`, atualize o token nos agentes Windows e Linux ja instalados.

@@ -19,6 +19,7 @@ def criar_artigos_agente(apps, schema_editor):
     ArtigoConhecimento.objects.get_or_create(
         titulo="Instalacao do agente de inventario no Windows",
         defaults={
+            "slug": "instalacao-do-agente-de-inventario-no-windows",
             "topico_ajuda": topico,
             "resumo": "Como baixar, instalar, configurar e remover o agente Windows.",
             "conteudo": (
@@ -34,6 +35,7 @@ def criar_artigos_agente(apps, schema_editor):
     ArtigoConhecimento.objects.get_or_create(
         titulo="Instalacao do agente de inventario no Linux",
         defaults={
+            "slug": "instalacao-do-agente-de-inventario-no-linux",
             "topico_ajuda": topico,
             "resumo": "Como instalar o agente Linux em Debian, Ubuntu, Proxmox e servidores similares.",
             "conteudo": (

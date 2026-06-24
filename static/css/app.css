@@ -57,6 +57,135 @@ a {
   margin-bottom: .35rem;
 }
 
+.help-header {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+}
+
+.help-search {
+  max-width: 760px;
+}
+
+.help-layout {
+  align-items: start;
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.help-nav {
+  border-left: 2px solid var(--line);
+  display: grid;
+  position: sticky;
+  top: 1rem;
+}
+
+.help-nav a {
+  color: #334155;
+  font-size: .92rem;
+  padding: .42rem .8rem;
+}
+
+.help-nav a:hover,
+.help-nav a:focus {
+  color: var(--primary);
+}
+
+.help-content {
+  max-width: 1000px;
+  min-width: 0;
+}
+
+.help-section {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 2rem;
+  padding: 0 0 2rem;
+  scroll-margin-top: 1rem;
+}
+
+.help-section h2 {
+  font-size: 1.35rem;
+  margin-bottom: .75rem;
+}
+
+.help-section h3 {
+  font-size: 1rem;
+  margin-top: 1.25rem;
+}
+
+.help-section li + li {
+  margin-top: .45rem;
+}
+
+.help-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-top: 1rem;
+}
+
+.help-actions a {
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--primary-dark);
+  font-size: .9rem;
+  font-weight: 600;
+  padding: .45rem .7rem;
+}
+
+.help-actions a:hover,
+.help-actions a:focus {
+  background: var(--surface-soft);
+  border-color: var(--primary);
+}
+
+.help-code {
+  background: #111827;
+  border-radius: 6px;
+  color: #e5e7eb;
+  overflow-x: auto;
+  padding: 1rem;
+}
+
+.help-diagnostics {
+  display: grid;
+  gap: .65rem 1rem;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+}
+
+.help-diagnostics dt,
+.help-diagnostics dd {
+  margin: 0;
+}
+
+.help-empty {
+  color: var(--muted);
+  font-weight: 600;
+  padding: 2rem 0;
+}
+
+@media (max-width: 900px) {
+  .help-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .help-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    position: static;
+  }
+
+  .help-diagnostics {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 576px) {
+  .help-nav {
+    grid-template-columns: 1fr;
+  }
+}
+
 .app-page {
   background: var(--app-bg);
 }

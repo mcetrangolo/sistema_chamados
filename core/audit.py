@@ -27,6 +27,8 @@ class AuditoriaMiddleware:
 
 def registrar(modelo, instance, acao):
     app_label = modelo._meta.app_label
+    if getattr(modelo, "__module__", "") == "__fake__":
+        return
     if modelo.__name__ == "Migration":
         return
     if app_label == "core" and modelo.__name__ == "RegistroAuditoria":

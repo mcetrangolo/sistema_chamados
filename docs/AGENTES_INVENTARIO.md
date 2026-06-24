@@ -1,73 +1,46 @@
 # Agentes de Inventario Windows/Linux
 
-## Agente Windows
-
-O agente Windows coleta dados da maquina e envia para:
+Os agentes coletam dados do equipamento e enviam para:
 
 ```text
 POST /inventario/agente/coleta/
 ```
 
-Dados coletados:
-
-- hostname, IP principal e MAC;
-- usuario logado e dominio/grupo de trabalho;
-- fabricante, modelo e numero de serie;
-- versao/build do Windows e arquitetura;
-- processador, memoria total e disco total;
-- Microsoft Office/Microsoft 365 quando detectado;
-- lista resumida de softwares instalados;
-- interfaces de rede ativas.
+Entre os dados coletados estao hostname, IP, MAC, usuario, fabricante, modelo, numero de serie, sistema operacional, processador, memoria, disco, interfaces de rede e softwares detectados.
 
 ## Download pelo sistema
 
 Acesse:
 
 ```text
-Inventario > Configurar agente
+Inventario > Agentes de inventario
 ```
 
-Downloads disponiveis:
+Estao disponiveis o instalador Windows `.exe` e o instalador Linux `.sh`. O antigo pacote ZIP do Windows nao e mais necessario.
 
-- instalador Windows `.exe`;
-- pacote Windows `.zip` sem executavel compilado;
-- instalador Linux `.sh`.
+## Windows
 
-O ZIP Windows e gerado com scripts e token atuais da instalacao e inclui:
+Baixe e execute `SistemaChamadosAgentSetup.exe` como administrador. Durante a instalacao, informe o IP ou URL do servidor, a porta quando aplicavel e o token apresentado pelo administrador.
 
-```text
-InstalarAgente.cmd
-install_gui.ps1
-install.ps1
-agent.ps1
-uninstall.ps1
-README.md
-```
-
-## Instalar no Windows
-
-Baixe o ZIP ou EXE pela tela de agentes.
-
-No ZIP, extraia e execute como Administrador:
+Exemplos de endereco:
 
 ```text
-InstalarAgente.cmd
-```
-
-Durante a instalacao, informe o IP ou URL do servidor:
-
-```text
-192.168.0.10
 http://192.168.0.10
+http://192.168.0.10:8000
 https://chamados.seudominio.local
 ```
 
-O agente cria tarefas agendadas:
+O instalador cria as tarefas `SistemaChamadosAgentStartup` e `SistemaChamadosAgentInterval`. A coleta ocorre na inicializacao e a cada 6 horas. O icone na bandeja permite:
 
-- `SistemaChamadosAgentStartup`;
-- `SistemaChamadosAgentInterval`.
+- configurar servidor, porta e token;
+- enviar uma coleta imediatamente;
+- reiniciar as tarefas do agente;
+- abrir o log e o sistema;
+- consultar os dados da instalacao.
 
-## Instalar no Linux
+Uma atualizacao preserva a configuracao existente. A desinstalacao fica disponivel nos Aplicativos do Windows e no Menu Iniciar.
+
+## Linux
 
 Baixe o arquivo pela tela de agentes e execute:
 
@@ -75,11 +48,15 @@ Baixe o arquivo pela tela de agentes e execute:
 sudo sh sistema-chamados-agent-linux.sh
 ```
 
-O agente usa `systemd timer` quando disponivel; caso contrario, usa cron.
+Com systemd, o instalador cria um servico e um temporizador que executa no boot e a cada 6 horas. Sem systemd, usa cron. A configuracao fica em:
+
+```text
+/etc/sistema-chamados-agent/config.env
+```
 
 ## Token do agente
 
-Configure no `.env`:
+No servidor, configure um valor grande e secreto no `.env`:
 
 ```env
 INVENTARIO_AGENT_TOKEN=gere-um-token-grande-e-secreto
@@ -88,7 +65,10 @@ INVENTARIO_AGENT_TOKEN=gere-um-token-grande-e-secreto
 Depois reinicie:
 
 ```bash
+cd /opt/sistema-chamados
 docker compose restart
 ```
 
-Se trocar o token, gere novamente o instalador ou use o ZIP atualizado pela tela.
+Ao trocar o token, atualize tambem os equipamentos instalados. No Windows, use o icone da bandeja ou execute o instalador atual sobre a instalacao existente. No Linux, edite `/etc/sistema-chamados-agent/config.env` e reinicie o timer.
+
+O retorno `403 - Token invalido ou nao configurado` indica que o token do equipamento nao coincide com o servidor.
