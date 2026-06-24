@@ -898,6 +898,10 @@ a {
   z-index: 1090;
 }
 
+.ticket-preview-popup[hidden] {
+  display: none !important;
+}
+
 .ticket-preview-popup.is-visible {
   display: block;
 }

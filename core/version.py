@@ -1,2 +1,2 @@
-SISTEMA_VERSAO = "v1.7.5"
-SISTEMA_VERSAO_NOME = "Previa Local da Descricao dos Chamados"
+SISTEMA_VERSAO = "v1.7.6"
+SISTEMA_VERSAO_NOME = "Previa de Chamados sob Demanda"
