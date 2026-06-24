@@ -57,6 +57,8 @@ Por padrao, o token ja vai embutido no instalador local. Se o servidor usar outr
 
 O instalador exibe janelas simples de boas-vindas e configuração. Ao final, o agente fica registrado em **Painel de Controle > Programas e Recursos** como `Sistema Chamados Agent`.
 
+Ao atualizar uma instalacao existente, o instalador reaproveita automaticamente servidor, token e numero de patrimonio do `config.json`. Ele tambem instala um icone na bandeja do Windows com comandos para configurar a conexao, enviar uma coleta, reiniciar o agente, abrir o sistema e consultar o ultimo log.
+
 O pacote `.exe` grava os scripts internos em `C:\ProgramData\SistemaChamadosAgent`, solicita permissao de Administrador via UAC, cria as tarefas agendadas e executa a primeira coleta sem janela preta de console.
 
 O log da ultima execucao fica em:

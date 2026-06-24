@@ -49,7 +49,7 @@ function Copy-SetupFiles {
         Remove-Item -Path $stageDir -Recurse -Force
     }
     New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
-    foreach ($file in @("agent.ps1", "install.ps1", "uninstall.ps1")) {
+    foreach ($file in @("agent.ps1", "install.ps1", "uninstall.ps1", "SistemaChamadosAgentTray.exe")) {
         Copy-Item -Path (Join-Path $PSScriptRoot $file) -Destination (Join-Path $stageDir $file) -Force
     }
     return $stageDir

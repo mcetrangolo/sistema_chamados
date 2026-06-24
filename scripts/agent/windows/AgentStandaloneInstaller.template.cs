@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
@@ -10,10 +11,11 @@ namespace SistemaChamadosAgentSetup
 {
     internal static class Program
     {
-        private const string Version = "1.3.1";
+        private const string Version = "1.4.0";
         private const string AgentToken = "__AGENT_TOKEN__";
         private const string AgentScriptBase64 = "__AGENT_SCRIPT_BASE64__";
         private const string UninstallScriptBase64 = "__UNINSTALL_SCRIPT_BASE64__";
+        private const string TrayExecutableBase64 = "__TRAY_EXECUTABLE_BASE64__";
 
         [STAThread]
         private static int Main()
@@ -28,6 +30,12 @@ namespace SistemaChamadosAgentSetup
 
             try
             {
+                string installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "SistemaChamadosAgent");
+                string configPath = Path.Combine(installDir, "config.json");
+                string existingServer = ReadConfigValue(configPath, "server_url");
+                string existingToken = ReadConfigValue(configPath, "token");
+                string existingSerial = ReadConfigValue(configPath, "numero_serie_manual");
+
                 MessageBox.Show(
                     "Bem-vindo ao instalador do Agente de Inventario do Sistema de Chamados.\n\nEste assistente vai configurar o servidor, instalar o agente e criar as tarefas de coleta automatica.",
                     "Sistema Chamados Agent",
@@ -38,7 +46,7 @@ namespace SistemaChamadosAgentSetup
                 string serverUrl = Prompt.Show(
                     "Informe o IP:porta ou URL do servidor.\nExemplos: 192.168.0.10:8000 ou https://chamados.local",
                     "Sistema Chamados Agent",
-                    "http://"
+                    String.IsNullOrEmpty(existingServer) ? "http://" : existingServer
                 );
                 if (String.IsNullOrWhiteSpace(serverUrl))
                 {
@@ -50,7 +58,7 @@ namespace SistemaChamadosAgentSetup
                 string agentToken = Prompt.Show(
                     "Confirme o token do agente exibido em Inventario > Agentes no servidor.",
                     "Sistema Chamados Agent",
-                    AgentToken
+                    String.IsNullOrEmpty(existingToken) ? AgentToken : existingToken
                 );
                 if (String.IsNullOrWhiteSpace(agentToken))
                 {
@@ -61,25 +69,27 @@ namespace SistemaChamadosAgentSetup
                 string manualSerial = Prompt.Show(
                     "Numero de serie manual/patrimonio, se houver.\nDeixe em branco para usar o serial da BIOS.",
                     "Sistema Chamados Agent",
-                    ""
+                    existingSerial
                 );
 
-                string installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "SistemaChamadosAgent");
                 Directory.CreateDirectory(installDir);
 
                 string agentPath = Path.Combine(installDir, "agent.ps1");
                 string uninstallPath = Path.Combine(installDir, "uninstall.ps1");
-                string configPath = Path.Combine(installDir, "config.json");
+                string trayPath = Path.Combine(installDir, "SistemaChamadosAgentTray.exe");
 
+                RunProcess("taskkill.exe", "/IM SistemaChamadosAgentTray.exe /F", true);
                 File.WriteAllText(agentPath, DecodeBase64(AgentScriptBase64), new UTF8Encoding(false));
                 File.WriteAllText(uninstallPath, DecodeBase64(UninstallScriptBase64), new UTF8Encoding(false));
+                File.WriteAllBytes(trayPath, Convert.FromBase64String(TrayExecutableBase64));
                 File.WriteAllText(configPath, BuildConfigJson(serverUrl, agentToken.Trim(), manualSerial), new UTF8Encoding(false));
 
                 RegisterTasks(agentPath, configPath);
                 RegisterUninstallEntry(installDir, uninstallPath);
-                RegisterStartMenuShortcuts(installDir, uninstallPath, configPath);
+                RegisterStartMenuShortcuts(installDir, uninstallPath, configPath, trayPath);
 
                 string collectionMessage = RunFirstCollection(agentPath, configPath);
+                Process.Start(trayPath);
 
                 MessageBox.Show(
                     "Agente instalado com sucesso.\n\nServidor: " + serverUrl +
@@ -154,6 +164,21 @@ namespace SistemaChamadosAgentSetup
         {
             if (value == null) return "";
             return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n");
+        }
+
+        private static string ReadConfigValue(string configPath, string key)
+        {
+            if (!File.Exists(configPath)) return "";
+            try
+            {
+                string json = File.ReadAllText(configPath, Encoding.UTF8);
+                Match match = Regex.Match(json, "\\\"" + Regex.Escape(key) + "\\\"\\s*:\\s*\\\"((?:\\\\.|[^\\\"])*)\\\"");
+                return match.Success ? Regex.Unescape(match.Groups[1].Value) : "";
+            }
+            catch
+            {
+                return "";
+            }
         }
 
         private static string BuildConfigJson(string serverUrl, string token, string manualSerial)
@@ -234,7 +259,7 @@ namespace SistemaChamadosAgentSetup
                 key.SetValue("DisplayVersion", Version, RegistryValueKind.String);
                 key.SetValue("Publisher", "Sistema de Chamados", RegistryValueKind.String);
                 key.SetValue("InstallLocation", installDir, RegistryValueKind.String);
-                key.SetValue("DisplayIcon", PowerShellPath(), RegistryValueKind.String);
+                key.SetValue("DisplayIcon", Path.Combine(installDir, "SistemaChamadosAgentTray.exe"), RegistryValueKind.String);
                 key.SetValue("UninstallString", command, RegistryValueKind.String);
                 key.SetValue("QuietUninstallString", command + " -Silent", RegistryValueKind.String);
                 key.SetValue("InstallDate", DateTime.Now.ToString("yyyyMMdd"), RegistryValueKind.String);
@@ -245,7 +270,7 @@ namespace SistemaChamadosAgentSetup
             }
         }
 
-        private static void RegisterStartMenuShortcuts(string installDir, string uninstallScript, string configPath)
+        private static void RegisterStartMenuShortcuts(string installDir, string uninstallScript, string configPath, string trayPath)
         {
             string programs = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
             if (String.IsNullOrEmpty(programs))
@@ -259,6 +284,13 @@ namespace SistemaChamadosAgentSetup
             CreateShortcut(Path.Combine(menuDir, "Executar coleta agora.lnk"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(Path.Combine(installDir, "agent.ps1")) + " -ConfigPath " + Quote(configPath), installDir, "Executa uma coleta imediata do Sistema Chamados Agent.");
             CreateShortcut(Path.Combine(menuDir, "Abrir pasta do agente.lnk"), installDir, "", installDir, "Abre a pasta local do Sistema Chamados Agent.");
             CreateShortcut(Path.Combine(menuDir, "Ver configuracao do agente.lnk"), "notepad.exe", Quote(configPath), installDir, "Abre a configuracao local do Sistema Chamados Agent.");
+            CreateShortcut(Path.Combine(menuDir, "Agente na bandeja.lnk"), trayPath, "", installDir, "Abre os controles do agente na bandeja do Windows.");
+
+            string startup = Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup);
+            if (!String.IsNullOrEmpty(startup))
+            {
+                CreateShortcut(Path.Combine(startup, "Sistema Chamados Agent.lnk"), trayPath, "", installDir, "Inicia os controles do agente com o Windows.");
+            }
 
             CreateCommandFile(Path.Combine(menuDir, "Desinstalar agente.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(uninstallScript));
             CreateCommandFile(Path.Combine(menuDir, "Executar coleta agora.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(Path.Combine(installDir, "agent.ps1")) + " -ConfigPath " + Quote(configPath));

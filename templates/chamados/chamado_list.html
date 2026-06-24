@@ -83,7 +83,7 @@
     <tbody>
       {% for chamado in chamados %}
         <tr>
-          <td><a href="{{ chamado.get_absolute_url }}">{{ chamado.numero }}</a></td>
+          <td><a class="ticket-preview" href="{{ chamado.get_absolute_url }}" data-bs-toggle="tooltip" data-bs-placement="right" title="{{ chamado.descricao|striptags|truncatechars:300 }}">{{ chamado.numero }}</a></td>
           <td>{{ chamado.get_tipo_display }}</td>
           <td>{{ chamado.nome_solicitante }}</td>
           <td>{{ chamado.setor }}</td>

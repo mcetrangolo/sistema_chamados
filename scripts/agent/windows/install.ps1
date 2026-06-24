@@ -114,10 +114,10 @@ function Register-UninstallEntry {
     foreach ($keyPath in $keyPaths) {
         New-Item -Path $keyPath -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayName" -Value "Sistema Chamados Agent" -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.0.5" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.4.0" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "Publisher" -Value "Sistema de Chamados" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $keyPath -Name "DisplayIcon" -Value "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "DisplayIcon" -Value (Join-Path $InstallDir "SistemaChamadosAgentTray.exe") -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "UninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`"" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "QuietUninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`" -Silent" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "InstallDate" -Value (Get-Date -Format "yyyyMMdd") -PropertyType String -Force | Out-Null
@@ -132,7 +132,8 @@ function Register-StartMenuShortcuts {
     param(
         [string]$InstallDir,
         [string]$UninstallScript,
-        [string]$ConfigPath
+        [string]$ConfigPath,
+        [string]$TrayPath
     )
 
     $programsDir = [Environment]::GetFolderPath("CommonPrograms")
@@ -181,6 +182,21 @@ function Register-StartMenuShortcuts {
         $configShortcut.IconLocation = "$env:SystemRoot\System32\notepad.exe"
         $configShortcut.Description = "Abre a configuracao local do Sistema Chamados Agent."
         $configShortcut.Save()
+
+        $trayShortcut = $shell.CreateShortcut((Join-Path $menuDir "Agente na bandeja.lnk"))
+        $trayShortcut.TargetPath = $TrayPath
+        $trayShortcut.WorkingDirectory = $InstallDir
+        $trayShortcut.Description = "Abre os controles do agente na bandeja do Windows."
+        $trayShortcut.Save()
+
+        $startupDir = [Environment]::GetFolderPath("CommonStartup")
+        if ($startupDir) {
+            $startupShortcut = $shell.CreateShortcut((Join-Path $startupDir "Sistema Chamados Agent.lnk"))
+            $startupShortcut.TargetPath = $TrayPath
+            $startupShortcut.WorkingDirectory = $InstallDir
+            $startupShortcut.Description = "Inicia os controles do agente com o Windows."
+            $startupShortcut.Save()
+        }
     } catch {
         # Os arquivos .cmd abaixo continuam funcionando como fallback.
     }
@@ -202,6 +218,19 @@ Assert-Admin
 
 Show-Message "Bem-vindo ao instalador do Agente de Inventario do Sistema de Chamados.`n`nEste assistente vai configurar o servidor, instalar o agente e criar as tarefas de coleta automatica."
 
+$installDir = Join-Path $env:ProgramData "SistemaChamadosAgent"
+$configPath = Join-Path $installDir "config.json"
+if (Test-Path $configPath) {
+    try {
+        $configExistente = Get-Content $configPath -Raw | ConvertFrom-Json
+        if ($configExistente.server_url) { $ServerUrl = [string]$configExistente.server_url }
+        if ($configExistente.token) { $Token = [string]$configExistente.token }
+        if ($configExistente.numero_serie_manual) { $NumeroSerieManual = [string]$configExistente.numero_serie_manual }
+    } catch {
+        # A instalacao continua com os valores informados caso o JSON anterior esteja corrompido.
+    }
+}
+
 if (-not $ServerUrl) {
     $ServerUrl = Read-Input -Prompt "Informe o IP:porta ou URL do servidor.`nExemplos: 192.168.0.10:8000 ou https://chamados.local" -Default "http://"
 }
@@ -220,12 +249,12 @@ if ($IntervalHours -lt 1) {
     $IntervalHours = 6
 }
 
-$installDir = Join-Path $env:ProgramData "SistemaChamadosAgent"
 $agentSource = Join-Path $PSScriptRoot "agent.ps1"
 $uninstallSource = Join-Path $PSScriptRoot "uninstall.ps1"
+$traySource = Join-Path $PSScriptRoot "SistemaChamadosAgentTray.exe"
 $agentTarget = Join-Path $installDir "agent.ps1"
 $uninstallTarget = Join-Path $installDir "uninstall.ps1"
-$configPath = Join-Path $installDir "config.json"
+$trayTarget = Join-Path $installDir "SistemaChamadosAgentTray.exe"
 
 if (-not (Test-Path $agentSource)) {
     throw "agent.ps1 nao encontrado junto do instalador."
@@ -233,17 +262,22 @@ if (-not (Test-Path $agentSource)) {
 if (-not (Test-Path $uninstallSource)) {
     throw "uninstall.ps1 nao encontrado junto do instalador."
 }
+if (-not (Test-Path $traySource)) {
+    throw "SistemaChamadosAgentTray.exe nao encontrado junto do instalador."
+}
 
 New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+Stop-Process -Name "SistemaChamadosAgentTray" -Force -ErrorAction SilentlyContinue
 Copy-Item -Path $agentSource -Destination $agentTarget -Force
 Copy-Item -Path $uninstallSource -Destination $uninstallTarget -Force
+Copy-Item -Path $traySource -Destination $trayTarget -Force
 Write-ConfigJson -Path $configPath -ServerUrl $ServerUrl -Token $Token.Trim() -NumeroSerieManual $NumeroSerieManual.Trim() -IntervalHours $IntervalHours
 
 $psCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$agentTarget`" -ConfigPath `"$configPath`""
 Register-AgentTask -TaskName "SistemaChamadosAgentStartup" -Schedule "ONSTART" -Modifier 1 -Command $psCommand
 Register-AgentTask -TaskName "SistemaChamadosAgentInterval" -Schedule "HOURLY" -Modifier $IntervalHours -Command $psCommand
 Register-UninstallEntry -InstallDir $installDir -UninstallScript $uninstallTarget
-Register-StartMenuShortcuts -InstallDir $installDir -UninstallScript $uninstallTarget -ConfigPath $configPath
+Register-StartMenuShortcuts -InstallDir $installDir -UninstallScript $uninstallTarget -ConfigPath $configPath -TrayPath $trayTarget
 
 Write-Host ""
 Write-Host "Agente instalado com sucesso." -ForegroundColor Green
@@ -262,5 +296,7 @@ try {
 } catch {
     $coletaMensagem = "Agente instalado, mas a primeira coleta nao conseguiu enviar dados ao servidor. Verifique endereco, porta, firewall e se o sistema esta acessivel pela rede."
 }
+
+Start-Process -FilePath $trayTarget
 
 Show-Message "Agente instalado com sucesso.`n`nServidor: $ServerUrl`nPasta: $installDir`n`n$coletaMensagem`n`nEle agora aparece no Painel de Controle para desinstalacao."

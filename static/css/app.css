@@ -870,6 +870,19 @@ a {
   font-size: .85rem;
 }
 
+.ticket-preview {
+  cursor: help;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+.tooltip .tooltip-inner {
+  line-height: 1.45;
+  max-width: 360px;
+  padding: .65rem .75rem;
+  text-align: left;
+}
+
 .scan-form .form-select,
 .scan-form .form-control {
   min-height: 31px;

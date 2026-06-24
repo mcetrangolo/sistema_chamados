@@ -111,12 +111,14 @@ def _caminho_pacote_windows_zip():
 
 def _arquivos_pacote_windows_zip():
     base_windows = (settings.BASE_DIR / "scripts" / "agent" / "windows").resolve()
+    release_windows = (settings.BASE_DIR / "releases" / "agents" / "windows").resolve()
     return {
         "agent.ps1": base_windows / "agent.ps1",
         "install.ps1": base_windows / "install.ps1",
         "install_gui.ps1": base_windows / "install_gui.ps1",
         "uninstall.ps1": base_windows / "uninstall.ps1",
         "README.md": base_windows / "README.md",
+        "SistemaChamadosAgentTray.exe": release_windows / "SistemaChamadosAgentTray.exe",
     }
 
 
@@ -245,6 +247,9 @@ def baixar_agente_windows_zip(request):
     buffer = io.BytesIO()
     with ZipFile(buffer, "w", ZIP_DEFLATED) as zipf:
         for nome, caminho in arquivos.items():
+            if caminho.suffix.lower() == ".exe":
+                zipf.write(caminho, nome)
+                continue
             conteudo = caminho.read_text(encoding="utf-8")
             if nome in {"install.ps1", "install_gui.ps1"}:
                 token = settings.INVENTARIO_AGENT_TOKEN.replace("\\", "\\\\").replace('"', '\\"')

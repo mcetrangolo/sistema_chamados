@@ -23,6 +23,8 @@ if (-not $programsDir) {
 $menuDir = Join-Path $programsDir "Sistema Chamados Agent"
 $userProgramsDir = [Environment]::GetFolderPath("Programs")
 $userMenuDir = if ($userProgramsDir) { Join-Path $userProgramsDir "Sistema Chamados Agent" } else { "" }
+$startupDir = [Environment]::GetFolderPath("CommonStartup")
+$startupShortcut = if ($startupDir) { Join-Path $startupDir "Sistema Chamados Agent.lnk" } else { "" }
 $uninstallKeys = @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent")
 if ([Environment]::Is64BitOperatingSystem) {
     $uninstallKeys += "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent"
@@ -31,6 +33,8 @@ if ([Environment]::Is64BitOperatingSystem) {
 foreach ($taskName in @("SistemaChamadosAgentStartup", "SistemaChamadosAgentInterval", "SistemaChamadosAgent")) {
     & schtasks.exe /Delete /TN $taskName /F 2>$null | Out-Null
 }
+
+Stop-Process -Name "SistemaChamadosAgentTray" -Force -ErrorAction SilentlyContinue
 
 foreach ($uninstallKey in $uninstallKeys) {
     if (Test-Path $uninstallKey) {
@@ -44,6 +48,10 @@ if (Test-Path $menuDir) {
 
 if ($userMenuDir -and (Test-Path $userMenuDir)) {
     Remove-Item -Path $userMenuDir -Recurse -Force
+}
+
+if ($startupShortcut -and (Test-Path $startupShortcut)) {
+    Remove-Item -LiteralPath $startupShortcut -Force
 }
 
 if (Test-Path $installDir) {

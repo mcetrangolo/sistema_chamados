@@ -92,7 +92,7 @@
           <tbody>
             {% for chamado in ultimos_chamados %}
               <tr>
-                <td><a href="{{ chamado.get_absolute_url }}">{{ chamado.numero }}</a></td>
+                <td><a class="ticket-preview" href="{{ chamado.get_absolute_url }}" data-bs-toggle="tooltip" data-bs-placement="right" title="{{ chamado.descricao|striptags|truncatechars:300 }}">{{ chamado.numero }}</a></td>
                 <td>{{ chamado.nome_solicitante }}</td>
                 <td>{{ chamado.setor }}</td>
                 <td><span class="badge {{ chamado.prioridade|prioridade_badge }}">{{ chamado.get_prioridade_display }}</span></td>
