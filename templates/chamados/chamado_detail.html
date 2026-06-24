@@ -24,8 +24,8 @@
       <dl class="row mb-0">
         <dt class="col-sm-3">Nome</dt><dd class="col-sm-9"><strong>{{ chamado.nome_solicitante }}</strong></dd>
         <dt class="col-sm-3">Setor solicitante</dt><dd class="col-sm-9">{{ chamado.setor }}</dd>
-        <dt class="col-sm-3">Telefone ou ramal</dt><dd class="col-sm-9">{% if chamado.telefone %}<a href="tel:{{ chamado.telefone }}">{{ chamado.telefone }}</a>{% else %}<span class="text-secondary">Não informado</span>{% endif %}</dd>
-        <dt class="col-sm-3">E-mail</dt><dd class="col-sm-9">{% if chamado.email %}<a href="mailto:{{ chamado.email }}">{{ chamado.email }}</a>{% elif chamado.solicitante.email %}<a href="mailto:{{ chamado.solicitante.email }}">{{ chamado.solicitante.email }}</a>{% else %}<span class="text-secondary">Não informado</span>{% endif %}</dd>
+        <dt class="col-sm-3">Telefone ou ramal</dt><dd class="col-sm-9">{% if chamado.telefone %}{{ chamado.telefone }}{% else %}<span class="text-secondary">Não informado</span>{% endif %}</dd>
+        <dt class="col-sm-3">E-mail</dt><dd class="col-sm-9">{% if chamado.email %}{{ chamado.email }}{% elif chamado.solicitante.email %}{{ chamado.solicitante.email }}{% else %}<span class="text-secondary">Não informado</span>{% endif %}</dd>
       </dl>
     </section>
     <section class="detail-section">

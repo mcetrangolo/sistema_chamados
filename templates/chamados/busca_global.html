@@ -14,7 +14,7 @@
 <div class="row g-4">
   <div class="col-xl-6">
     <section class="detail-section"><h2 class="h5">Chamados</h2>
-      {% for chamado in chamados %}<p><a class="ticket-preview" href="{{ chamado.get_absolute_url }}" data-bs-toggle="tooltip" data-bs-placement="right" title="{{ chamado.descricao|striptags|truncatechars:300 }}">{{ chamado.numero }}</a> - {{ chamado.nome_solicitante }} - {{ chamado.get_status_display }}</p>{% empty %}<p class="text-secondary">Nada encontrado.</p>{% endfor %}
+      {% for chamado in chamados %}<p><a href="{{ chamado.get_absolute_url }}">{{ chamado.numero }}</a> - {{ chamado.nome_solicitante }} - {{ chamado.get_status_display }}</p>{% empty %}<p class="text-secondary">Nada encontrado.</p>{% endfor %}
     </section>
   </div>
   <div class="col-xl-6">

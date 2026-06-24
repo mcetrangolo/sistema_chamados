@@ -1,2 +1,2 @@
-SISTEMA_VERSAO = "v1.7.2"
-SISTEMA_VERSAO_NOME = "Atendimento de Chamados Simplificado"
+SISTEMA_VERSAO = "v1.7.3"
+SISTEMA_VERSAO_NOME = "Lista de Chamados com Previa Objetiva"
