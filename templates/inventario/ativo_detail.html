@@ -9,10 +9,17 @@
   <div class="d-flex gap-2">
     <a class="btn btn-outline-secondary" href="{% url 'inventario:ativo_etiqueta' ativo.pk %}" target="_blank">Imprimir etiqueta</a>
     <a class="btn btn-primary" href="{% url 'inventario:ativo_editar' ativo.pk %}">Editar características</a>
-    <form method="post" action="{% url 'inventario:ativo_excluir' ativo.pk %}" onsubmit="return confirm('Excluir este ativo do inventário? Esta ação não pode ser desfeita.');">
-      {% csrf_token %}
-      <button class="btn btn-outline-danger" type="submit">Excluir</button>
-    </form>
+    {% if ativo.status == 'desativado' %}
+      <form method="post" action="{% url 'inventario:ativo_excluir' ativo.pk %}" onsubmit="return confirm('Excluir definitivamente este ativo e todo o seu histórico? Esta ação não pode ser desfeita.');">
+        {% csrf_token %}
+        <button class="btn btn-danger" type="submit">Excluir definitivamente</button>
+      </form>
+    {% else %}
+      <form method="post" action="{% url 'inventario:ativo_arquivar' ativo.pk %}" onsubmit="return confirm('Arquivar este ativo? Ele sairá dos relatórios e poderá ser revisado antes da exclusão.');">
+        {% csrf_token %}
+        <button class="btn btn-outline-danger" type="submit">Arquivar</button>
+      </form>
+    {% endif %}
   </div>
 </div>
 <div class="row g-4">

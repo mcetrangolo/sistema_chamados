@@ -10,7 +10,7 @@ namespace SistemaChamadosAgentSetup
 {
     internal static class Program
     {
-        private const string Version = "1.2.0";
+        private const string Version = "1.3.1";
         private const string AgentToken = "__AGENT_TOKEN__";
         private const string AgentScriptBase64 = "__AGENT_SCRIPT_BASE64__";
         private const string UninstallScriptBase64 = "__UNINSTALL_SCRIPT_BASE64__";
@@ -47,6 +47,17 @@ namespace SistemaChamadosAgentSetup
                 }
                 serverUrl = NormalizeServerUrl(serverUrl);
 
+                string agentToken = Prompt.Show(
+                    "Confirme o token do agente exibido em Inventario > Agentes no servidor.",
+                    "Sistema Chamados Agent",
+                    AgentToken
+                );
+                if (String.IsNullOrWhiteSpace(agentToken))
+                {
+                    MessageBox.Show("Instalacao cancelada. O token do agente e obrigatorio.", "Sistema Chamados Agent", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return 1;
+                }
+
                 string manualSerial = Prompt.Show(
                     "Numero de serie manual/patrimonio, se houver.\nDeixe em branco para usar o serial da BIOS.",
                     "Sistema Chamados Agent",
@@ -62,7 +73,7 @@ namespace SistemaChamadosAgentSetup
 
                 File.WriteAllText(agentPath, DecodeBase64(AgentScriptBase64), new UTF8Encoding(false));
                 File.WriteAllText(uninstallPath, DecodeBase64(UninstallScriptBase64), new UTF8Encoding(false));
-                File.WriteAllText(configPath, BuildConfigJson(serverUrl, AgentToken, manualSerial), new UTF8Encoding(false));
+                File.WriteAllText(configPath, BuildConfigJson(serverUrl, agentToken.Trim(), manualSerial), new UTF8Encoding(false));
 
                 RegisterTasks(agentPath, configPath);
                 RegisterUninstallEntry(installDir, uninstallPath);

@@ -267,6 +267,34 @@ def baixar_agente_windows_zip(request):
 
 
 @login_required
+@user_passes_test(lambda user: user.is_superuser)
+def baixar_reparador_agente_windows(request):
+    base_url = _base_url_agente(request).replace("'", "''")
+    token = settings.INVENTARIO_AGENT_TOKEN.replace("'", "''")
+    conteudo = f"""# Execute este arquivo como Administrador na estacao com o agente instalado.
+$ErrorActionPreference = 'Stop'
+$configPath = Join-Path $env:ProgramData 'SistemaChamadosAgent\\config.json'
+$agentPath = Join-Path $env:ProgramData 'SistemaChamadosAgent\\agent.ps1'
+if (-not (Test-Path $configPath) -or -not (Test-Path $agentPath)) {{
+    throw 'Agente nao encontrado em C:\\ProgramData\\SistemaChamadosAgent.'
+}}
+$config = Get-Content $configPath -Raw | ConvertFrom-Json
+$config.server_url = '{base_url}'
+$config.token = '{token}'
+$config | ConvertTo-Json -Depth 5 | Set-Content $configPath -Encoding UTF8
+Write-Host 'Configuracao atualizada. Executando coleta de teste...' -ForegroundColor Cyan
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $agentPath -ConfigPath $configPath
+if ($LASTEXITCODE -ne 0) {{ throw 'A coleta ainda falhou. Consulte C:\\ProgramData\\SistemaChamadosAgent\\last-run.log.' }}
+Write-Host 'Agente corrigido e coleta enviada com sucesso.' -ForegroundColor Green
+Read-Host 'Pressione Enter para fechar'
+"""
+    response = HttpResponse(conteudo, content_type="text/plain; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="RepararSistemaChamadosAgent.ps1"'
+    response["Cache-Control"] = "no-store, private"
+    return response
+
+
+@login_required
 def baixar_agente_linux(request):
     caminho = (settings.BASE_DIR / "scripts" / "agent" / "linux" / AGENTE_LINUX_INSTALLER).resolve()
     base_linux = (settings.BASE_DIR / "scripts" / "agent" / "linux").resolve()
@@ -295,6 +323,7 @@ def configuracao_agente(request):
     download_url = f"{base_url}/inventario/agente/windows/download/"
     windows_zip_download_url = f"{base_url}/inventario/agente/windows/source.zip"
     linux_download_url = f"{base_url}/inventario/agente/linux/download/"
+    reparador_windows_url = f"{base_url}/inventario/agente/windows/reparar.ps1"
     arquivos_zip = _arquivos_pacote_windows_zip()
     zip_pronto = all(caminho.exists() for caminho in arquivos_zip.values())
     contexto = {
@@ -303,6 +332,7 @@ def configuracao_agente(request):
         "download_url": download_url,
         "windows_zip_download_url": windows_zip_download_url,
         "linux_download_url": linux_download_url,
+        "reparador_windows_url": reparador_windows_url,
         "url_detectada": url_detectada,
         "public_base_url": settings.PUBLIC_BASE_URL,
         "bases_sugeridas": bases_sugeridas,
@@ -327,14 +357,19 @@ def configuracao_agente(request):
 @require_POST
 def receber_coleta_agente(request):
     token_configurado = settings.INVENTARIO_AGENT_TOKEN
-    token_recebido = request.headers.get("Authorization", "").replace("Bearer ", "", 1).strip()
+    autorizacao = request.headers.get("Authorization", "").strip()
+    token_recebido = autorizacao[7:].strip() if autorizacao.lower().startswith("bearer ") else ""
+    token_recebido = token_recebido or request.headers.get("X-Agent-Token", "").strip()
     if not token_configurado or not constant_time_compare(token_recebido, token_configurado):
         RegistroColetaAgente.objects.create(
             status=RegistroColetaAgente.Status.REJEITADA,
-            mensagem="Token invalido ou nao configurado.",
+            mensagem="Token invalido ou nao configurado. Reconfigure o agente com o token deste servidor.",
             ip_origem=ip_origem_request(request),
         )
-        return JsonResponse({"erro": "Token invalido ou nao configurado."}, status=403)
+        return JsonResponse(
+            {"erro": "Token invalido ou nao configurado. Use o reparador disponivel na tela de agentes."},
+            status=403,
+        )
 
     try:
         dados = json.loads(request.body.decode("utf-8"))
@@ -437,7 +472,12 @@ def receber_coleta_agente(request):
     ativo.usuario_logado = _normalizar_texto(dados.get("usuario_logado"), 150) or ativo.usuario_logado
     ativo.dominio = _normalizar_texto(dados.get("dominio"), 150) or ativo.dominio
     ativo.responsavel = _normalizar_texto(dados.get("usuario_logado"), 150) or ativo.responsavel
+    estava_arquivado = ativo.status == AtivoRede.Status.DESATIVADO
     ativo.status = AtivoRede.Status.ONLINE
+    if estava_arquivado:
+        ativo.ciclo_vida = AtivoRede.CicloVida.EM_USO
+        ativo.data_baixa = None
+        ativo.motivo_baixa = ""
     ativo.origem = AtivoRede.Origem.AGENTE
     ativo.observacoes = "\n".join(observacoes)
     ativo.ultima_coleta_em = timezone.now()
@@ -1672,6 +1712,37 @@ def reativar_ativo_arquivado(request, pk):
 
 @login_required
 @require_POST
+def arquivar_ativo(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk)
+    if ativo.status == AtivoRede.Status.DESATIVADO:
+        messages.info(request, "O ativo ja esta arquivado.")
+        return redirect(ativo)
+
+    antes = {"status": ativo.status, "ciclo_vida": ativo.ciclo_vida, "data_baixa": ativo.data_baixa}
+    ativo.status = AtivoRede.Status.DESATIVADO
+    ativo.ciclo_vida = AtivoRede.CicloVida.BAIXADO
+    ativo.data_baixa = timezone.localdate()
+    ativo.motivo_baixa = f"Arquivamento manual realizado por {request.user.get_username()}."
+    ativo.save(update_fields=["status", "ciclo_vida", "data_baixa", "motivo_baixa", "atualizado_em"])
+    registrar_alteracoes_ativo(
+        ativo,
+        antes,
+        ["status", "ciclo_vida", "data_baixa"],
+        "arquivamento_manual",
+    )
+    OcorrenciaAtivo.objects.create(
+        ativo=ativo,
+        tipo=OcorrenciaAtivo.Tipo.OBSERVACAO,
+        titulo="Ativo arquivado manualmente",
+        descricao="Registro retirado dos relatorios operacionais e enviado para revisao antes da exclusao.",
+        registrado_por=request.user,
+    )
+    messages.success(request, f"{ativo.nome} foi arquivado. Agora ele pode ser excluido definitivamente.")
+    return redirect(ativo)
+
+
+@login_required
+@require_POST
 def excluir_ativo_arquivado(request, pk):
     ativo = get_object_or_404(AtivoRede, pk=pk, status=AtivoRede.Status.DESATIVADO)
     nome = ativo.nome
@@ -1706,8 +1777,9 @@ def excluir_ativos_lote(request):
         if not elegiveis.exists():
             messages.warning(request, "Somente ativos arquivados podem ser excluidos definitivamente.")
             return redirect("inventario:ativos_sem_comunicacao")
-        total, _ = elegiveis.delete()
-        messages.success(request, f"{total} registro(s) excluído(s) do inventário.")
+        total_ativos = elegiveis.count()
+        elegiveis.delete()
+        messages.success(request, f"{total_ativos} ativo(s) excluído(s) do inventário.")
     return redirect("inventario:ativos")
 
 

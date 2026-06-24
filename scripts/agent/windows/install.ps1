@@ -206,6 +206,8 @@ if (-not $ServerUrl) {
     $ServerUrl = Read-Input -Prompt "Informe o IP:porta ou URL do servidor.`nExemplos: 192.168.0.10:8000 ou https://chamados.local" -Default "http://"
 }
 
+$Token = Read-Input -Prompt "Confirme o token exibido em Inventario > Agentes no servidor." -Default $Token
+
 if (-not $NumeroSerieManual) {
     $NumeroSerieManual = Read-Input -Prompt "Numero de serie manual/patrimonio, se houver.`nDeixe em branco para usar o serial da BIOS."
 }

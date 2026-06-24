@@ -166,7 +166,7 @@ function Get-AgentPayload {
     }
 
     return @{
-        versao_agente = "1.3.0"
+        versao_agente = "1.3.1"
         hostname = [string]$env:COMPUTERNAME
         ip = $ip
         mac = $mac
@@ -199,7 +199,24 @@ function Send-AgentPayload {
     $client.Encoding = [System.Text.Encoding]::UTF8
     $client.Headers.Add("Authorization", "Bearer $Token")
     $client.Headers.Add("Content-Type", "application/json; charset=utf-8")
-    return $client.UploadString($Endpoint, "POST", $Json)
+    try {
+        return $client.UploadString($Endpoint, "POST", $Json)
+    } catch [System.Net.WebException] {
+        $detalhe = ""
+        if ($_.Exception.Response) {
+            try {
+                $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+                $detalhe = $reader.ReadToEnd()
+                $reader.Close()
+            } catch {}
+        }
+        if ($detalhe) {
+            throw "Falha HTTP ao enviar inventario: $detalhe"
+        }
+        throw
+    } finally {
+        $client.Dispose()
+    }
 }
 
 try {
