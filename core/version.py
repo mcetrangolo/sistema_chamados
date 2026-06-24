@@ -1,2 +1,2 @@
-SISTEMA_VERSAO = "v1.7.0"
-SISTEMA_VERSAO_NOME = "Agente Windows com Bandeja e Diagnostico"
+SISTEMA_VERSAO = "v1.7.1"
+SISTEMA_VERSAO_NOME = "Inventario e Agentes Consolidados"

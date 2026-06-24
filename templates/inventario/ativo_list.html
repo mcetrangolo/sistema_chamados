@@ -6,7 +6,7 @@
   <div class="d-flex gap-2">
     <a class="btn btn-outline-warning" href="{% url 'inventario:ativos_sem_comunicacao' %}">Sem comunicacao ({{ total_sem_comunicacao }})</a>
     <a class="btn btn-outline-secondary" href="{% url 'inventario:ativos_duplicados' %}">Duplicidades</a>
-    <a class="btn btn-outline-secondary" href="{% url 'inventario:agente_windows_download' %}">Baixar agente Windows</a>
+    <a class="btn btn-outline-secondary" href="{% url 'inventario:agente_config' %}">Agentes</a>
     <a class="btn btn-outline-primary" href="{% url 'inventario:ativos_importar_csv' %}">Importar CSV</a>
     <a class="btn btn-outline-primary" href="{% url 'inventario:ativos_xls' %}">Exportar XLS</a>
     <a class="btn btn-primary" href="{% url 'inventario:ativo_novo' %}">Novo ativo</a>

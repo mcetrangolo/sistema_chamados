@@ -34,13 +34,7 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\agent\windows\build_insta
 
 ## Antivirus / CyberCapture
 
-O instalador e um executavel interno sem assinatura digital que grava e executa scripts PowerShell. Antiviruses como Avast/CyberCapture podem classificar o arquivo como desconhecido e enviar para analise. Para ambientes com bloqueio de EXE desconhecido, use o pacote alternativo:
-
-```text
-releases\agents\windows\SistemaChamadosAgentSource.zip
-```
-
-Extraia o ZIP e execute `install_gui.ps1` como Administrador. O codigo do agente fica visivel dentro do pacote.
+O instalador e um executavel interno sem assinatura digital que grava e executa scripts PowerShell. Antiviruses como Avast/CyberCapture podem classificar o arquivo como desconhecido e enviar para analise. O codigo-fonte completo do instalador e do agente permanece disponivel em `scripts\agent\windows` para auditoria e assinatura digital institucional.
 
 ## Instalar manualmente
 

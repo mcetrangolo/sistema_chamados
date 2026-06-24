@@ -68,10 +68,7 @@
               <li><a class="dropdown-item" href="{% url 'inventario:licencas' %}">Licencas de software</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:licencas_conciliacao' %}">Conciliação de licenças</a></li>
               <li><a class="dropdown-item" href="{% url 'documentacao:lista' %}">Documentação restrita</a></li>
-              {% if user.is_superuser %}
-                <li><a class="dropdown-item" href="{% url 'inventario:agente_config' %}">Agente Windows</a></li>
-              {% endif %}
-              <li><a class="dropdown-item" href="{% url 'inventario:agentes_saude' %}">Saude dos agentes</a></li>
+              <li><a class="dropdown-item" href="{% url 'inventario:agente_config' %}">Agentes de inventario</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:sondas' %}">Sondas remotas</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:faixas' %}">Faixas de rede</a></li>
               <li><a class="dropdown-item" href="{% url 'inventario:agendamentos' %}">Agendamentos</a></li>

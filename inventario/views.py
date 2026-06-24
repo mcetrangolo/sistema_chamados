@@ -1,11 +1,9 @@
 import csv
-import io
 import ipaddress
 import json
 import secrets
 import socket
 from html import escape
-from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
 from django.contrib import messages
@@ -21,7 +19,7 @@ from django.utils.crypto import constant_time_compare
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
+from django.views.generic import CreateView, DetailView, ListView, RedirectView, TemplateView, UpdateView
 from core.models import ConfiguracaoInstitucional
 from governanca.pdf import montar_pdf
 
@@ -67,7 +65,6 @@ from .services import DescobertaAtivo, descobrir_por_faixa, descobrir_por_host, 
 
 
 AGENTE_WINDOWS_EXE = "SistemaChamadosAgentSetup.exe"
-AGENTE_WINDOWS_ZIP = "SistemaChamadosAgentSource.zip"
 AGENTE_LINUX_INSTALLER = "install.sh"
 
 
@@ -103,23 +100,6 @@ def _caminho_agente_windows():
         if caminho.exists():
             return caminho
     return candidatos[0].resolve()
-
-
-def _caminho_pacote_windows_zip():
-    return (settings.BASE_DIR / "releases" / "agents" / "windows" / AGENTE_WINDOWS_ZIP).resolve()
-
-
-def _arquivos_pacote_windows_zip():
-    base_windows = (settings.BASE_DIR / "scripts" / "agent" / "windows").resolve()
-    release_windows = (settings.BASE_DIR / "releases" / "agents" / "windows").resolve()
-    return {
-        "agent.ps1": base_windows / "agent.ps1",
-        "install.ps1": base_windows / "install.ps1",
-        "install_gui.ps1": base_windows / "install_gui.ps1",
-        "uninstall.ps1": base_windows / "uninstall.ps1",
-        "README.md": base_windows / "README.md",
-        "SistemaChamadosAgentTray.exe": release_windows / "SistemaChamadosAgentTray.exe",
-    }
 
 
 def _ips_rede_local():
@@ -219,6 +199,7 @@ def registrar_alteracoes_ativo(ativo, antes, campos, origem):
 
 
 @login_required
+@user_passes_test(lambda user: user.is_superuser)
 def baixar_agente_windows(request):
     caminho = _caminho_agente_windows()
     bases_permitidas = [
@@ -238,68 +219,7 @@ def baixar_agente_windows(request):
 
 
 @login_required
-def baixar_agente_windows_zip(request):
-    arquivos = _arquivos_pacote_windows_zip()
-    faltantes = [nome for nome, caminho in arquivos.items() if not caminho.exists()]
-    if faltantes:
-        raise Http404(f"Arquivos do agente Windows nao encontrados: {', '.join(faltantes)}.")
-
-    buffer = io.BytesIO()
-    with ZipFile(buffer, "w", ZIP_DEFLATED) as zipf:
-        for nome, caminho in arquivos.items():
-            if caminho.suffix.lower() == ".exe":
-                zipf.write(caminho, nome)
-                continue
-            conteudo = caminho.read_text(encoding="utf-8")
-            if nome in {"install.ps1", "install_gui.ps1"}:
-                token = settings.INVENTARIO_AGENT_TOKEN.replace("\\", "\\\\").replace('"', '\\"')
-                conteudo = conteudo.replace(
-                    '[string]$Token = "sistema-chamados-agent-local"',
-                    f'[string]$Token = "{token}"',
-                )
-            zipf.writestr(nome, conteudo)
-        zipf.writestr(
-            "InstalarAgente.cmd",
-            '@echo off\r\n'
-            'cd /d "%~dp0"\r\n'
-            'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0install_gui.ps1"\r\n'
-            "pause\r\n",
-        )
-    buffer.seek(0)
-    response = HttpResponse(buffer.getvalue(), content_type="application/zip")
-    response["Content-Disposition"] = f'attachment; filename="{AGENTE_WINDOWS_ZIP}"'
-    return response
-
-
-@login_required
 @user_passes_test(lambda user: user.is_superuser)
-def baixar_reparador_agente_windows(request):
-    base_url = _base_url_agente(request).replace("'", "''")
-    token = settings.INVENTARIO_AGENT_TOKEN.replace("'", "''")
-    conteudo = f"""# Execute este arquivo como Administrador na estacao com o agente instalado.
-$ErrorActionPreference = 'Stop'
-$configPath = Join-Path $env:ProgramData 'SistemaChamadosAgent\\config.json'
-$agentPath = Join-Path $env:ProgramData 'SistemaChamadosAgent\\agent.ps1'
-if (-not (Test-Path $configPath) -or -not (Test-Path $agentPath)) {{
-    throw 'Agente nao encontrado em C:\\ProgramData\\SistemaChamadosAgent.'
-}}
-$config = Get-Content $configPath -Raw | ConvertFrom-Json
-$config.server_url = '{base_url}'
-$config.token = '{token}'
-$config | ConvertTo-Json -Depth 5 | Set-Content $configPath -Encoding UTF8
-Write-Host 'Configuracao atualizada. Executando coleta de teste...' -ForegroundColor Cyan
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $agentPath -ConfigPath $configPath
-if ($LASTEXITCODE -ne 0) {{ throw 'A coleta ainda falhou. Consulte C:\\ProgramData\\SistemaChamadosAgent\\last-run.log.' }}
-Write-Host 'Agente corrigido e coleta enviada com sucesso.' -ForegroundColor Green
-Read-Host 'Pressione Enter para fechar'
-"""
-    response = HttpResponse(conteudo, content_type="text/plain; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="RepararSistemaChamadosAgent.ps1"'
-    response["Cache-Control"] = "no-store, private"
-    return response
-
-
-@login_required
 def baixar_agente_linux(request):
     caminho = (settings.BASE_DIR / "scripts" / "agent" / "linux" / AGENTE_LINUX_INSTALLER).resolve()
     base_linux = (settings.BASE_DIR / "scripts" / "agent" / "linux").resolve()
@@ -313,8 +233,41 @@ def baixar_agente_linux(request):
     return response
 
 
+def _contexto_saude_agentes():
+    agora = timezone.now()
+    agentes = list(
+        AtivoRede.objects.filter(origem=AtivoRede.Origem.AGENTE)
+        .exclude(status=AtivoRede.Status.DESATIVADO)
+        .select_related("tipo", "setor")
+        .order_by("nome")
+    )
+    contadores = {"saudavel": 0, "atrasado": 0, "critico": 0}
+    for agente in agentes:
+        if not agente.ultima_coleta_em:
+            agente.estado_agente = "critico"
+            agente.tempo_sem_coleta = "Nunca coletou"
+        else:
+            horas = int((agora - agente.ultima_coleta_em).total_seconds() // 3600)
+            agente.tempo_sem_coleta = f"{horas} hora(s)"
+            if horas <= 24:
+                agente.estado_agente = "saudavel"
+            elif horas <= 168:
+                agente.estado_agente = "atrasado"
+            else:
+                agente.estado_agente = "critico"
+        contadores[agente.estado_agente] += 1
+    return {
+        "agentes": agentes,
+        "contadores": contadores,
+        "eventos": RegistroColetaAgente.objects.select_related("ativo")[:100],
+        "rejeitadas_24h": RegistroColetaAgente.objects.filter(
+            status=RegistroColetaAgente.Status.REJEITADA,
+            criado_em__gte=agora - timezone.timedelta(hours=24),
+        ).count(),
+    }
+
+
 @login_required
-@user_passes_test(lambda user: user.is_superuser)
 def configuracao_agente(request):
     caminho = _caminho_agente_windows()
     url_detectada = request.build_absolute_uri("/").rstrip("/")
@@ -326,18 +279,13 @@ def configuracao_agente(request):
     usa_endereco_local = "localhost" in base_url.lower() or "127.0.0.1" in base_url
     endpoint = f"{base_url}/inventario/agente/coleta/"
     download_url = f"{base_url}/inventario/agente/windows/download/"
-    windows_zip_download_url = f"{base_url}/inventario/agente/windows/source.zip"
     linux_download_url = f"{base_url}/inventario/agente/linux/download/"
-    reparador_windows_url = f"{base_url}/inventario/agente/windows/reparar.ps1"
-    arquivos_zip = _arquivos_pacote_windows_zip()
-    zip_pronto = all(caminho.exists() for caminho in arquivos_zip.values())
     contexto = {
-        "token": settings.INVENTARIO_AGENT_TOKEN,
+        "pode_configurar_agente": request.user.is_superuser,
+        "token": settings.INVENTARIO_AGENT_TOKEN if request.user.is_superuser else "",
         "endpoint": endpoint,
         "download_url": download_url,
-        "windows_zip_download_url": windows_zip_download_url,
         "linux_download_url": linux_download_url,
-        "reparador_windows_url": reparador_windows_url,
         "url_detectada": url_detectada,
         "public_base_url": settings.PUBLIC_BASE_URL,
         "bases_sugeridas": bases_sugeridas,
@@ -351,10 +299,8 @@ def configuracao_agente(request):
         )
         if caminho.exists()
         else None,
-        "windows_zip_existe": zip_pronto,
-        "windows_zip_nome": AGENTE_WINDOWS_ZIP,
-        "windows_zip_tamanho": None,
     }
+    contexto.update(_contexto_saude_agentes())
     return TemplateView.as_view(template_name="inventario/agente_config.html")(request, **contexto)
 
 
@@ -372,7 +318,7 @@ def receber_coleta_agente(request):
             ip_origem=ip_origem_request(request),
         )
         return JsonResponse(
-            {"erro": "Token invalido ou nao configurado. Use o reparador disponivel na tela de agentes."},
+            {"erro": "Token invalido ou nao configurado. Substitua o agente pelo instalador atual e confirme o token do servidor."},
             status=403,
         )
 
@@ -556,41 +502,9 @@ class InventarioPainelView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class SaudeAgentesView(LoginRequiredMixin, TemplateView):
-    template_name = "inventario/saude_agentes.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        agora = timezone.now()
-        agentes = list(
-            AtivoRede.objects.filter(origem=AtivoRede.Origem.AGENTE)
-            .exclude(status=AtivoRede.Status.DESATIVADO)
-            .select_related("tipo", "setor")
-            .order_by("nome")
-        )
-        contadores = {"saudavel": 0, "atrasado": 0, "critico": 0}
-        for agente in agentes:
-            if not agente.ultima_coleta_em:
-                agente.estado_agente = "critico"
-                agente.tempo_sem_coleta = "Nunca coletou"
-            else:
-                horas = int((agora - agente.ultima_coleta_em).total_seconds() // 3600)
-                agente.tempo_sem_coleta = f"{horas} hora(s)"
-                if horas <= 24:
-                    agente.estado_agente = "saudavel"
-                elif horas <= 168:
-                    agente.estado_agente = "atrasado"
-                else:
-                    agente.estado_agente = "critico"
-            contadores[agente.estado_agente] += 1
-        context["agentes"] = agentes
-        context["contadores"] = contadores
-        context["eventos"] = RegistroColetaAgente.objects.select_related("ativo")[:100]
-        context["rejeitadas_24h"] = RegistroColetaAgente.objects.filter(
-            status=RegistroColetaAgente.Status.REJEITADA,
-            criado_em__gte=agora - timezone.timedelta(hours=24),
-        ).count()
-        return context
+class SaudeAgentesView(LoginRequiredMixin, RedirectView):
+    pattern_name = "inventario:agente_config"
+    permanent = False
 
 
 @login_required
@@ -600,7 +514,7 @@ def solicitar_coleta_agente(request, pk):
     ativo.coleta_solicitada_em = timezone.now()
     ativo.save(update_fields=["coleta_solicitada_em", "atualizado_em"])
     messages.success(request, "Nova coleta solicitada. A pendencia sera encerrada quando o agente enviar o proximo inventario.")
-    return redirect("inventario:agentes_saude")
+    return redirect("inventario:agente_config")
 
 
 class SondaRemotaListView(LoginRequiredMixin, ListView):
