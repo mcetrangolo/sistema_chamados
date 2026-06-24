@@ -11,7 +11,7 @@ namespace SistemaChamadosAgentSetup
 {
     internal static class Program
     {
-        private const string Version = "1.4.0";
+        private const string Version = "1.4.1";
         private const string AgentToken = "__AGENT_TOKEN__";
         private const string AgentScriptBase64 = "__AGENT_SCRIPT_BASE64__";
         private const string UninstallScriptBase64 = "__UNINSTALL_SCRIPT_BASE64__";

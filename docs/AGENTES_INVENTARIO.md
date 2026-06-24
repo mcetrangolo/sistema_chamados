@@ -62,6 +62,8 @@ No servidor, configure um valor grande e secreto no `.env`:
 INVENTARIO_AGENT_TOKEN=gere-um-token-grande-e-secreto
 ```
 
+Instalacoes novas geram esse valor automaticamente. Em instalacoes antigas sem a variavel, o sistema deriva um token estavel da `SECRET_KEY` e o identifica na tela **Inventario > Agentes de inventario**.
+
 Depois reinicie:
 
 ```bash
@@ -71,4 +73,4 @@ docker compose restart
 
 Ao trocar o token, atualize tambem os equipamentos instalados. No Windows, use o icone da bandeja ou execute o instalador atual sobre a instalacao existente. No Linux, edite `/etc/sistema-chamados-agent/config.env` e reinicie o timer.
 
-O retorno `403 - Token invalido ou nao configurado` indica que o token do equipamento nao coincide com o servidor.
+O retorno `403 - Token invalido ou nao configurado` indica que o token do equipamento nao coincide com o valor efetivamente exibido pelo servidor. No Windows, corrija pelo icone da bandeja; no Linux, atualize o arquivo de configuracao.

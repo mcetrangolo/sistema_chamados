@@ -76,9 +76,16 @@
       <section class="detail-section">
         <h2 class="h5">Conexao</h2>
         {% if usa_endereco_local %}<div class="alert alert-warning py-2">Use o IP ou DNS do servidor nas estacoes da rede.</div>{% endif %}
+        {% if token_origem == "automatico" %}
+          <div class="alert alert-info py-2">
+            O servidor gerou um token estavel porque <code>INVENTARIO_AGENT_TOKEN</code> nao esta definido no <code>.env</code>.
+            Configure nos agentes exatamente o token exibido abaixo.
+          </div>
+        {% endif %}
         <dl class="config-list mb-0">
           <dt>Endpoint</dt><dd><code>{{ endpoint }}</code></dd>
           <dt>Token</dt><dd><code>{{ token }}</code></dd>
+          <dt>Origem do token</dt><dd>{% if token_origem == "env" %}Arquivo .env{% else %}Gerado automaticamente pelo servidor{% endif %}</dd>
           <dt>Endereco detectado</dt><dd><code>{{ url_detectada }}</code></dd>
           {% if bases_sugeridas %}<dt>Enderecos de rede</dt><dd>{% for base in bases_sugeridas %}<code class="d-block">{{ base }}</code>{% endfor %}</dd>{% endif %}
         </dl>

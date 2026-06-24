@@ -1,2 +1,2 @@
-SISTEMA_VERSAO = "v1.9.1"
-SISTEMA_VERSAO_NOME = "Ajuda Operacional Interna"
+SISTEMA_VERSAO = "v1.9.2"
+SISTEMA_VERSAO_NOME = "Confiabilidade do Agente e Servicos"

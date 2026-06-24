@@ -47,8 +47,12 @@ case "$DEFAULT_SERVER_URL" in
   __*__) DEFAULT_SERVER_URL="http://" ;;
 esac
 case "$AGENT_TOKEN" in
-  __*__) AGENT_TOKEN="$(ask "Token do agente" "sistema-chamados-agent-local")" ;;
+  __*__) AGENT_TOKEN="$(ask "Token do agente" "")" ;;
 esac
+if [ -z "$AGENT_TOKEN" ]; then
+  echo "O token do agente e obrigatorio. Consulte Inventario > Agentes de inventario."
+  exit 1
+fi
 server_url="$(ask "Informe o IP:porta ou URL do servidor" "$DEFAULT_SERVER_URL")"
 server_url="$(normalize_url "$server_url")"
 serial_manual="$(ask "Numero de serie manual/patrimonio opcional" "")"

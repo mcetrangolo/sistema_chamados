@@ -75,6 +75,7 @@ fi
 if [ ! -f ".env" ]; then
   echo "Criando .env inicial para SQLite..."
   SECRET_KEY="$(openssl rand -base64 48 | tr -d '\n')"
+  INVENTARIO_AGENT_TOKEN="$(openssl rand -hex 32)"
   cat > .env <<EOF
 SECRET_KEY=$SECRET_KEY
 DEBUG=False
@@ -86,6 +87,7 @@ SESSION_COOKIE_SECURE=False
 CSRF_COOKIE_SECURE=False
 
 SQLITE_NAME=data/db.sqlite3
+INVENTARIO_AGENT_TOKEN=$INVENTARIO_AGENT_TOKEN
 
 GOVERNANCA_DOCUMENT_ROOT=media/governanca_documentos
 

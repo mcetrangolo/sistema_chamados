@@ -1,6 +1,6 @@
 param(
     [string]$ServerUrl = "",
-    [string]$Token = "sistema-chamados-agent-local",
+    [string]$Token = "",
     [string]$NumeroSerieManual = "",
     [int]$IntervalHours = 6
 )

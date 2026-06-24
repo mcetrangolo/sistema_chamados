@@ -12,9 +12,13 @@
   <div class="col-lg-8">
     <section class="detail-section">
       <h2 class="h5">Servicos da aplicacao</h2>
-      {% if not docker_disponivel %}
+      {% if not reinicio_disponivel %}
         <div class="alert alert-warning">
-          Docker Compose nao foi encontrado no ambiente atual. Os botoes de servico precisam que o comando docker esteja disponivel para o processo web.
+          Nao foi encontrado um mecanismo de reinicio compativel neste ambiente.
+        </div>
+      {% elif reinicio_interno %}
+        <div class="alert alert-info">
+          A aplicacao esta em Docker. O reinicio sera solicitado ao proprio container e deve levar alguns segundos.
         </div>
       {% endif %}
       <div class="row g-3">
@@ -22,9 +26,9 @@
           <form method="post" class="service-action">
             {% csrf_token %}
             <input type="hidden" name="acao" value="reiniciar_servicos">
-            <label class="form-label" for="confirmacao-reiniciar">Reiniciar servicos</label>
+            <label class="form-label" for="confirmacao-reiniciar">Reiniciar aplicacao</label>
             <input class="form-control" id="confirmacao-reiniciar" name="confirmacao" placeholder="Digite REINICIAR" required>
-            <button class="btn btn-primary mt-2" type="submit">Reiniciar servicos</button>
+            <button class="btn btn-primary mt-2" type="submit" {% if not reinicio_disponivel %}disabled{% endif %}>Reiniciar aplicacao</button>
           </form>
         </div>
         <div class="col-md-6">
@@ -33,7 +37,7 @@
             <input type="hidden" name="acao" value="parar_servicos">
             <label class="form-label" for="confirmacao-parar">Parar servicos</label>
             <input class="form-control" id="confirmacao-parar" name="confirmacao" placeholder="Digite PARAR" required>
-            <button class="btn btn-outline-danger mt-2" type="submit">Parar servicos</button>
+            <button class="btn btn-outline-danger mt-2" type="submit" {% if not docker_disponivel %}disabled{% endif %}>Parar servicos</button>
           </form>
         </div>
       </div>
@@ -80,7 +84,7 @@
     <section class="side-panel">
       <h2 class="h6">Observacao</h2>
       <p class="text-secondary mb-0">
-        Em instalacoes Docker, o processo web precisa ter acesso ao Docker Compose do host para reiniciar ou parar containers pela tela.
+        O reinicio da aplicacao funciona dentro do Docker. A parada completa dos servicos continua exigindo acesso ao Docker Compose do host.
       </p>
     </section>
   </aside>

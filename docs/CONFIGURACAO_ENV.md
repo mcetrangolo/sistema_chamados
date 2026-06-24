@@ -56,7 +56,7 @@ Lista de origens confiaveis para formularios. Se faltar, botoes POST podem falha
 
 `INVENTARIO_AGENT_TOKEN`
 
-Token usado pelos agentes de inventario para enviar dados. Em producao, use um valor grande e secreto.
+Token usado pelos agentes de inventario para enviar dados. Em producao, use um valor grande e secreto. Se estiver ausente, o sistema deriva um token estavel da `SECRET_KEY`; o valor efetivamente carregado e sua origem aparecem para o administrador em **Inventario > Agentes de inventario**.
 
 ## Efeito nos agentes ja instalados
 

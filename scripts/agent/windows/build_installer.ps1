@@ -48,17 +48,10 @@ if (-not (Test-Path $trayExePath)) {
     throw "Nao foi possivel compilar o aplicativo da bandeja."
 }
 
+# O instalador versionado nunca deve incorporar o token do ambiente de compilacao.
+# Um token so e preenchido quando informado explicitamente para uma distribuicao privada.
 if (-not $AgentToken) {
-    $envPath = Join-Path $projectDir ".env"
-    if (Test-Path $envPath) {
-        $tokenLine = Get-Content $envPath | Where-Object { $_ -match "^INVENTARIO_AGENT_TOKEN=" } | Select-Object -First 1
-        if ($tokenLine) {
-            $AgentToken = ($tokenLine -replace "^INVENTARIO_AGENT_TOKEN=", "").Trim().Trim('"').Trim("'")
-        }
-    }
-}
-if (-not $AgentToken) {
-    $AgentToken = "sistema-chamados-agent-local"
+    $AgentToken = ""
 }
 
 function Convert-ToBase64Utf8([string]$Path) {

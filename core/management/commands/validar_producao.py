@@ -11,6 +11,7 @@ class Command(BaseCommand):
             ("SECRET_KEY alterada", not settings.SECRET_KEY.startswith("django-insecure") and "dev" not in settings.SECRET_KEY.lower(), True),
             ("ALLOWED_HOSTS configurado", bool(settings.ALLOWED_HOSTS), True),
             ("Banco configurado", bool(settings.DATABASES["default"]["ENGINE"]), True),
+            ("Token do agente definido no .env", settings.INVENTARIO_AGENT_TOKEN_ORIGEM == "env", False),
             ("SMTP configurado", "smtp" in settings.EMAIL_BACKEND and bool(settings.EMAIL_HOST), False),
             ("DEFAULT_FROM_EMAIL configurado", "localhost" not in settings.DEFAULT_FROM_EMAIL, False),
             ("Active Directory configurado", all([settings.AD_SERVER, settings.AD_USER, settings.AD_PASSWORD, settings.AD_BASE_DN]), False),

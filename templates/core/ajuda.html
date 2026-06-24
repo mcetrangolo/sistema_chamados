@@ -116,7 +116,7 @@
       <p>O agente Windows coleta no inicio do computador e periodicamente. O icone na bandeja permite ajustar servidor, porta e token, solicitar uma coleta, reiniciar o agente e consultar o log. No Linux, a coleta usa um servico e temporizador do systemd.</p>
       <h3>Quando o servidor ou o token mudar</h3>
       <ol>
-        <li>O administrador altera <code>INVENTARIO_AGENT_TOKEN</code> no arquivo <code>.env</code> do servidor e reinicia a aplicacao.</li>
+        <li>O administrador confere o token efetivamente carregado em <strong>Inventario &gt; Agentes de inventario</strong>. Se a variavel estiver ausente, o servidor gera um token estavel automaticamente.</li>
         <li>No Windows, abra o icone do agente na bandeja e atualize servidor e token. Tambem e possivel executar o instalador atual sobre a instalacao existente.</li>
         <li>No Linux, atualize <code>/etc/sistema-chamados-agent/config.env</code> e reinicie o temporizador.</li>
       </ol>
@@ -184,7 +184,7 @@ bash scripts/deploy_linux.sh</code></pre>
       <h2>Diagnostico e seguranca</h2>
       <dl class="help-diagnostics">
         <dt>Pagina indisponivel</dt><dd>Verifique o controle de servicos e os logs do container web.</dd>
-        <dt>Agente retorna 403</dt><dd>Compare o token do equipamento com <code>INVENTARIO_AGENT_TOKEN</code>.</dd>
+        <dt>Agente retorna 403</dt><dd>Compare o token do equipamento com o valor exibido em <strong>Inventario &gt; Agentes de inventario</strong>.</dd>
         <dt>Scan nao encontra IPs</dt><dd>Revise a faixa, a rota da rede, firewall, ICMP, portas TCP, Nmap e permissoes do servidor.</dd>
         <dt>Dados desatualizados</dt><dd>Confira a ultima coleta, o agendamento e o relogio do servidor e do equipamento.</dd>
       </dl>

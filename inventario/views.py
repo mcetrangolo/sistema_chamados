@@ -322,6 +322,7 @@ def configuracao_agente(request):
     contexto = {
         "pode_configurar_agente": request.user.is_superuser,
         "token": settings.INVENTARIO_AGENT_TOKEN if request.user.is_superuser else "",
+        "token_origem": settings.INVENTARIO_AGENT_TOKEN_ORIGEM if request.user.is_superuser else "",
         "endpoint": endpoint,
         "download_url": download_url,
         "linux_download_url": linux_download_url,
@@ -353,11 +354,11 @@ def receber_coleta_agente(request):
     if not token_configurado or not constant_time_compare(token_recebido, token_configurado):
         RegistroColetaAgente.objects.create(
             status=RegistroColetaAgente.Status.REJEITADA,
-            mensagem="Token invalido ou nao configurado. Reconfigure o agente com o token deste servidor.",
+            mensagem="Token diferente do servidor. Reconfigure o agente com o token exibido na tela de agentes.",
             ip_origem=ip_origem_request(request),
         )
         return JsonResponse(
-            {"erro": "Token invalido ou nao configurado. Substitua o agente pelo instalador atual e confirme o token do servidor."},
+            {"erro": "Token invalido. Use no agente o token exibido em Inventario > Agentes de inventario."},
             status=403,
         )
 

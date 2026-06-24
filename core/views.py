@@ -5,6 +5,7 @@ import platform
 from re import sub
 import shutil
 import subprocess
+import sys
 import urllib.request
 
 from django.conf import settings
@@ -611,6 +612,8 @@ class ControleServicosView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateV
         context["ultimo_resultado"] = self.request.session.pop("ultimo_resultado_servicos", "")
         context["power_actions_habilitadas"] = self._power_actions_habilitadas()
         context["docker_disponivel"] = bool(self._docker_compose_command("ps"))
+        context["reinicio_interno"] = self._reinicio_interno_disponivel()
+        context["reinicio_disponivel"] = context["docker_disponivel"] or context["reinicio_interno"]
         return context
 
     def post(self, request, *args, **kwargs):
@@ -629,6 +632,17 @@ class ControleServicosView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateV
                 request,
                 "Reboot/desligamento do servidor esta bloqueado. Defina ALLOW_SERVER_POWER_ACTIONS=True no .env para habilitar.",
             )
+            return redirect("core:servicos")
+
+        if acao_id == "reiniciar_servicos" and self._reinicio_interno_disponivel():
+            agendado, erro = self._agendar_reinicio_container()
+            if not agendado:
+                messages.error(request, f"Nao foi possivel agendar o reinicio: {erro}")
+                return redirect("core:servicos")
+            request.session["ultimo_resultado_servicos"] = (
+                "Reinicio interno do container agendado. A aplicacao voltara em alguns segundos."
+            )
+            messages.success(request, "Reinicio da aplicacao agendado com sucesso.")
             return redirect("core:servicos")
 
         comando = self._comando_para_acao(acao_id)
@@ -653,6 +667,24 @@ class ControleServicosView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateV
         if shutil.which("docker-compose"):
             return ["docker-compose", subcomando]
         return None
+
+    def _reinicio_interno_disponivel(self):
+        return platform.system().lower() == "linux" and Path("/.dockerenv").exists()
+
+    def _agendar_reinicio_container(self):
+        codigo = "import os, signal, time; time.sleep(3); os.kill(1, signal.SIGTERM)"
+        try:
+            subprocess.Popen(
+                [sys.executable, "-c", codigo],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                close_fds=True,
+                start_new_session=True,
+            )
+        except Exception as exc:
+            return False, str(exc)
+        return True, ""
 
     def _comando_para_acao(self, acao_id):
         if acao_id in {"reiniciar_servicos", "parar_servicos"}:
