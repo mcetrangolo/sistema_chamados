@@ -5,7 +5,7 @@
 <div class="d-flex justify-content-between align-items-start mb-3">
   <div>
     <h1 class="h3 mb-1">{{ chamado.numero }}</h1>
-    <p class="text-secondary mb-0">{{ chamado.nome_solicitante }} · {{ chamado.setor }} · {{ chamado.criado_em|date:"d/m/Y H:i" }}</p>
+    <p class="text-secondary mb-0">Aberto em {{ chamado.criado_em|date:"d/m/Y H:i" }} · {{ chamado.get_status_display }}</p>
   </div>
   <div class="d-flex gap-2">
     <a class="btn btn-outline-secondary" href="{% url 'chamados:imprimir' chamado.pk %}" target="_blank">Imprimir</a>
@@ -20,13 +20,24 @@
 <div class="row g-4">
   <div class="col-lg-8">
     <section class="detail-section">
+      <h2 class="h5">Solicitante</h2>
+      <dl class="row mb-0">
+        <dt class="col-sm-3">Nome</dt><dd class="col-sm-9"><strong>{{ chamado.nome_solicitante }}</strong></dd>
+        <dt class="col-sm-3">Setor solicitante</dt><dd class="col-sm-9">{{ chamado.setor }}</dd>
+        <dt class="col-sm-3">Telefone ou ramal</dt><dd class="col-sm-9">{% if chamado.telefone %}<a href="tel:{{ chamado.telefone }}">{{ chamado.telefone }}</a>{% else %}<span class="text-secondary">Não informado</span>{% endif %}</dd>
+        <dt class="col-sm-3">E-mail</dt><dd class="col-sm-9">{% if chamado.email %}<a href="mailto:{{ chamado.email }}">{{ chamado.email }}</a>{% elif chamado.solicitante.email %}<a href="mailto:{{ chamado.solicitante.email }}">{{ chamado.solicitante.email }}</a>{% else %}<span class="text-secondary">Não informado</span>{% endif %}</dd>
+      </dl>
+    </section>
+    <section class="detail-section">
       <h2 class="h5">Descrição do problema</h2>
       <p>{{ chamado.descricao|linebreaks }}</p>
     </section>
-    <section class="detail-section">
-      <h2 class="h5">Solução aplicada</h2>
-      <p>{{ chamado.solucao_aplicada|default:"Ainda não informada."|linebreaks }}</p>
-    </section>
+    {% if chamado.solucao_aplicada %}
+      <section class="detail-section">
+        <h2 class="h5">Solução aplicada</h2>
+        <p>{{ chamado.solucao_aplicada|linebreaks }}</p>
+      </section>
+    {% endif %}
     <section class="detail-section">
       <h2 class="h5">Conversa do chamado</h2>
       <div class="thread">
@@ -85,18 +96,21 @@
         <dt class="col-5">Status</dt><dd class="col-7"><span class="badge {{ chamado.status|status_badge }}">{{ chamado.get_status_display }}</span></dd>
         <dt class="col-5">Tipo</dt><dd class="col-7">{{ chamado.get_tipo_display }}</dd>
         <dt class="col-5">Prioridade</dt><dd class="col-7"><span class="badge {{ chamado.prioridade|prioridade_badge }}">{{ chamado.get_prioridade_display }}</span></dd>
-        <dt class="col-5">Impacto</dt><dd class="col-7">{{ chamado.get_impacto_display }}</dd>
-        <dt class="col-5">Urgência</dt><dd class="col-7">{{ chamado.get_urgencia_display }}</dd>
         <dt class="col-5">Categoria</dt><dd class="col-7">{{ chamado.categoria }}</dd>
-        <dt class="col-5">Tópico</dt><dd class="col-7">{{ chamado.topico_ajuda|default:"-" }}</dd>
-        <dt class="col-5">Origem</dt><dd class="col-7">{{ chamado.get_origem_display }}</dd>
         <dt class="col-5">Equipe</dt><dd class="col-7">{{ chamado.equipe_responsavel|default:"Nao atribuida" }}</dd>
         <dt class="col-5">Atendente</dt><dd class="col-7">{{ chamado.tecnico_responsavel|default:"Não atribuído" }}</dd>
         <dt class="col-5">SLA</dt><dd class="col-7"><span class="badge {{ chamado|sla_badge }}">{{ chamado|sla_estado }}</span>{% if chamado.vencimento_em %}<span class="d-block small text-secondary mt-1">{{ chamado.vencimento_em|date:"d/m/Y H:i" }}</span>{% endif %}</dd>
-        <dt class="col-5">1ª resposta</dt><dd class="col-7">{{ chamado.primeira_resposta_em|date:"d/m/Y H:i"|default:"-" }}</dd>
-        <dt class="col-5">Telefone</dt><dd class="col-7">{{ chamado.telefone|default:"-" }}</dd>
-        <dt class="col-5">E-mail</dt><dd class="col-7">{{ chamado.email|default:"-" }}</dd>
       </dl>
+      <details class="mt-3">
+        <summary class="text-secondary">Mais informações</summary>
+        <dl class="row mb-0 mt-3">
+          <dt class="col-5">Impacto</dt><dd class="col-7">{{ chamado.get_impacto_display }}</dd>
+          <dt class="col-5">Urgência</dt><dd class="col-7">{{ chamado.get_urgencia_display }}</dd>
+          <dt class="col-5">Tópico</dt><dd class="col-7">{{ chamado.topico_ajuda|default:"-" }}</dd>
+          <dt class="col-5">Origem</dt><dd class="col-7">{{ chamado.get_origem_display }}</dd>
+          <dt class="col-5">1ª resposta</dt><dd class="col-7">{{ chamado.primeira_resposta_em|date:"d/m/Y H:i"|default:"-" }}</dd>
+        </dl>
+      </details>
     </div>
     <form class="side-panel mt-3" method="post" action="{% url 'chamados:atribuir' chamado.pk %}">
       {% csrf_token %}

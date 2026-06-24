@@ -329,10 +329,12 @@
         <div class="text-block">{{ chamado.descricao|default:"-" }}</div>
       </section>
 
-      <section class="section full">
-        <h2>Solução aplicada</h2>
-        <div class="text-block">{{ chamado.solucao_aplicada|default:"Ainda não informada." }}</div>
-      </section>
+      {% if chamado.solucao_aplicada %}
+        <section class="section full">
+          <h2>Solução aplicada</h2>
+          <div class="text-block">{{ chamado.solucao_aplicada }}</div>
+        </section>
+      {% endif %}
 
       {% if chamado.observacoes_internas %}
         <section class="section full">
