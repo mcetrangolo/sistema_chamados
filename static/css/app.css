@@ -883,13 +883,34 @@ a {
   text-align: left;
 }
 
-.popover {
-  max-width: 420px;
+.ticket-preview-popup {
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  box-shadow: 0 12px 28px rgb(15 23 42 / 24%);
+  color: #f8fafc;
+  display: none;
+  max-width: min(420px, calc(100vw - 24px));
+  padding: .75rem .85rem;
+  pointer-events: none;
+  position: fixed;
+  width: max-content;
+  z-index: 1090;
 }
 
-.popover-body {
+.ticket-preview-popup.is-visible {
+  display: block;
+}
+
+.ticket-preview-popup strong {
+  display: block;
+  margin-bottom: .35rem;
+}
+
+.ticket-preview-popup div {
   line-height: 1.5;
-  white-space: normal;
+  max-width: 390px;
+  white-space: pre-line;
 }
 
 .scan-form .form-select,

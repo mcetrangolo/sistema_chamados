@@ -27,7 +27,7 @@
         {% endif %}
         <span>
           <strong>{{ config_institucional.nome_instituicao }}</strong>
-          <small>{{ sistema_versao_nome }} - {{ sistema_versao }}</small>
+          <small>{{ sistema_versao }}</small>
         </span>
       </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menu">
@@ -162,12 +162,39 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
-      new bootstrap.Tooltip(element, { container: 'body' });
+    if (window.bootstrap) {
+      document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
+        new bootstrap.Tooltip(element, { container: 'body' });
+      });
+    }
+
+    const ticketPopup = document.createElement('div');
+    ticketPopup.className = 'ticket-preview-popup';
+    ticketPopup.setAttribute('role', 'tooltip');
+    ticketPopup.innerHTML = '<strong>Descrição do problema</strong><div></div>';
+    document.body.appendChild(ticketPopup);
+    const ticketPopupBody = ticketPopup.querySelector('div');
+
+    function showTicketPreview(element) {
+      ticketPopupBody.textContent = element.dataset.ticketDescription || 'Sem descrição informada.';
+      ticketPopup.classList.add('is-visible');
+      const trigger = element.getBoundingClientRect();
+      const popup = ticketPopup.getBoundingClientRect();
+      let left = trigger.right + 10;
+      if (left + popup.width > window.innerWidth - 12) left = trigger.left - popup.width - 10;
+      left = Math.max(12, left);
+      const top = Math.max(12, Math.min(trigger.top, window.innerHeight - popup.height - 12));
+      ticketPopup.style.left = left + 'px';
+      ticketPopup.style.top = top + 'px';
+    }
+
+    document.querySelectorAll('[data-ticket-description]').forEach(function (element) {
+      element.addEventListener('mouseenter', function () { showTicketPreview(element); });
+      element.addEventListener('focus', function () { showTicketPreview(element); });
+      element.addEventListener('mouseleave', function () { ticketPopup.classList.remove('is-visible'); });
+      element.addEventListener('blur', function () { ticketPopup.classList.remove('is-visible'); });
     });
-    document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (element) {
-      new bootstrap.Popover(element, { container: 'body' });
-    });
+    window.addEventListener('scroll', function () { ticketPopup.classList.remove('is-visible'); }, true);
   </script>
 </body>
 </html>
