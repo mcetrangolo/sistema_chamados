@@ -53,6 +53,8 @@ O instalador exibe janelas simples de boas-vindas e configuração. Ao final, o 
 
 Ao atualizar uma instalacao existente, o instalador reaproveita automaticamente servidor, token e numero de patrimonio do `config.json`. Ele tambem instala um icone na bandeja do Windows com comandos para configurar a conexao, enviar uma coleta, reiniciar o agente, abrir o sistema e consultar o ultimo log.
 
+O instalador, os atalhos, o Painel de Controle e a bandeja usam o icone proprio azul do agente com indicador verde de atividade.
+
 O pacote `.exe` grava os scripts internos em `C:\ProgramData\SistemaChamadosAgent`, solicita permissao de Administrador via UAC, cria as tarefas agendadas e executa a primeira coleta sem janela preta de console.
 
 O log da ultima execucao fica em:

@@ -198,7 +198,7 @@ namespace SistemaChamadosAgentTray
             menu.Opening += delegate { RefreshStatus(); };
 
             trayIcon = new NotifyIcon();
-            trayIcon.Icon = SystemIcons.Application;
+            trayIcon.Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
             trayIcon.Text = "Sistema Chamados Agent";
             trayIcon.ContextMenuStrip = menu;
             trayIcon.Visible = true;

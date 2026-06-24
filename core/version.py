@@ -1,2 +1,2 @@
-SISTEMA_VERSAO = "v1.8.0"
-SISTEMA_VERSAO_NOME = "Identificacao Patrimonial por QR Code"
+SISTEMA_VERSAO = "v1.8.1"
+SISTEMA_VERSAO_NOME = "Identidade Visual do Agente Windows"

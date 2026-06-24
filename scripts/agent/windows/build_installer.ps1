@@ -13,6 +13,7 @@ $exePath = Join-Path $outputDirFull $OutputName
 $releaseDir = Join-Path $projectDir "releases\agents\windows"
 $releaseExePath = Join-Path $releaseDir $OutputName
 $releaseTrayPath = Join-Path $releaseDir "SistemaChamadosAgentTray.exe"
+$releaseIconPath = Join-Path $releaseDir "SistemaChamadosAgent.ico"
 
 if (Test-Path $packageDir) {
     Remove-Item -Path $packageDir -Recurse -Force
@@ -28,9 +29,21 @@ if (-not $csc) {
     throw "Compilador C# do .NET Framework nao encontrado. Nao foi possivel gerar o instalador grafico."
 }
 
+$iconGeneratorSource = Join-Path $baseDir "AgentIconGenerator.cs"
+$iconGeneratorExe = Join-Path $packageDir "AgentIconGenerator.exe"
+$iconPath = Join-Path $packageDir "SistemaChamadosAgent.ico"
+& $csc /nologo /target:exe /out:$iconGeneratorExe /reference:System.Drawing.dll $iconGeneratorSource
+if (-not (Test-Path $iconGeneratorExe)) {
+    throw "Nao foi possivel compilar o gerador do icone."
+}
+& $iconGeneratorExe $iconPath
+if (-not (Test-Path $iconPath)) {
+    throw "O icone do agente nao foi gerado."
+}
+
 $traySourcePath = Join-Path $baseDir "AgentTray.cs"
 $trayExePath = Join-Path $packageDir "SistemaChamadosAgentTray.exe"
-& $csc /nologo /target:winexe /out:$trayExePath /reference:System.Windows.Forms.dll /reference:System.Drawing.dll $traySourcePath
+& $csc /nologo /target:winexe /out:$trayExePath /win32icon:$iconPath /reference:System.Windows.Forms.dll /reference:System.Drawing.dll $traySourcePath
 if (-not (Test-Path $trayExePath)) {
     throw "Nao foi possivel compilar o aplicativo da bandeja."
 }
@@ -66,15 +79,17 @@ $source = $source.Replace("__UNINSTALL_SCRIPT_BASE64__", $uninstallScript)
 $source = $source.Replace("__TRAY_EXECUTABLE_BASE64__", $trayExecutable)
 $source | Out-File -FilePath $generatedSource -Encoding UTF8 -Force
 
-& $csc /nologo /target:winexe /out:$exePath /reference:System.Windows.Forms.dll $generatedSource
+& $csc /nologo /target:winexe /out:$exePath /win32icon:$iconPath /reference:System.Windows.Forms.dll $generatedSource
 
 if (Test-Path $exePath) {
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
     Copy-Item -LiteralPath $exePath -Destination $releaseExePath -Force
     Copy-Item -LiteralPath $trayExePath -Destination $releaseTrayPath -Force
+    Copy-Item -LiteralPath $iconPath -Destination $releaseIconPath -Force
     Write-Host "Instalador standalone criado: $exePath" -ForegroundColor Green
     Write-Host "Copia versionada atualizada: $releaseExePath" -ForegroundColor Green
     Write-Host "Aplicativo da bandeja atualizado: $releaseTrayPath" -ForegroundColor Green
+    Write-Host "Icone do agente atualizado: $releaseIconPath" -ForegroundColor Green
 } else {
     throw "Compilacao executou, mas o EXE nao foi encontrado: $exePath"
 }
