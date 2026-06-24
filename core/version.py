@@ -1,2 +1,2 @@
-SISTEMA_VERSAO = "v1.7.6"
-SISTEMA_VERSAO_NOME = "Previa de Chamados sob Demanda"
+SISTEMA_VERSAO = "v1.8.0"
+SISTEMA_VERSAO_NOME = "Identificacao Patrimonial por QR Code"

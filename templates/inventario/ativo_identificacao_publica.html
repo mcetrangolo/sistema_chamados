@@ -1,0 +1,16 @@
+{% extends "public_base.html" %}
+{% block title %}{{ ativo.nome }} | Identificacao patrimonial{% endblock %}
+{% block content %}
+<section class="public-card">
+  <span class="section-label">Identificacao patrimonial</span>
+  <h1 class="h3 mt-2">{{ ativo.nome }}</h1>
+  <dl class="row mb-0 mt-4">
+    <dt class="col-sm-4">Patrimonio</dt><dd class="col-sm-8">{{ ativo.patrimonio|default:"Nao informado" }}</dd>
+    <dt class="col-sm-4">Tipo</dt><dd class="col-sm-8">{{ ativo.tipo }}</dd>
+    <dt class="col-sm-4">Fabricante</dt><dd class="col-sm-8">{{ ativo.fabricante|default:"-" }}</dd>
+    <dt class="col-sm-4">Modelo</dt><dd class="col-sm-8">{{ ativo.modelo|default:"-" }}</dd>
+    <dt class="col-sm-4">Setor</dt><dd class="col-sm-8">{{ ativo.setor|default:"-" }}</dd>
+    <dt class="col-sm-4">Status</dt><dd class="col-sm-8">{{ ativo.get_status_display }}</dd>
+  </dl>
+</section>
+{% endblock %}

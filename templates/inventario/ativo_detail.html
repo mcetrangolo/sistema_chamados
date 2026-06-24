@@ -147,6 +147,7 @@
       <h2 class="h6">Identificacao QR</h2>
       <img src="{% url 'inventario:ativo_qr' ativo.pk %}" alt="QR Code do ativo" width="180" height="180">
       <p class="text-secondary small mb-0">Patrimonio {{ ativo.patrimonio|default:"nao informado" }}</p>
+      <a class="btn btn-sm btn-outline-primary mt-3" href="{{ qr_public_url }}" target="_blank" rel="noopener">Testar QR Code</a>
     </section>
     <section class="side-panel mt-3">
       <h2 class="h6">Movimentar / alterar ciclo</h2>

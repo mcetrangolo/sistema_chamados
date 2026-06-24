@@ -24,6 +24,7 @@ urlpatterns = [
     path("relatorios/exportar/xls/", views.exportar_relatorio_inventario_xls, name="relatorio_xls"),
     path("relatorios/exportar/pdf/", views.exportar_relatorio_inventario_pdf, name="relatorio_pdf"),
     path("ativos/", views.AtivoRedeListView.as_view(), name="ativos"),
+    path("ativos/identificacao/<str:token>/", views.identificacao_publica_ativo, name="ativo_identificacao"),
     path("ativos/sem-comunicacao/", views.AtivosSemComunicacaoView.as_view(), name="ativos_sem_comunicacao"),
     path("ativos/duplicados/", views.AtivosDuplicadosView.as_view(), name="ativos_duplicados"),
     path("ativos/duplicados/mesclar/", views.MesclarAtivosView.as_view(), name="ativos_mesclar"),

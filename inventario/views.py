@@ -1,11 +1,14 @@
 import csv
+import io
 import ipaddress
 import json
 import secrets
 import socket
 from html import escape
+from urllib.parse import urlsplit, urlunsplit
 
 from django.conf import settings
+from django.core import signing
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
@@ -14,7 +17,7 @@ from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils.crypto import constant_time_compare
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -168,6 +171,42 @@ def localizar_ativo_por_identidade(serial="", mac="", hostname="", ip=None):
 def _base_url_agente(request):
     url_detectada = request.build_absolute_uri("/").rstrip("/")
     return settings.PUBLIC_BASE_URL or url_detectada
+
+
+def _ip_rede_preferencial():
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as conexao:
+            conexao.connect(("8.8.8.8", 80))
+            ip = conexao.getsockname()[0]
+            if ip and not ip.startswith("127."):
+                return ip
+    except OSError:
+        pass
+    ips = _ips_rede_local()
+    return ips[0] if ips else ""
+
+
+def _base_url_qr(request):
+    base_url = settings.PUBLIC_BASE_URL or request.build_absolute_uri("/").rstrip("/")
+    partes = urlsplit(base_url)
+    if partes.hostname not in {"localhost", "127.0.0.1", "::1"}:
+        return base_url.rstrip("/")
+
+    ip = _ip_rede_preferencial()
+    if not ip:
+        return base_url.rstrip("/")
+    porta = partes.port
+    netloc = f"{ip}:{porta}" if porta else ip
+    return urlunsplit((partes.scheme or "http", netloc, "", "", "")).rstrip("/")
+
+
+def _token_qr_ativo(ativo):
+    return signing.dumps(ativo.pk, salt="inventario.ativo.qr")
+
+
+def _url_publica_qr_ativo(request, ativo):
+    caminho = reverse("inventario:ativo_identificacao", kwargs={"token": _token_qr_ativo(ativo)})
+    return f"{_base_url_qr(request)}{caminho}"
 
 
 def _decimal_ou_none(valor):
@@ -1063,12 +1102,29 @@ def exportar_ativos_xls(request):
 def qr_code_ativo(request, pk):
     ativo = get_object_or_404(AtivoRede, pk=pk)
     import qrcode
+    from qrcode.constants import ERROR_CORRECT_H
 
-    url = request.build_absolute_uri(ativo.get_absolute_url())
-    imagem = qrcode.make(url)
+    qr = qrcode.QRCode(version=None, error_correction=ERROR_CORRECT_H, box_size=8, border=4)
+    qr.add_data(_url_publica_qr_ativo(request, ativo))
+    qr.make(fit=True)
+    imagem = qr.make_image(fill_color="black", back_color="white")
     buffer = io.BytesIO()
     imagem.save(buffer, format="PNG")
-    return HttpResponse(buffer.getvalue(), content_type="image/png")
+    response = HttpResponse(buffer.getvalue(), content_type="image/png")
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+def identificacao_publica_ativo(request, token):
+    try:
+        ativo_id = signing.loads(token, salt="inventario.ativo.qr")
+    except (signing.BadSignature, ValueError, TypeError):
+        raise Http404("Identificacao de ativo invalida.")
+    ativo = get_object_or_404(AtivoRede.objects.select_related("tipo", "setor"), pk=ativo_id)
+    return TemplateView.as_view(template_name="inventario/ativo_identificacao_publica.html")(
+        request,
+        ativo=ativo,
+    )
 
 
 @login_required
@@ -1079,7 +1135,7 @@ def etiqueta_ativo_pdf(request, pk):
     from reportlab.lib.utils import ImageReader
     from reportlab.pdfgen import canvas
 
-    qr = qrcode.make(request.build_absolute_uri(ativo.get_absolute_url()))
+    qr = qrcode.make(_url_publica_qr_ativo(request, ativo))
     qr_buffer = io.BytesIO()
     qr.save(qr_buffer, format="PNG")
     saida = io.BytesIO()
@@ -1447,6 +1503,7 @@ class AtivoRedeDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["qr_public_url"] = _url_publica_qr_ativo(self.request, self.object)
         context["ocorrencia_form"] = OcorrenciaAtivoForm()
         context["relacionamento_form"] = RelacionamentoAtivoForm()
         context["varredura_form"] = VarreduraRedeForm()
