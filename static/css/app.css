@@ -883,6 +883,15 @@ a {
   text-align: left;
 }
 
+.popover {
+  max-width: 420px;
+}
+
+.popover-body {
+  line-height: 1.5;
+  white-space: normal;
+}
+
 .scan-form .form-select,
 .scan-form .form-control {
   min-height: 31px;
