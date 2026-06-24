@@ -1,6 +1,6 @@
 # Sistema de Chamados, Service Desk e Inventario
 
-Sistema web em Django para helpdesk/service desk, governanca de acessos, base de conhecimento, contratos e inventario de rede.
+Sistema web em Django para helpdesk/service desk, governanca de acessos, base de conhecimento, contratos e inventario de rede. Esta Solução foi criada como uma alternativa opensource e gratuita para setores de TI de orgãos municipais. A ideia e algo simples e eficiente, que qualquer um possa usar e melhorar.
 
 Repositorio:
 
