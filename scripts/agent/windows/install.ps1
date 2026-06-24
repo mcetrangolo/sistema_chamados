@@ -1,6 +1,6 @@
 param(
     [string]$ServerUrl = "",
-    [string]$Token = "",
+    [string]$Token = "sistema-chamados-agent-local",
     [string]$NumeroSerieManual = "",
     [int]$IntervalHours = 6
 )
@@ -114,7 +114,7 @@ function Register-UninstallEntry {
     foreach ($keyPath in $keyPaths) {
         New-Item -Path $keyPath -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayName" -Value "Sistema Chamados Agent" -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.4.1" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.4.2" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "Publisher" -Value "Sistema de Chamados" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayIcon" -Value (Join-Path $InstallDir "SistemaChamadosAgentTray.exe") -PropertyType String -Force | Out-Null

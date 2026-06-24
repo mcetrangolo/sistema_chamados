@@ -48,10 +48,9 @@ if (-not (Test-Path $trayExePath)) {
     throw "Nao foi possivel compilar o aplicativo da bandeja."
 }
 
-# O instalador versionado nunca deve incorporar o token do ambiente de compilacao.
-# Um token so e preenchido quando informado explicitamente para uma distribuicao privada.
+# Mantem o token fixo de compatibilidade quando nenhum valor for informado.
 if (-not $AgentToken) {
-    $AgentToken = ""
+    $AgentToken = "sistema-chamados-agent-local"
 }
 
 function Convert-ToBase64Utf8([string]$Path) {

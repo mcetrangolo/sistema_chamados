@@ -62,7 +62,7 @@ No servidor, configure um valor grande e secreto no `.env`:
 INVENTARIO_AGENT_TOKEN=gere-um-token-grande-e-secreto
 ```
 
-Instalacoes novas geram esse valor automaticamente. Em instalacoes antigas sem a variavel, o sistema deriva um token estavel da `SECRET_KEY` e o identifica na tela **Inventario > Agentes de inventario**.
+Por compatibilidade, o valor padrao e `sistema-chamados-agent-local`. O sistema identifica na tela **Inventario > Agentes de inventario** se esta usando esse token fixo ou um valor exclusivo definido no `.env`. Em redes expostas, sempre configure um token exclusivo.
 
 Depois reinicie:
 

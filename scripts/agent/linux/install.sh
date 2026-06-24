@@ -47,7 +47,7 @@ case "$DEFAULT_SERVER_URL" in
   __*__) DEFAULT_SERVER_URL="http://" ;;
 esac
 case "$AGENT_TOKEN" in
-  __*__) AGENT_TOKEN="$(ask "Token do agente" "")" ;;
+  __*__) AGENT_TOKEN="$(ask "Token do agente" "sistema-chamados-agent-local")" ;;
 esac
 if [ -z "$AGENT_TOKEN" ]; then
   echo "O token do agente e obrigatorio. Consulte Inventario > Agentes de inventario."

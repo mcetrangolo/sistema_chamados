@@ -1,6 +1,4 @@
 from pathlib import Path
-import hashlib
-import hmac
 import os
 
 from dotenv import load_dotenv
@@ -143,12 +141,8 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "15"))
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "helpdesk@localhost")
 _inventario_agent_token_env = os.getenv("INVENTARIO_AGENT_TOKEN", "").strip()
-INVENTARIO_AGENT_TOKEN = _inventario_agent_token_env or hmac.new(
-    SECRET_KEY.encode("utf-8"),
-    b"sistema-chamados:inventario-agent-token",
-    hashlib.sha256,
-).hexdigest()
-INVENTARIO_AGENT_TOKEN_ORIGEM = "env" if _inventario_agent_token_env else "automatico"
+INVENTARIO_AGENT_TOKEN = _inventario_agent_token_env or "sistema-chamados-agent-local"
+INVENTARIO_AGENT_TOKEN_ORIGEM = "env" if _inventario_agent_token_env else "padrao"
 INVENTARIO_DIAS_SEM_COMUNICACAO = max(
     1,
     int(os.getenv("INVENTARIO_DIAS_SEM_COMUNICACAO", "30")),

@@ -1,2 +1,2 @@
-SISTEMA_VERSAO = "v1.9.2"
-SISTEMA_VERSAO_NOME = "Confiabilidade do Agente e Servicos"
+SISTEMA_VERSAO = "v1.9.3"
+SISTEMA_VERSAO_NOME = "Compatibilidade do Token do Agente"

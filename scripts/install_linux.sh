@@ -75,7 +75,7 @@ fi
 if [ ! -f ".env" ]; then
   echo "Criando .env inicial para SQLite..."
   SECRET_KEY="$(openssl rand -base64 48 | tr -d '\n')"
-  INVENTARIO_AGENT_TOKEN="$(openssl rand -hex 32)"
+  INVENTARIO_AGENT_TOKEN="sistema-chamados-agent-local"
   cat > .env <<EOF
 SECRET_KEY=$SECRET_KEY
 DEBUG=False

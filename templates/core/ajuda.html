@@ -116,7 +116,7 @@
       <p>O agente Windows coleta no inicio do computador e periodicamente. O icone na bandeja permite ajustar servidor, porta e token, solicitar uma coleta, reiniciar o agente e consultar o log. No Linux, a coleta usa um servico e temporizador do systemd.</p>
       <h3>Quando o servidor ou o token mudar</h3>
       <ol>
-        <li>O administrador confere o token efetivamente carregado em <strong>Inventario &gt; Agentes de inventario</strong>. Se a variavel estiver ausente, o servidor gera um token estavel automaticamente.</li>
+        <li>O administrador confere o token efetivamente carregado em <strong>Inventario &gt; Agentes de inventario</strong>. Se a variavel estiver ausente, o servidor usa o token fixo de compatibilidade.</li>
         <li>No Windows, abra o icone do agente na bandeja e atualize servidor e token. Tambem e possivel executar o instalador atual sobre a instalacao existente.</li>
         <li>No Linux, atualize <code>/etc/sistema-chamados-agent/config.env</code> e reinicie o temporizador.</li>
       </ol>
