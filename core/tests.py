@@ -26,6 +26,8 @@ class AjudaSistemaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ajuda do sistema")
+        self.assertContains(response, "Manual operacional da area interna")
+        self.assertContains(response, "nao e destinada aos usuarios finais")
         self.assertContains(response, reverse("core:ajuda"), count=2)
         self.assertNotContains(response, ">Verificar atualizacoes<")
 
