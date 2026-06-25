@@ -1,5 +1,6 @@
 param(
-    [string]$ConfigPath = "$env:ProgramData\SistemaChamadosAgent\config.json"
+    [string]$ConfigPath = "$env:ProgramData\SistemaChamadosAgent\config.json",
+    [switch]$SomenteSeSolicitada
 )
 
 $ErrorActionPreference = "Stop"
@@ -166,7 +167,7 @@ function Get-AgentPayload {
     }
 
     return @{
-        versao_agente = "1.3.1"
+        versao_agente = "1.4.3"
         hostname = [string]$env:COMPUTERNAME
         ip = $ip
         mac = $mac
@@ -219,6 +220,27 @@ function Send-AgentPayload {
     }
 }
 
+function Test-CollectionRequested {
+    param(
+        [string]$ServerUrl,
+        [string]$Token,
+        [string]$Hostname
+    )
+
+    Enable-Tls12IfAvailable
+    $hostnameEscaped = [Uri]::EscapeDataString($Hostname)
+    $endpoint = "$($ServerUrl.TrimEnd('/'))/inventario/agente/coleta/solicitada/?hostname=$hostnameEscaped"
+    $client = New-Object System.Net.WebClient
+    $client.Encoding = [System.Text.Encoding]::UTF8
+    $client.Headers.Add("Authorization", "Bearer $Token")
+    try {
+        $response = $client.DownloadString($endpoint)
+        return $response -match '"coleta_solicitada"\s*:\s*true'
+    } finally {
+        $client.Dispose()
+    }
+}
+
 try {
     if (-not (Test-Path $ConfigPath)) {
         throw "Arquivo de configuracao nao encontrado: $ConfigPath"
@@ -242,6 +264,12 @@ try {
     }
 
     $serverUrl = $serverUrl.TrimEnd("/")
+    if ($SomenteSeSolicitada) {
+        if (-not (Test-CollectionRequested -ServerUrl $serverUrl -Token $token -Hostname $env:COMPUTERNAME)) {
+            exit 0
+        }
+        Write-AgentLog "INFO Coleta solicitada remotamente pelo servidor."
+    }
     $endpoint = "$serverUrl/inventario/agente/coleta/"
     Write-AgentLog "INFO Enviando coleta para $endpoint"
     $payload = Get-AgentPayload -SerialManual $serialManual

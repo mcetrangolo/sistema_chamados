@@ -2,6 +2,8 @@
 
 Agente para Debian, Ubuntu, Proxmox e distribuicoes Linux com Python 3.
 
+O agente consulta a cada minuto se existe uma coleta solicitada pelo servidor. A coleta completa continua sendo executada periodicamente e somente é antecipada quando há um pedido pendente.
+
 ## Instalar
 
 Baixe o script pela tela de inventario e execute:

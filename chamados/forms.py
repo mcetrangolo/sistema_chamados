@@ -395,6 +395,28 @@ class TecnicoForm(BootstrapFormMixin, UserCreationForm):
         return user
 
 
+class AtendenteExistenteForm(BootstrapFormMixin, forms.Form):
+    usuario = forms.ModelChoiceField(
+        label="Usuário do sistema",
+        queryset=get_user_model().objects.none(),
+        help_text="Selecione um usuário já cadastrado para atuar como atendente.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        grupo = Group.objects.filter(name="Técnicos de TI").first()
+        usuarios = get_user_model().objects.filter(is_active=True)
+        if grupo:
+            usuarios = usuarios.exclude(groups=grupo)
+        self.fields["usuario"].queryset = usuarios.order_by("first_name", "username")
+
+    def save(self):
+        usuario = self.cleaned_data["usuario"]
+        grupo, _ = Group.objects.get_or_create(name="Técnicos de TI")
+        usuario.groups.add(grupo)
+        return usuario
+
+
 class RelatorioChamadosForm(BootstrapFormMixin, forms.Form):
     AGRUPAMENTO_CHOICES = [
         ("status", "Status"),

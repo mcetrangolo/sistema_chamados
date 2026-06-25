@@ -68,6 +68,7 @@ import socket
 import subprocess
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -185,7 +186,7 @@ def payload(config):
     cpu = run(["sh", "-c", "awk -F: '/model name/ {print $2; exit}' /proc/cpuinfo | sed 's/^ //'"])
     office = run(["sh", "-c", "command -v libreoffice >/dev/null 2>&1 && libreoffice --version | head -n1 || true"])
     return {
-        "versao_agente": "1.3.0",
+        "versao_agente": "1.4.3",
         "hostname": socket.gethostname(),
         "ip": ip,
         "mac": primary.get("mac", ""),
@@ -216,9 +217,24 @@ def send(config, data):
         return response.read().decode("utf-8", errors="ignore")
 
 
+def collection_requested(config):
+    server = config["SERVER_URL"].rstrip("/")
+    hostname = urllib.parse.quote(socket.gethostname())
+    endpoint = server + "/inventario/agente/coleta/solicitada/?hostname=" + hostname
+    req = urllib.request.Request(endpoint, method="GET")
+    req.add_header("Authorization", "Bearer " + config["TOKEN"])
+    with urllib.request.urlopen(req, timeout=15) as response:
+        result = json.loads(response.read().decode("utf-8"))
+    return bool(result.get("coleta_solicitada"))
+
+
 def main():
-    config_path = sys.argv[1] if len(sys.argv) > 1 else "/etc/sistema-chamados-agent/config.env"
+    args = sys.argv[1:]
+    requested_only = "--requested-only" in args
+    config_path = next((arg for arg in args if not arg.startswith("--")), "/etc/sistema-chamados-agent/config.env")
     config = read_config(config_path)
+    if requested_only and not collection_requested(config):
+        return
     result = send(config, payload(config))
     print(result)
 
@@ -267,8 +283,34 @@ Unit=sistema-chamados-agent.service
 WantedBy=timers.target
 EOF
 
+  cat > /etc/systemd/system/sistema-chamados-agent-solicitacoes.service <<EOF
+[Unit]
+Description=Consulta solicitacoes do Sistema Chamados Agent
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 $INSTALL_DIR/agent.py $CONFIG_FILE --requested-only
+StandardOutput=append:$LOG_FILE
+StandardError=append:$LOG_FILE
+EOF
+
+  cat > /etc/systemd/system/sistema-chamados-agent-solicitacoes.timer <<EOF
+[Unit]
+Description=Consulta coletas solicitadas pelo servidor
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=sistema-chamados-agent-solicitacoes.service
+
+[Install]
+WantedBy=timers.target
+EOF
+
   systemctl daemon-reload
   systemctl enable --now sistema-chamados-agent.timer
+  systemctl enable --now sistema-chamados-agent-solicitacoes.timer
   systemctl start sistema-chamados-agent.service || true
   echo "Agente instalado com systemd timer: inicializacao e a cada 6 horas."
 else
@@ -278,6 +320,7 @@ SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 @reboot root /usr/bin/python3 $INSTALL_DIR/agent.py $CONFIG_FILE >> $LOG_FILE 2>&1
 0 */6 * * * root /usr/bin/python3 $INSTALL_DIR/agent.py $CONFIG_FILE >> $LOG_FILE 2>&1
+* * * * * root /usr/bin/python3 $INSTALL_DIR/agent.py $CONFIG_FILE --requested-only >> $LOG_FILE 2>&1
 EOF
   chmod 0644 "$cron_file"
   /usr/bin/python3 "$INSTALL_DIR/agent.py" "$CONFIG_FILE" >> "$LOG_FILE" 2>&1 || true
@@ -293,7 +336,9 @@ if [ "$(id -u)" != "0" ]; then
 fi
 if command -v systemctl >/dev/null 2>&1; then
   systemctl disable --now sistema-chamados-agent.timer >/dev/null 2>&1 || true
+  systemctl disable --now sistema-chamados-agent-solicitacoes.timer >/dev/null 2>&1 || true
   rm -f /etc/systemd/system/sistema-chamados-agent.service /etc/systemd/system/sistema-chamados-agent.timer
+  rm -f /etc/systemd/system/sistema-chamados-agent-solicitacoes.service /etc/systemd/system/sistema-chamados-agent-solicitacoes.timer
   systemctl daemon-reload >/dev/null 2>&1 || true
 fi
 rm -f /etc/cron.d/sistema-chamados-agent

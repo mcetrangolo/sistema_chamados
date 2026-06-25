@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Novo atendente | Sistema de Chamados{% endblock %}
+{% block title %}Novo usuario atendente | Sistema de Chamados{% endblock %}
 {% block content %}
 <div class="content-narrow">
-  <h1 class="h3 mb-3">Novo atendente</h1>
+  <h1 class="h3 mb-1">Novo usuario atendente</h1>
+  <p class="text-secondary">Use esta tela somente quando a pessoa ainda nao possui usuario no sistema.</p>
   <form method="post">
     {% csrf_token %}
     {% include "chamados/partials/form_fields.html" with form=form %}

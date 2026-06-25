@@ -1,6 +1,6 @@
 # Agente Windows de Inventário
 
-Agente compatível com Windows 7, 8, 10 e 11. A coleta usa WMI e o agendamento usa `schtasks.exe` para evitar dependência dos cmdlets modernos de tarefas agendadas.
+Agente compatível com Windows 7, 8, 10 e 11. A coleta usa WMI e o agendamento usa `schtasks.exe` para evitar dependência dos cmdlets modernos de tarefas agendadas. Pedidos feitos pelo botão **Solicitar coleta** são consultados a cada minuto sem executar o inventário completo quando não há pedido pendente.
 
 ## Pré-requisitos
 

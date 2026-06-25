@@ -21,7 +21,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils.crypto import constant_time_compare
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import CreateView, DetailView, ListView, RedirectView, TemplateView, UpdateView
 from core.models import ConfiguracaoInstitucional
 from governanca.pdf import montar_pdf
@@ -519,6 +519,34 @@ def receber_coleta_agente(request):
     )
 
 
+@require_GET
+def consultar_solicitacao_coleta_agente(request):
+    token_configurado = settings.INVENTARIO_AGENT_TOKEN
+    autorizacao = request.headers.get("Authorization", "").strip()
+    token_recebido = autorizacao[7:].strip() if autorizacao.lower().startswith("bearer ") else ""
+    token_recebido = token_recebido or request.headers.get("X-Agent-Token", "").strip()
+    if not token_configurado or not constant_time_compare(token_recebido, token_configurado):
+        return JsonResponse({"erro": "Token invalido."}, status=403)
+
+    hostname = _normalizar_texto(request.GET.get("hostname"), 150)
+    if not hostname:
+        return JsonResponse({"erro": "Informe o hostname."}, status=400)
+
+    ativo = (
+        AtivoRede.objects.filter(hostname__iexact=hostname, origem=AtivoRede.Origem.AGENTE)
+        .exclude(status=AtivoRede.Status.DESATIVADO)
+        .order_by("-ultima_coleta_em", "-id")
+        .first()
+    )
+    solicitada_em = ativo.coleta_solicitada_em if ativo else None
+    return JsonResponse(
+        {
+            "coleta_solicitada": bool(solicitada_em),
+            "solicitada_em": solicitada_em.isoformat() if solicitada_em else None,
+        }
+    )
+
+
 class InventarioPainelView(LoginRequiredMixin, TemplateView):
     template_name = "inventario/painel.html"
 
@@ -553,7 +581,7 @@ def solicitar_coleta_agente(request, pk):
     ativo = get_object_or_404(AtivoRede, pk=pk, origem=AtivoRede.Origem.AGENTE)
     ativo.coleta_solicitada_em = timezone.now()
     ativo.save(update_fields=["coleta_solicitada_em", "atualizado_em"])
-    messages.success(request, "Nova coleta solicitada. A pendencia sera encerrada quando o agente enviar o proximo inventario.")
+    messages.success(request, "Nova coleta solicitada. O agente atualizado verificara o pedido em ate um minuto.")
     return redirect("inventario:agente_config")
 
 

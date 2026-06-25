@@ -201,11 +201,14 @@ namespace SistemaChamadosAgentSetup
         private static void RegisterTasks(string agentPath, string configPath)
         {
             string command = Quote(PowerShellPath()) + " -NoProfile -ExecutionPolicy Bypass -File " + Quote(agentPath) + " -ConfigPath " + Quote(configPath);
+            string pollingCommand = command + " -SomenteSeSolicitada";
             RunProcess("schtasks.exe", "/Delete /TN SistemaChamadosAgentStartup /F", true);
             RunProcess("schtasks.exe", "/Delete /TN SistemaChamadosAgentInterval /F", true);
+            RunProcess("schtasks.exe", "/Delete /TN SistemaChamadosAgentSolicitacoes /F", true);
             RunProcess("schtasks.exe", "/Delete /TN SistemaChamadosAgent /F", true);
             RunProcess("schtasks.exe", "/Create /TN SistemaChamadosAgentStartup /SC ONSTART /RU SYSTEM /RL HIGHEST /TR " + Quote(command) + " /F", false);
             RunProcess("schtasks.exe", "/Create /TN SistemaChamadosAgentInterval /SC HOURLY /MO 6 /RU SYSTEM /RL HIGHEST /TR " + Quote(command) + " /F", false);
+            RunProcess("schtasks.exe", "/Create /TN SistemaChamadosAgentSolicitacoes /SC MINUTE /MO 1 /RU SYSTEM /RL HIGHEST /TR " + Quote(pollingCommand) + " /F", false);
         }
 
         private static string RunFirstCollection(string agentPath, string configPath)

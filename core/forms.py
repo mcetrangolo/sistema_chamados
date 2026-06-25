@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 
 from .models import ConfiguracaoBackup, ConfiguracaoInstitucional, ConfiguracaoLDAP
+from .permissions import PAPEIS, aplicar_papel, papel_usuario
 
 
 class BootstrapFormMixin:
@@ -57,6 +58,43 @@ class PerfilUsuarioForm(BootstrapFormMixin, forms.ModelForm):
             "last_name": "Sobrenome",
             "email": "E-mail",
         }
+
+
+class UsuarioSistemaForm(BootstrapFormMixin, forms.ModelForm):
+    papel = forms.ChoiceField(label="Perfil de acesso", choices=PAPEIS)
+
+    class Meta:
+        model = get_user_model()
+        fields = ["first_name", "last_name", "email", "is_active", "papel"]
+        labels = {
+            "first_name": "Nome",
+            "last_name": "Sobrenome",
+            "email": "E-mail",
+            "is_active": "Usuário ativo",
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.usuario_logado = kwargs.pop("usuario_logado", None)
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields["papel"].initial = papel_usuario(self.instance)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self.instance == self.usuario_logado:
+            if not cleaned_data.get("is_active", True):
+                self.add_error("is_active", "Nao e possivel desativar o proprio usuario logado.")
+            if cleaned_data.get("papel") != "admin":
+                self.add_error("papel", "Nao e possivel remover o proprio perfil de administrador.")
+        return cleaned_data
+
+    def save(self, commit=True):
+        usuario = super().save(commit=False)
+        aplicar_papel(usuario, self.cleaned_data["papel"])
+        if commit:
+            usuario.save()
+            self.save_m2m()
+        return usuario
 
 
 class ConfiguracaoBackupForm(BootstrapFormMixin, forms.ModelForm):

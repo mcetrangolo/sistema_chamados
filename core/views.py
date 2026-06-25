@@ -20,11 +20,12 @@ from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
-from django.views.generic import TemplateView, UpdateView
+from django.views.generic import ListView, TemplateView, UpdateView
 
 from .backup_utils import descriptografar_backup, sha256_arquivo, validar_backup_zip
-from .forms import ConfiguracaoBackupForm, ConfiguracaoInstitucionalForm, ConfiguracaoLDAPForm, PerfilUsuarioForm
+from .forms import ConfiguracaoBackupForm, ConfiguracaoInstitucionalForm, ConfiguracaoLDAPForm, PerfilUsuarioForm, UsuarioSistemaForm
 from .models import ConfiguracaoBackup, ConfiguracaoInstitucional, ConfiguracaoLDAP, Notificacao, RegistroAuditoria, RegistroBackup
+from .permissions import DESCRICAO_PAPEIS, papel_usuario
 
 
 class SuperuserRequiredMixin(UserPassesTestMixin):
@@ -56,6 +57,45 @@ class PerfilUsuarioView(LoginRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         messages.success(self.request, "Suas informações pessoais foram atualizadas.")
+        return super().form_valid(form)
+
+
+class UsuarioSistemaListView(LoginRequiredMixin, SuperuserRequiredMixin, ListView):
+    template_name = "core/usuario_list.html"
+    context_object_name = "usuarios"
+
+    def get_queryset(self):
+        usuarios = get_user_model().objects.prefetch_related("groups").order_by("first_name", "username")
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            usuarios = usuarios.filter(username__icontains=q) | usuarios.filter(first_name__icontains=q) | usuarios.filter(last_name__icontains=q) | usuarios.filter(email__icontains=q)
+        return usuarios
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        for usuario in context["usuarios"]:
+            usuario.papel_acesso = papel_usuario(usuario)
+            usuario.papel_descricao = DESCRICAO_PAPEIS[usuario.papel_acesso]
+        context["q"] = self.request.GET.get("q", "").strip()
+        context["descricoes_papeis"] = DESCRICAO_PAPEIS
+        return context
+
+
+class UsuarioSistemaUpdateView(LoginRequiredMixin, SuperuserRequiredMixin, UpdateView):
+    form_class = UsuarioSistemaForm
+    template_name = "core/usuario_form.html"
+    success_url = reverse_lazy("core:usuarios")
+
+    def get_queryset(self):
+        return get_user_model().objects.all()
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["usuario_logado"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        messages.success(self.request, "Usuario atualizado com sucesso.")
         return super().form_valid(form)
 
 

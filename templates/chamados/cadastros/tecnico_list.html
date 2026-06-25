@@ -2,12 +2,32 @@
 {% block title %}Atendentes | Sistema de Chamados{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h3 mb-0">Atendentes e colaboradores de TI</h1>
-  <a class="btn btn-primary" href="{% url 'chamados:tecnico_novo' %}">Novo atendente</a>
+  <div>
+    <h1 class="h3 mb-1">Atendentes de TI</h1>
+    <p class="text-secondary mb-0">Atendente e usuario do sistema sao a mesma conta; esta tela apenas define quem pode receber chamados.</p>
+  </div>
+  <a class="btn btn-outline-primary" href="{% url 'chamados:tecnico_novo' %}">Criar novo usuario atendente</a>
 </div>
+<section class="detail-section mb-3">
+  <h2 class="h5 mb-3">Adicionar usuario existente</h2>
+  <form method="post" action="{% url 'chamados:tecnico_adicionar' %}" class="row g-2 align-items-end">
+    {% csrf_token %}
+    <div class="col-md-8">
+      {{ form_usuario_existente.usuario.label_tag }}
+      {{ form_usuario_existente.usuario }}
+      {% if form_usuario_existente.usuario.help_text %}
+        <div class="form-text">{{ form_usuario_existente.usuario.help_text }}</div>
+      {% endif %}
+    </div>
+    <div class="col-md-4 d-flex gap-2">
+      <button class="btn btn-primary" type="submit">Adicionar como atendente</button>
+      <a class="btn btn-outline-secondary" href="{{ admin_usuarios_url }}">Usuarios do sistema</a>
+    </div>
+  </form>
+</section>
 <section class="detail-section">
   <table class="table table-hover align-middle mb-0">
-    <thead><tr><th>Nome</th><th>Usuario</th><th>E-mail</th><th>Admin</th><th class="text-end">Acoes</th></tr></thead>
+    <thead><tr><th>Nome</th><th>Usuario</th><th>E-mail</th><th>Acesso admin</th><th class="text-end">Acoes</th></tr></thead>
     <tbody>
       {% for tecnico in tecnicos %}
         <tr>
@@ -16,9 +36,9 @@
           <td>{{ tecnico.email|default:"-" }}</td>
           <td>{% if tecnico.is_staff %}Sim{% else %}Nao{% endif %}</td>
           <td class="text-end">
-            <form method="post" action="{% url 'chamados:tecnico_desativar' tecnico.pk %}" onsubmit="return confirm('Desativar este atendente? O historico sera mantido.');">
+            <form method="post" action="{% url 'chamados:tecnico_desativar' tecnico.pk %}" onsubmit="return confirm('Remover este usuario dos atendentes? A conta do sistema sera mantida.');">
               {% csrf_token %}
-              <button class="btn btn-sm btn-outline-danger" type="submit">Desativar</button>
+              <button class="btn btn-sm btn-outline-danger" type="submit">Remover dos atendentes</button>
             </form>
           </td>
         </tr>

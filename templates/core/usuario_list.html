@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Usuarios e permissoes | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">Usuarios e permissoes</h1>
+    <p class="text-secondary mb-0">Gerencie dados cadastrais e o perfil operacional de cada conta.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'admin:auth_user_add' %}">Novo usuario</a>
+</div>
+
+<section class="detail-section mb-3">
+  <h2 class="h5 mb-3">Perfis de acesso</h2>
+  <div class="permission-grid">
+    <div><strong>Administrador</strong><span>Acesso total, incluindo configuracoes, usuarios, backup, atualizacoes e auditoria.</span></div>
+    <div><strong>Suporte N2</strong><span>Chamados, inventario, documentacao, governanca, contratos e relatorios; sem gestao do sistema.</span></div>
+    <div><strong>Suporte N1</strong><span>Chamados, filas, atendimento, respostas e base de conhecimento.</span></div>
+    <div><strong>Usuario comum</strong><span>Acesso basico ao proprio perfil e fluxos permitidos.</span></div>
+  </div>
+</section>
+
+<section class="detail-section">
+  <form class="row g-2 align-items-end mb-3" method="get">
+    <div class="col-md-8">
+      <label class="form-label" for="q">Buscar usuario</label>
+      <input class="form-control" id="q" name="q" value="{{ q }}" placeholder="Nome, usuario ou e-mail">
+    </div>
+    <div class="col-md-4">
+      <button class="btn btn-primary" type="submit">Buscar</button>
+      <a class="btn btn-outline-secondary" href="{% url 'core:usuarios' %}">Limpar</a>
+    </div>
+  </form>
+
+  <table class="table table-hover align-middle mb-0">
+    <thead><tr><th>Nome</th><th>Usuario</th><th>E-mail</th><th>Perfil</th><th>Status</th><th class="text-end">Acoes</th></tr></thead>
+    <tbody>
+      {% for usuario in usuarios %}
+        <tr>
+          <td>{{ usuario.get_full_name|default:usuario.username }}</td>
+          <td>{{ usuario.username }}</td>
+          <td>{{ usuario.email|default:"-" }}</td>
+          <td><span class="badge text-bg-light" title="{{ usuario.papel_descricao }}">{{ usuario.papel_acesso|upper }}</span></td>
+          <td>{% if usuario.is_active %}Ativo{% else %}Inativo{% endif %}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'core:usuario_editar' usuario.pk %}">Editar</a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-center text-secondary py-4">Nenhum usuario encontrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

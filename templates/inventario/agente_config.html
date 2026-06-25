@@ -42,7 +42,7 @@
                 <td>{{ agente.ultima_coleta_em|date:"d/m/Y H:i"|default:"-" }}</td>
                 <td>{{ agente.tempo_sem_coleta }}</td>
                 <td><span class="badge {% if agente.estado_agente == 'saudavel' %}text-bg-success{% elif agente.estado_agente == 'atrasado' %}text-bg-warning{% else %}text-bg-danger{% endif %}">{{ agente.estado_agente|title }}</span>{% if agente.coleta_solicitada_em %} <span class="badge text-bg-info">Solicitada</span>{% endif %}</td>
-                <td class="text-end"><form method="post" action="{% url 'inventario:agente_solicitar_coleta' agente.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary" type="submit">Solicitar coleta</button></form></td>
+                <td class="text-end"><form method="post" action="{% url 'inventario:agente_solicitar_coleta' agente.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-primary" type="submit" {% if agente.coleta_solicitada_em %}disabled{% endif %}>{% if agente.coleta_solicitada_em %}Aguardando agente{% else %}Solicitar coleta{% endif %}</button></form></td>
               </tr>
             {% empty %}
               <tr><td colspan="7" class="text-center text-secondary py-4">Nenhum agente registrado.</td></tr>

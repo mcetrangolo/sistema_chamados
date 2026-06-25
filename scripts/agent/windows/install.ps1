@@ -95,6 +95,8 @@ function Register-AgentTask {
     & schtasks.exe /Delete /TN $TaskName /F 2>$null | Out-Null
     if ($Schedule -eq "ONSTART") {
         & schtasks.exe /Create /TN $TaskName /SC ONSTART /RU SYSTEM /RL HIGHEST /TR $Command /F | Out-Null
+    } elseif ($Schedule -eq "MINUTE") {
+        & schtasks.exe /Create /TN $TaskName /SC MINUTE /MO $Modifier /RU SYSTEM /RL HIGHEST /TR $Command /F | Out-Null
     } else {
         & schtasks.exe /Create /TN $TaskName /SC HOURLY /MO $Modifier /RU SYSTEM /RL HIGHEST /TR $Command /F | Out-Null
     }
@@ -114,7 +116,7 @@ function Register-UninstallEntry {
     foreach ($keyPath in $keyPaths) {
         New-Item -Path $keyPath -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayName" -Value "Sistema Chamados Agent" -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.4.2" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.4.3" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "Publisher" -Value "Sistema de Chamados" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayIcon" -Value (Join-Path $InstallDir "SistemaChamadosAgentTray.exe") -PropertyType String -Force | Out-Null
@@ -274,8 +276,10 @@ Copy-Item -Path $traySource -Destination $trayTarget -Force
 Write-ConfigJson -Path $configPath -ServerUrl $ServerUrl -Token $Token.Trim() -NumeroSerieManual $NumeroSerieManual.Trim() -IntervalHours $IntervalHours
 
 $psCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$agentTarget`" -ConfigPath `"$configPath`""
+$pollCommand = "$psCommand -SomenteSeSolicitada"
 Register-AgentTask -TaskName "SistemaChamadosAgentStartup" -Schedule "ONSTART" -Modifier 1 -Command $psCommand
 Register-AgentTask -TaskName "SistemaChamadosAgentInterval" -Schedule "HOURLY" -Modifier $IntervalHours -Command $psCommand
+Register-AgentTask -TaskName "SistemaChamadosAgentSolicitacoes" -Schedule "MINUTE" -Modifier 1 -Command $pollCommand
 Register-UninstallEntry -InstallDir $installDir -UninstallScript $uninstallTarget
 Register-StartMenuShortcuts -InstallDir $installDir -UninstallScript $uninstallTarget -ConfigPath $configPath -TrayPath $trayTarget
 
@@ -286,7 +290,7 @@ if ($NumeroSerieManual.Trim()) {
     Write-Host "Numero de serie manual: $($NumeroSerieManual.Trim())"
 }
 Write-Host "Pasta: $installDir"
-Write-Host "Tarefas agendadas: SistemaChamadosAgentStartup e SistemaChamadosAgentInterval"
+Write-Host "Tarefas agendadas: inicializacao, coleta periodica e verificacao de solicitacoes"
 $coletaMensagem = "Primeira coleta concluida."
 try {
     Write-Host ""

@@ -7,6 +7,11 @@ app_name = "inventario"
 
 urlpatterns = [
     path("agente/coleta/", views.receber_coleta_agente, name="agente_coleta"),
+    path(
+        "agente/coleta/solicitada/",
+        views.consultar_solicitacao_coleta_agente,
+        name="agente_coleta_solicitada",
+    ),
     path("agente/configuracao/", views.configuracao_agente, name="agente_config"),
     path("agente/windows/download/", views.baixar_agente_windows, name="agente_windows_download"),
     path("agente/linux/download/", views.baixar_agente_linux, name="agente_linux_download"),

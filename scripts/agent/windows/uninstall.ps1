@@ -30,7 +30,7 @@ if ([Environment]::Is64BitOperatingSystem) {
     $uninstallKeys += "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent"
 }
 
-foreach ($taskName in @("SistemaChamadosAgentStartup", "SistemaChamadosAgentInterval", "SistemaChamadosAgent")) {
+foreach ($taskName in @("SistemaChamadosAgentStartup", "SistemaChamadosAgentInterval", "SistemaChamadosAgentSolicitacoes", "SistemaChamadosAgent")) {
     & schtasks.exe /Delete /TN $taskName /F 2>$null | Out-Null
 }
 

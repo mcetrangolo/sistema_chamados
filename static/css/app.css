@@ -165,6 +165,29 @@ a {
   padding: 2rem 0;
 }
 
+.permission-grid {
+  display: grid;
+  gap: .8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.permission-grid > div {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: .85rem;
+}
+
+.permission-grid strong,
+.permission-grid span {
+  display: block;
+}
+
+.permission-grid span {
+  color: var(--muted);
+  font-size: .92rem;
+  margin-top: .25rem;
+}
+
 @media (max-width: 900px) {
   .help-layout {
     grid-template-columns: 1fr;
@@ -176,6 +199,10 @@ a {
   }
 
   .help-diagnostics {
+    grid-template-columns: 1fr;
+  }
+
+  .permission-grid {
     grid-template-columns: 1fr;
   }
 }

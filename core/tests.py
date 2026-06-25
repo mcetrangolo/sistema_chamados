@@ -1,8 +1,10 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
 from unittest.mock import patch
 
+from .permissions import GRUPO_SUPORTE_N1, GRUPO_SUPORTE_N2
 from .views import ControleServicosView
 
 
@@ -67,3 +69,53 @@ class ControleServicosTests(TestCase):
         self.assertRedirects(response, reverse("core:servicos"), fetch_redirect_response=False)
         self.assertIn("Reinicio interno", self.client.session["ultimo_resultado_servicos"])
         _agendar.assert_called_once_with()
+
+
+class UsuariosPermissoesTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        user_model = get_user_model()
+        cls.admin = user_model.objects.create_superuser(
+            username="admin-permissoes",
+            email="admin-permissoes@example.com",
+            password="senha-teste",
+        )
+        cls.usuario = user_model.objects.create_user(
+            username="usuario-comum",
+            email="usuario-comum@example.com",
+            password="senha-teste",
+        )
+        cls.n1 = user_model.objects.create_user(username="suporte-n1", password="senha-teste")
+        Group.objects.create(name=GRUPO_SUPORTE_N1).user_set.add(cls.n1)
+        cls.n2 = user_model.objects.create_user(username="suporte-n2", password="senha-teste")
+        Group.objects.create(name=GRUPO_SUPORTE_N2).user_set.add(cls.n2)
+
+    def test_admin_acessa_tela_de_usuarios(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("core:usuarios"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Usuarios e permissoes")
+        self.assertContains(response, "Suporte N2")
+
+    def test_usuario_comum_nao_acessa_tela_de_usuarios(self):
+        self.client.force_login(self.usuario)
+
+        response = self.client.get(reverse("core:usuarios"), follow=True)
+
+        self.assertRedirects(response, reverse("chamados:painel"))
+
+    def test_n1_nao_acessa_inventario(self):
+        self.client.force_login(self.n1)
+
+        response = self.client.get(reverse("inventario:painel"), follow=True)
+
+        self.assertRedirects(response, reverse("chamados:painel"))
+
+    def test_n2_acessa_inventario(self):
+        self.client.force_login(self.n2)
+
+        response = self.client.get(reverse("inventario:painel"))
+
+        self.assertEqual(response.status_code, 200)

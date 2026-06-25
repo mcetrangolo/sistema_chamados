@@ -19,6 +19,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 from core.models import ConfiguracaoInstitucional
+from core.permissions import usuario_e_suporte_n2
 
 from .forms import (
     AtualizacaoChamadoForm,
@@ -43,6 +44,7 @@ from .forms import (
     SetorForm,
     SolicitacaoServicoForm,
     TarefaChamadoForm,
+    AtendenteExistenteForm,
     TecnicoForm,
     TopicoAjudaForm,
 )
@@ -72,6 +74,11 @@ from .models import (
 class AdminRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return self.request.user.is_superuser
+
+
+class SuporteN2RequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return usuario_e_suporte_n2(self.request.user)
 
 
 def obter_ip_cliente(request):
@@ -825,13 +832,13 @@ class CatalogoServicoSolicitarView(TemplateView):
         return self.render_to_response(self.get_context_data(form=form))
 
 
-class ServicoCatalogoListView(LoginRequiredMixin, AdminRequiredMixin, ListView):
+class ServicoCatalogoListView(LoginRequiredMixin, SuporteN2RequiredMixin, ListView):
     model = ServicoCatalogo
     template_name = "chamados/cadastros/servico_list.html"
     context_object_name = "servicos"
 
 
-class ServicoCatalogoCreateView(LoginRequiredMixin, AdminRequiredMixin, CreateView):
+class ServicoCatalogoCreateView(LoginRequiredMixin, SuporteN2RequiredMixin, CreateView):
     model = ServicoCatalogo
     form_class = ServicoCatalogoForm
     template_name = "chamados/cadastros/servico_form.html"
@@ -842,7 +849,7 @@ class ServicoCatalogoCreateView(LoginRequiredMixin, AdminRequiredMixin, CreateVi
         return super().form_valid(form)
 
 
-class ServicoCatalogoUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
+class ServicoCatalogoUpdateView(LoginRequiredMixin, SuporteN2RequiredMixin, UpdateView):
     model = ServicoCatalogo
     form_class = ServicoCatalogoForm
     template_name = "chamados/cadastros/servico_form.html"
@@ -854,13 +861,13 @@ class ServicoCatalogoUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateVi
 
 
 @login_required
-@user_passes_test(lambda user: user.is_superuser)
+@user_passes_test(usuario_e_suporte_n2)
 @require_POST
 def excluir_servico(request, pk):
     return excluir_cadastro(request, ServicoCatalogo, pk, "chamados:servicos", "Servico")
 
 
-class CampoServicoCatalogoListView(LoginRequiredMixin, AdminRequiredMixin, ListView):
+class CampoServicoCatalogoListView(LoginRequiredMixin, SuporteN2RequiredMixin, ListView):
     model = CampoServicoCatalogo
     template_name = "chamados/cadastros/campo_servico_list.html"
     context_object_name = "campos"
@@ -878,7 +885,7 @@ class CampoServicoCatalogoListView(LoginRequiredMixin, AdminRequiredMixin, ListV
         return context
 
 
-class CampoServicoCatalogoCreateView(LoginRequiredMixin, AdminRequiredMixin, CreateView):
+class CampoServicoCatalogoCreateView(LoginRequiredMixin, SuporteN2RequiredMixin, CreateView):
     model = CampoServicoCatalogo
     form_class = CampoServicoCatalogoForm
     template_name = "chamados/cadastros/campo_servico_form.html"
@@ -901,7 +908,7 @@ class CampoServicoCatalogoCreateView(LoginRequiredMixin, AdminRequiredMixin, Cre
         return context
 
 
-class CampoServicoCatalogoUpdateView(LoginRequiredMixin, AdminRequiredMixin, UpdateView):
+class CampoServicoCatalogoUpdateView(LoginRequiredMixin, SuporteN2RequiredMixin, UpdateView):
     model = CampoServicoCatalogo
     form_class = CampoServicoCatalogoForm
     template_name = "chamados/cadastros/campo_servico_form.html"
@@ -923,7 +930,7 @@ class CampoServicoCatalogoUpdateView(LoginRequiredMixin, AdminRequiredMixin, Upd
 
 
 @login_required
-@user_passes_test(lambda user: user.is_superuser)
+@user_passes_test(usuario_e_suporte_n2)
 @require_POST
 def excluir_campo_servico(request, pk):
     campo = get_object_or_404(CampoServicoCatalogo.objects.select_related("servico"), pk=pk)
@@ -1268,7 +1275,7 @@ def criar_chamado_de_governanca(governanca_id):
     return chamado
 
 
-class TecnicoListView(LoginRequiredMixin, ListView):
+class TecnicoListView(LoginRequiredMixin, AdminRequiredMixin, ListView):
     template_name = "chamados/cadastros/tecnico_list.html"
     context_object_name = "tecnicos"
 
@@ -1281,8 +1288,14 @@ class TecnicoListView(LoginRequiredMixin, ListView):
             users = users.filter(is_staff=True)
         return users.order_by("first_name", "username")
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form_usuario_existente"] = AtendenteExistenteForm()
+        context["admin_usuarios_url"] = reverse_lazy("admin:auth_user_changelist")
+        return context
 
-class TecnicoCreateView(LoginRequiredMixin, CreateView):
+
+class TecnicoCreateView(LoginRequiredMixin, AdminRequiredMixin, CreateView):
     form_class = TecnicoForm
     template_name = "chamados/cadastros/tecnico_form.html"
     success_url = reverse_lazy("chamados:tecnicos")
@@ -1293,15 +1306,30 @@ class TecnicoCreateView(LoginRequiredMixin, CreateView):
 
 
 @login_required
+@user_passes_test(lambda user: user.is_superuser)
 @require_POST
-def desativar_tecnico(request, pk):
+def adicionar_atendente(request):
+    form = AtendenteExistenteForm(request.POST)
+    if form.is_valid():
+        usuario = form.save()
+        messages.success(request, f"{usuario.get_full_name() or usuario.username} agora e atendente de TI.")
+    else:
+        messages.warning(request, "Selecione um usuario valido para adicionar como atendente.")
+    return redirect("chamados:tecnicos")
+
+
+@login_required
+@user_passes_test(lambda user: user.is_superuser)
+@require_POST
+def remover_atendente(request, pk):
     tecnico = get_object_or_404(get_user_model(), pk=pk)
     if tecnico == request.user:
-        messages.warning(request, "Nao e possivel desativar o proprio usuario logado.")
+        messages.warning(request, "Nao e possivel remover o proprio usuario logado dos atendentes.")
         return redirect("chamados:tecnicos")
-    tecnico.is_active = False
-    tecnico.save(update_fields=["is_active"])
-    messages.success(request, f"Atendente {tecnico.get_full_name() or tecnico.username} desativado com sucesso.")
+    grupo = Group.objects.filter(name="Técnicos de TI").first()
+    if grupo:
+        tecnico.groups.remove(grupo)
+    messages.success(request, f"{tecnico.get_full_name() or tecnico.username} removido dos atendentes. A conta do sistema foi mantida.")
     return redirect("chamados:tecnicos")
 
 
