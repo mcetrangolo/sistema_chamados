@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$ServerUrl = "",
     [string]$Token = "sistema-chamados-agent-local",
     [string]$NumeroSerieManual = "",
@@ -76,7 +76,7 @@ if (-not (Test-Path $installScript)) {
     exit 1
 }
 
-$argsList = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File $(Quote-Arg $installScript) -Token $(Quote-Arg $Token) -IntervalHours $IntervalHours"
+$argsList = "-NoProfile -ExecutionPolicy RemoteSigned -File $(Quote-Arg $installScript) -Token $(Quote-Arg $Token) -IntervalHours $IntervalHours"
 
 if ($ServerUrl) {
     $argsList += " -ServerUrl $(Quote-Arg $ServerUrl)"
@@ -89,9 +89,9 @@ $powershellPath = Get-PowerShellPath
 
 if (-not (Test-Admin)) {
     Show-Message "O Windows vai solicitar permissao de Administrador para instalar o agente.`n`nDepois de confirmar o UAC, aguarde as proximas telas de configuracao."
-    Start-Process -FilePath $powershellPath -ArgumentList $argsList -Verb RunAs -WindowStyle Hidden
+    Start-Process -FilePath $powershellPath -ArgumentList $argsList -Verb RunAs
     exit 0
 }
 
-$process = Start-Process -FilePath $powershellPath -ArgumentList $argsList -WindowStyle Hidden -Wait -PassThru
+$process = Start-Process -FilePath $powershellPath -ArgumentList $argsList -Wait -PassThru
 exit $process.ExitCode

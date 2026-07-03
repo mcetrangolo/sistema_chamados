@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$ConfigPath = "$env:ProgramData\SistemaChamadosAgent\config.json",
     [switch]$SomenteSeSolicitada
 )
@@ -285,7 +285,7 @@ function Get-AgentPayload {
     }
 
     return @{
-        versao_agente = "1.4.7"
+        versao_agente = "1.4.8"
         hostname = [string]$env:COMPUTERNAME
         ip = $ip
         mac = $mac

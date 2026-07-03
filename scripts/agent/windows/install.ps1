@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$ServerUrl = "",
     [string]$Token = "sistema-chamados-agent-local",
     [string]$NumeroSerieManual = "",
@@ -142,12 +142,12 @@ function Register-UninstallEntry {
     foreach ($keyPath in $keyPaths) {
         New-Item -Path $keyPath -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayName" -Value "Sistema Chamados Agent" -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.4.7" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.4.8" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "Publisher" -Value "Sistema de Chamados" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayIcon" -Value (Join-Path $InstallDir "SistemaChamadosAgentTray.exe") -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $keyPath -Name "UninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`"" -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $keyPath -Name "QuietUninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`" -Silent" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "UninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File `"$UninstallScript`"" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "QuietUninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File `"$UninstallScript`" -Silent" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "InstallDate" -Value (Get-Date -Format "yyyyMMdd") -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "EstimatedSize" -Value 1024 -PropertyType DWord -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "SystemComponent" -Value 0 -PropertyType DWord -Force | Out-Null
@@ -179,7 +179,7 @@ function Register-StartMenuShortcuts {
 
         $uninstallShortcut = $shell.CreateShortcut((Join-Path $menuDir "Desinstalar agente.lnk"))
         $uninstallShortcut.TargetPath = $powershell
-        $uninstallShortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`""
+        $uninstallShortcut.Arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$UninstallScript`""
         $uninstallShortcut.WorkingDirectory = $InstallDir
         $uninstallShortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll,31"
         $uninstallShortcut.Description = "Remove o Sistema Chamados Agent deste computador."
@@ -187,7 +187,7 @@ function Register-StartMenuShortcuts {
 
         $collectShortcut = $shell.CreateShortcut((Join-Path $menuDir "Executar coleta agora.lnk"))
         $collectShortcut.TargetPath = $powershell
-        $collectShortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$agentScript`" -ConfigPath `"$ConfigPath`""
+        $collectShortcut.Arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File `"$agentScript`" -ConfigPath `"$ConfigPath`""
         $collectShortcut.WorkingDirectory = $InstallDir
         $collectShortcut.IconLocation = "$env:SystemRoot\System32\shell32.dll,167"
         $collectShortcut.Description = "Executa uma coleta imediata do Sistema Chamados Agent."
@@ -227,9 +227,9 @@ function Register-StartMenuShortcuts {
         # Os arquivos .cmd abaixo continuam funcionando como fallback.
     }
 
-    "@echo off`r`n`"$powershell`" -NoProfile -ExecutionPolicy Bypass -File `"$UninstallScript`"`r`npause`r`n" |
+    "@echo off`r`n`"$powershell`" -NoProfile -ExecutionPolicy RemoteSigned -File `"$UninstallScript`"`r`npause`r`n" |
         Out-File -FilePath (Join-Path $menuDir "Desinstalar agente.cmd") -Encoding ascii -Force
-    "@echo off`r`n`"$powershell`" -NoProfile -ExecutionPolicy Bypass -File `"$agentScript`" -ConfigPath `"$ConfigPath`"`r`npause`r`n" |
+    "@echo off`r`n`"$powershell`" -NoProfile -ExecutionPolicy RemoteSigned -File `"$agentScript`" -ConfigPath `"$ConfigPath`"`r`npause`r`n" |
         Out-File -FilePath (Join-Path $menuDir "Executar coleta agora.cmd") -Encoding ascii -Force
 
     $userProgramsDir = [Environment]::GetFolderPath("Programs")
@@ -301,7 +301,7 @@ Copy-Item -Path $uninstallSource -Destination $uninstallTarget -Force
 Copy-Item -Path $traySource -Destination $trayTarget -Force
 Write-ConfigJson -Path $configPath -ServerUrl $ServerUrl -Token $Token.Trim() -NumeroSerieManual $NumeroSerieManual.Trim() -IntervalHours $IntervalHours
 
-$psCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$agentTarget`" -ConfigPath `"$configPath`""
+$psCommand = "powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File `"$agentTarget`" -ConfigPath `"$configPath`""
 $pollCommand = "$psCommand -SomenteSeSolicitada"
 Register-AgentTask -TaskName "SistemaChamadosAgentStartup" -Schedule "ONSTART" -Modifier 1 -Command $psCommand
 Register-AgentTask -TaskName "SistemaChamadosAgentInterval" -Schedule "HOURLY" -Modifier $IntervalHours -Command $psCommand
@@ -321,7 +321,7 @@ $coletaMensagem = "Primeira coleta concluida."
 try {
     Write-Host ""
     Write-Host "Executando primeira coleta..."
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $agentTarget -ConfigPath $configPath
+    & powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File $agentTarget -ConfigPath $configPath
     Write-Host "Primeira coleta concluida."
 } catch {
     $coletaMensagem = "Agente instalado, mas a primeira coleta nao conseguiu enviar dados ao servidor. Verifique endereco, porta, firewall e se o sistema esta acessivel pela rede."

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
@@ -53,11 +53,10 @@ namespace SistemaChamadosAgentSetup
 
                 ProcessStartInfo info = new ProcessStartInfo();
                 info.FileName = powershell;
-                info.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + installScript + "\"";
+                info.Arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File \"" + installScript + "\"";
                 info.UseShellExecute = true;
                 info.Verb = "runas";
                 info.WorkingDirectory = stageDir;
-                info.WindowStyle = ProcessWindowStyle.Hidden;
 
                 Process process = Process.Start(info);
                 if (process == null)

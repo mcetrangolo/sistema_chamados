@@ -1,4 +1,4 @@
-Set shell = CreateObject("WScript.Shell")
+﻿Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
 scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
@@ -14,6 +14,6 @@ If Not fso.FileExists(powershellPath) Then
     powershellPath = "powershell.exe"
 End If
 
-command = Chr(34) & powershellPath & Chr(34) & " -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File " & Chr(34) & installGui & Chr(34)
+command = Chr(34) & powershellPath & Chr(34) & " -NoProfile -ExecutionPolicy RemoteSigned -File " & Chr(34) & installGui & Chr(34)
 exitCode = shell.Run(command, 0, True)
 WScript.Quit exitCode

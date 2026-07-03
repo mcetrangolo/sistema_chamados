@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -11,7 +11,7 @@ namespace SistemaChamadosAgentSetup
 {
     internal static class Program
     {
-        private const string Version = "1.4.7";
+        private const string Version = "1.4.8";
         private const string AgentToken = "__AGENT_TOKEN__";
         private const string AgentScriptBase64 = "__AGENT_SCRIPT_BASE64__";
         private const string UninstallScriptBase64 = "__UNINSTALL_SCRIPT_BASE64__";
@@ -217,7 +217,7 @@ namespace SistemaChamadosAgentSetup
 
         private static void RegisterTasks(string agentPath, string configPath)
         {
-            string command = Quote(PowerShellPath()) + " -NoProfile -ExecutionPolicy Bypass -File " + Quote(agentPath) + " -ConfigPath " + Quote(configPath);
+            string command = Quote(PowerShellPath()) + " -NoProfile -ExecutionPolicy RemoteSigned -File " + Quote(agentPath) + " -ConfigPath " + Quote(configPath);
             string pollingCommand = command + " -SomenteSeSolicitada";
             RunProcess("schtasks.exe", "/Delete /TN SistemaChamadosAgentStartup /F", true);
             RunProcess("schtasks.exe", "/Delete /TN SistemaChamadosAgentInterval /F", true);
@@ -230,7 +230,7 @@ namespace SistemaChamadosAgentSetup
 
         private static string RunFirstCollection(string agentPath, string configPath)
         {
-            int exitCode = RunProcess(PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(agentPath) + " -ConfigPath " + Quote(configPath), true);
+            int exitCode = RunProcess(PowerShellPath(), "-NoProfile -ExecutionPolicy RemoteSigned -File " + Quote(agentPath) + " -ConfigPath " + Quote(configPath), true);
             if (exitCode == 0)
             {
                 return "Primeira coleta concluida.";
@@ -245,7 +245,6 @@ namespace SistemaChamadosAgentSetup
             info.Arguments = arguments;
             info.UseShellExecute = false;
             info.CreateNoWindow = true;
-            info.WindowStyle = ProcessWindowStyle.Hidden;
             var process = Process.Start(info);
             process.WaitForExit();
             if (!ignoreError && process.ExitCode != 0)
@@ -274,7 +273,7 @@ namespace SistemaChamadosAgentSetup
             if (key == null) return;
             using (key)
             {
-                string command = Quote(PowerShellPath()) + " -NoProfile -ExecutionPolicy Bypass -File " + Quote(uninstallScript);
+                string command = Quote(PowerShellPath()) + " -NoProfile -ExecutionPolicy RemoteSigned -File " + Quote(uninstallScript);
                 key.SetValue("DisplayName", "Sistema Chamados Agent", RegistryValueKind.String);
                 key.SetValue("DisplayVersion", Version, RegistryValueKind.String);
                 key.SetValue("Publisher", "Sistema de Chamados", RegistryValueKind.String);
@@ -297,8 +296,8 @@ namespace SistemaChamadosAgentSetup
             string menuDir = Path.Combine(programs, "Sistema Chamados Agent");
             Directory.CreateDirectory(menuDir);
 
-            CreateShortcut(Path.Combine(menuDir, "Desinstalar agente.lnk"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(uninstallScript), installDir, "Remove o Sistema Chamados Agent deste computador.");
-            CreateShortcut(Path.Combine(menuDir, "Executar coleta agora.lnk"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(Path.Combine(installDir, "agent.ps1")) + " -ConfigPath " + Quote(configPath), installDir, "Executa uma coleta imediata do Sistema Chamados Agent.");
+            CreateShortcut(Path.Combine(menuDir, "Desinstalar agente.lnk"), PowerShellPath(), "-NoProfile -ExecutionPolicy RemoteSigned -File " + Quote(uninstallScript), installDir, "Remove o Sistema Chamados Agent deste computador.");
+            CreateShortcut(Path.Combine(menuDir, "Executar coleta agora.lnk"), PowerShellPath(), "-NoProfile -ExecutionPolicy RemoteSigned -File " + Quote(Path.Combine(installDir, "agent.ps1")) + " -ConfigPath " + Quote(configPath), installDir, "Executa uma coleta imediata do Sistema Chamados Agent.");
             CreateShortcut(Path.Combine(menuDir, "Abrir pasta do agente.lnk"), installDir, "", installDir, "Abre a pasta local do Sistema Chamados Agent.");
             CreateShortcut(Path.Combine(menuDir, "Ver configuracao do agente.lnk"), "notepad.exe", Quote(configPath), installDir, "Abre a configuracao local do Sistema Chamados Agent.");
             CreateShortcut(Path.Combine(menuDir, "Agente na bandeja.lnk"), trayPath, "", installDir, "Abre os controles do agente na bandeja do Windows.");
@@ -310,16 +309,16 @@ namespace SistemaChamadosAgentSetup
                 CreateShortcut(Path.Combine(startup, "Sistema Chamados Agent.lnk"), trayPath, "", installDir, "Inicia os controles do agente com o Windows.");
             }
 
-            CreateCommandFile(Path.Combine(menuDir, "Desinstalar agente.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(uninstallScript));
-            CreateCommandFile(Path.Combine(menuDir, "Executar coleta agora.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(Path.Combine(installDir, "agent.ps1")) + " -ConfigPath " + Quote(configPath));
+            CreateCommandFile(Path.Combine(menuDir, "Desinstalar agente.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy RemoteSigned -File " + Quote(uninstallScript));
+            CreateCommandFile(Path.Combine(menuDir, "Executar coleta agora.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy RemoteSigned -File " + Quote(Path.Combine(installDir, "agent.ps1")) + " -ConfigPath " + Quote(configPath));
 
             string userPrograms = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
             if (!String.IsNullOrEmpty(userPrograms) && !String.Equals(userPrograms, programs, StringComparison.OrdinalIgnoreCase))
             {
                 string userMenuDir = Path.Combine(userPrograms, "Sistema Chamados Agent");
                 Directory.CreateDirectory(userMenuDir);
-                CreateCommandFile(Path.Combine(userMenuDir, "Desinstalar agente.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(uninstallScript));
-                CreateCommandFile(Path.Combine(userMenuDir, "Executar coleta agora.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy Bypass -File " + Quote(Path.Combine(installDir, "agent.ps1")) + " -ConfigPath " + Quote(configPath));
+                CreateCommandFile(Path.Combine(userMenuDir, "Desinstalar agente.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy RemoteSigned -File " + Quote(uninstallScript));
+                CreateCommandFile(Path.Combine(userMenuDir, "Executar coleta agora.cmd"), PowerShellPath(), "-NoProfile -ExecutionPolicy RemoteSigned -File " + Quote(Path.Combine(installDir, "agent.ps1")) + " -ConfigPath " + Quote(configPath));
             }
         }
 

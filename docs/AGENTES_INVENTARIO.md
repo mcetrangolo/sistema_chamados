@@ -40,6 +40,12 @@ O instalador cria as tarefas `SistemaChamadosAgentStartup`, `SistemaChamadosAgen
 
 Uma atualizacao preserva a configuracao existente. A desinstalacao fica disponivel nos Aplicativos do Windows e no Menu Iniciar.
 
+### Antivirus e falso positivo no Windows
+
+O instalador Windows e um executavel interno, sem assinatura digital publica, que instala scripts PowerShell locais e registra tarefas agendadas. Esse comportamento e comum em agentes de inventario, mas pode gerar alerta por heuristica em antiviruses corporativos quando o arquivo ainda nao tem reputacao.
+
+Na versao 1.4.8, o agente passou a usar `ExecutionPolicy RemoteSigned` em vez de `Bypass` e removeu a instalacao grafica explicitamente oculta. Para producao, recomenda-se assinar digitalmente os executaveis do agente com um certificado confiavel da instituicao. Se for necessario liberar no antivirus, prefira liberar o hash SHA256 do instalador oficial publicado pelo setor de TI, e nao liberar pastas inteiras ou qualquer executavel com o mesmo nome.
+
 ## Linux
 
 Baixe o arquivo pela tela de agentes e execute:

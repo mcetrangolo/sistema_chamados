@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -99,7 +99,7 @@ namespace SistemaChamadosAgentTray
             {
                 throw new FileNotFoundException("Arquivos do agente nao encontrados em " + InstallDir + ".");
             }
-            string arguments = "-NoProfile -ExecutionPolicy Bypass -File " + Quote(AgentPath) + " -ConfigPath " + Quote(ConfigPath);
+            string arguments = "-NoProfile -ExecutionPolicy RemoteSigned -File " + Quote(AgentPath) + " -ConfigPath " + Quote(ConfigPath);
             return RunHidden(PowerShellPath(), arguments, false);
         }
 
@@ -110,7 +110,6 @@ namespace SistemaChamadosAgentTray
             info.Arguments = arguments;
             info.UseShellExecute = false;
             info.CreateNoWindow = true;
-            info.WindowStyle = ProcessWindowStyle.Hidden;
             using (Process process = Process.Start(info))
             {
                 process.WaitForExit();
