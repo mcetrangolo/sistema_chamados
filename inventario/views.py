@@ -8,6 +8,7 @@ from html import escape
 from urllib.parse import urlsplit, urlunsplit
 
 from django.conf import settings
+from django.core.paginator import Paginator
 from django.core import signing
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -554,6 +555,9 @@ class InventarioPainelView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         todos_ativos = AtivoRede.objects.select_related("tipo", "setor")
         ativos = todos_ativos.exclude(status=AtivoRede.Status.DESATIVADO)
+        ativos_painel = ativos.order_by("-atualizado_em", "nome")
+        paginator = Paginator(ativos_painel, 20)
+        page_obj = paginator.get_page(self.request.GET.get("page"))
         context["contadores"] = {
             "total": ativos.count(),
             "online": ativos.filter(status=AtivoRede.Status.ONLINE).count(),
@@ -565,7 +569,10 @@ class InventarioPainelView(LoginRequiredMixin, TemplateView):
             "arquivados": todos_ativos.filter(status=AtivoRede.Status.DESATIVADO).count(),
         }
         context["por_tipo"] = ativos.values("tipo__nome").annotate(total=Count("id")).order_by("tipo__nome")
-        context["ultimos_ativos"] = ativos.order_by("-atualizado_em")[:10]
+        context["ultimos_ativos"] = page_obj.object_list
+        context["page_obj"] = page_obj
+        context["paginator"] = paginator
+        context["is_paginated"] = page_obj.has_other_pages()
         context["ultimas_varreduras"] = VarreduraRede.objects.select_related("faixa")[:5]
         return context
 
@@ -732,7 +739,7 @@ class AtivoRedeListView(LoginRequiredMixin, ListView):
             queryset = queryset.exclude(status=AtivoRede.Status.DESATIVADO)
         if ciclo_vida:
             queryset = queryset.filter(ciclo_vida=ciclo_vida)
-        return queryset
+        return queryset.order_by("nome", "id")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -740,6 +747,9 @@ class AtivoRedeListView(LoginRequiredMixin, ListView):
         context["status_choices"] = AtivoRede.Status.choices
         context["ciclo_vida_choices"] = AtivoRede.CicloVida.choices
         context["filtros"] = self.request.GET
+        query_params = self.request.GET.copy()
+        query_params.pop("page", None)
+        context["querystring_sem_pagina"] = query_params.urlencode()
         context["total_sem_comunicacao"] = queryset_ativos_sem_comunicacao().count()
         return context
 
@@ -973,6 +983,12 @@ def dados_relatorio_inventario(ativos, filtro_aplicado=False):
         "por_status": ativos.values("status").annotate(total=Count("id")).order_by("status"),
         "por_ciclo_vida": ativos.values("ciclo_vida").annotate(total=Count("id")).order_by("ciclo_vida"),
         "por_origem": ativos.values("origem").annotate(total=Count("id")).order_by("origem"),
+        "por_so": (
+            ativos.exclude(sistema_operacional="")
+            .values("sistema_operacional")
+            .annotate(total=Count("id"))
+            .order_by("sistema_operacional")
+        ),
         "por_fabricante": (
             ativos.exclude(fabricante="")
             .values("fabricante")
@@ -1043,11 +1059,10 @@ class RelatorioInventarioView(LoginRequiredMixin, TemplateView):
         context["status_chart"] = chart_data(indicadores["por_status"], "status")
         context["origem_chart"] = chart_data(indicadores["por_origem"], "origem")
         context["fabricante_chart"] = chart_data(indicadores["por_fabricante"], "fabricante")
-        context["licenca_status_chart"] = chart_data(indicadores["licencas_por_status"], "status")
-        context["software_chart"] = {
-            "labels": [item["nome"] for item in indicadores["softwares"][:10]],
-            "data": [item["total"] for item in indicadores["softwares"][:10]],
-        }
+        context["sistema_operacional_chart"] = chart_data(
+            indicadores["por_so"],
+            "sistema_operacional",
+        )
         context["querystring"] = self.request.GET.urlencode()
         return context
 
@@ -1213,7 +1228,7 @@ def exportar_relatorio_inventario_xls(request):
         ("Ativos por status", indicadores["por_status"], "status"),
         ("Ativos por origem", indicadores["por_origem"], "origem"),
         ("Ativos por fabricante", indicadores["por_fabricante"], "fabricante"),
-        ("Licencas por status", indicadores["licencas_por_status"], "status"),
+        ("Sistemas operacionais", indicadores["por_so"], "sistema_operacional"),
     ]:
         response.write(f"<h2>{escape(titulo)}</h2>")
         response.write("<table border='1'><tr><th>Grupo</th><th>Total</th></tr>")
@@ -1356,14 +1371,9 @@ def exportar_relatorio_inventario_pdf(request):
     for item in indicadores["por_origem"]:
         linhas.append(f"{item.get('origem') or 'Nao informado'}: {item['total']}")
 
-    linhas.extend(["", "LICENCAS POR STATUS"])
-    for item in indicadores["licencas_por_status"]:
-        linhas.append(f"{item.get('status') or 'Nao informado'}: {item['total']}")
-
-    linhas.extend(["", "SOFTWARES MAIS DETECTADOS"])
-    for item in indicadores["softwares"][:30]:
-        cobertura = "licenciado" if item["coberto"] else "sem vinculo"
-        linhas.append(f"{item['nome']}: {item['total']} ocorrencia(s), {cobertura}")
+    linhas.extend(["", "SISTEMAS OPERACIONAIS"])
+    for item in indicadores["por_so"]:
+        linhas.append(f"{item.get('sistema_operacional') or 'Nao informado'}: {item['total']}")
 
     linhas.extend(["", "LICENCAS"])
     for item in indicadores["licencas_lista"][:30]:

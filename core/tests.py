@@ -31,10 +31,11 @@ class AjudaSistemaTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Ajuda do sistema")
-        self.assertContains(response, "Manual operacional da area interna")
-        self.assertContains(response, "nao e destinada aos usuarios finais")
+        self.assertContains(response, "Guia operacional para uso")
+        self.assertContains(response, "Como usar esta central")
+        self.assertContains(response, "Perfis e permiss")
         self.assertContains(response, reverse("core:ajuda"), count=2)
-        self.assertNotContains(response, ">Verificar atualizacoes<")
+        self.assertNotContains(response, reverse("core:atualizacoes"))
 
     def test_administrador_recebe_atalhos_operacionais(self):
         self.client.force_login(self.administrador)
@@ -42,7 +43,7 @@ class AjudaSistemaTests(TestCase):
         response = self.client.get(reverse("core:ajuda"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Verificar atualizacoes")
+        self.assertContains(response, "Atualiza")
         self.assertContains(response, reverse("core:atualizacoes"))
         self.assertContains(response, reverse("inventario:agente_config"))
 

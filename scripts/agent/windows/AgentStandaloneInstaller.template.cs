@@ -11,7 +11,7 @@ namespace SistemaChamadosAgentSetup
 {
     internal static class Program
     {
-        private const string Version = "1.4.2";
+        private const string Version = "1.4.7";
         private const string AgentToken = "__AGENT_TOKEN__";
         private const string AgentScriptBase64 = "__AGENT_SCRIPT_BASE64__";
         private const string UninstallScriptBase64 = "__UNINSTALL_SCRIPT_BASE64__";
@@ -48,7 +48,7 @@ namespace SistemaChamadosAgentSetup
                     "Sistema Chamados Agent",
                     String.IsNullOrEmpty(existingServer) ? "http://" : existingServer
                 );
-                if (String.IsNullOrWhiteSpace(serverUrl))
+                if (IsNullOrWhiteSpace(serverUrl))
                 {
                     MessageBox.Show("Instalacao cancelada. O endereco do servidor e obrigatorio.", "Sistema Chamados Agent", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return 1;
@@ -60,7 +60,7 @@ namespace SistemaChamadosAgentSetup
                     "Sistema Chamados Agent",
                     String.IsNullOrEmpty(existingToken) ? AgentToken : existingToken
                 );
-                if (String.IsNullOrWhiteSpace(agentToken))
+                if (IsNullOrWhiteSpace(agentToken))
                 {
                     MessageBox.Show("Instalacao cancelada. O token do agente e obrigatorio.", "Sistema Chamados Agent", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return 1;
@@ -119,6 +119,21 @@ namespace SistemaChamadosAgentSetup
             var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
             var principal = new System.Security.Principal.WindowsPrincipal(identity);
             return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+
+        private static bool IsNullOrWhiteSpace(string value)
+        {
+            return value == null || value.Trim().Length == 0;
+        }
+
+        private static bool Is64BitOperatingSystem()
+        {
+            string arch = Environment.GetEnvironmentVariable("PROCESSOR_ARCHITECTURE") ?? "";
+            string wow64Arch = Environment.GetEnvironmentVariable("PROCESSOR_ARCHITEW6432") ?? "";
+            return String.Equals(arch, "AMD64", StringComparison.OrdinalIgnoreCase) ||
+                String.Equals(arch, "IA64", StringComparison.OrdinalIgnoreCase) ||
+                String.Equals(wow64Arch, "AMD64", StringComparison.OrdinalIgnoreCase) ||
+                String.Equals(wow64Arch, "IA64", StringComparison.OrdinalIgnoreCase);
         }
 
         private static int RelaunchAsAdministrator()
@@ -194,7 +209,9 @@ namespace SistemaChamadosAgentSetup
 
         private static string PowerShellPath()
         {
-            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), @"System32\WindowsPowerShell\v1.0\powershell.exe");
+            string windowsDir = Environment.GetEnvironmentVariable("WINDIR");
+            if (String.IsNullOrEmpty(windowsDir)) windowsDir = @"C:\Windows";
+            string path = Path.Combine(windowsDir, @"System32\WindowsPowerShell\v1.0\powershell.exe");
             return File.Exists(path) ? path : "powershell.exe";
         }
 
@@ -246,7 +263,7 @@ namespace SistemaChamadosAgentSetup
         private static void RegisterUninstallEntry(string installDir, string uninstallScript)
         {
             RegisterUninstallEntry(Registry.LocalMachine.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent"), installDir, uninstallScript);
-            if (Environment.Is64BitOperatingSystem)
+            if (Is64BitOperatingSystem())
             {
                 RegisterUninstallEntry(Registry.LocalMachine.CreateSubKey(@"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent"), installDir, uninstallScript);
             }
@@ -275,11 +292,8 @@ namespace SistemaChamadosAgentSetup
 
         private static void RegisterStartMenuShortcuts(string installDir, string uninstallScript, string configPath, string trayPath)
         {
-            string programs = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
-            if (String.IsNullOrEmpty(programs))
-            {
-                programs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), @"Microsoft\Windows\Start Menu\Programs");
-            }
+            string commonData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+            string programs = Path.Combine(commonData, @"Microsoft\Windows\Start Menu\Programs");
             string menuDir = Path.Combine(programs, "Sistema Chamados Agent");
             Directory.CreateDirectory(menuDir);
 
@@ -289,9 +303,10 @@ namespace SistemaChamadosAgentSetup
             CreateShortcut(Path.Combine(menuDir, "Ver configuracao do agente.lnk"), "notepad.exe", Quote(configPath), installDir, "Abre a configuracao local do Sistema Chamados Agent.");
             CreateShortcut(Path.Combine(menuDir, "Agente na bandeja.lnk"), trayPath, "", installDir, "Abre os controles do agente na bandeja do Windows.");
 
-            string startup = Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup);
+            string startup = Path.Combine(commonData, @"Microsoft\Windows\Start Menu\Programs\Startup");
             if (!String.IsNullOrEmpty(startup))
             {
+                Directory.CreateDirectory(startup);
                 CreateShortcut(Path.Combine(startup, "Sistema Chamados Agent.lnk"), trayPath, "", installDir, "Inicia os controles do agente com o Windows.");
             }
 

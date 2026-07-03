@@ -43,10 +43,9 @@ namespace SistemaChamadosAgentSetup
                 );
 
                 string installScript = Path.Combine(stageDir, "install.ps1");
-                string powershell = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.Windows),
-                    @"System32\WindowsPowerShell\v1.0\powershell.exe"
-                );
+                string windowsDir = Environment.GetEnvironmentVariable("WINDIR");
+                if (String.IsNullOrEmpty(windowsDir)) windowsDir = @"C:\Windows";
+                string powershell = Path.Combine(windowsDir, @"System32\WindowsPowerShell\v1.0\powershell.exe");
                 if (!File.Exists(powershell))
                 {
                     powershell = "powershell.exe";

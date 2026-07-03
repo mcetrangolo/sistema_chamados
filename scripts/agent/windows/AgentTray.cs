@@ -121,13 +121,20 @@ namespace SistemaChamadosAgentTray
 
         internal static string PowerShellPath()
         {
-            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), @"System32\WindowsPowerShell\v1.0\powershell.exe");
+            string windowsDir = Environment.GetEnvironmentVariable("WINDIR");
+            if (String.IsNullOrEmpty(windowsDir)) windowsDir = @"C:\Windows";
+            string path = Path.Combine(windowsDir, @"System32\WindowsPowerShell\v1.0\powershell.exe");
             return File.Exists(path) ? path : "powershell.exe";
         }
 
         internal static string Quote(string value)
         {
             return "\"" + value.Replace("\"", "\\\"") + "\"";
+        }
+
+        internal static bool IsNullOrWhiteSpace(string value)
+        {
+            return value == null || value.Trim().Length == 0;
         }
 
         internal static string ReadConfigValue(string key)
@@ -330,7 +337,7 @@ namespace SistemaChamadosAgentTray
 
         private void ValidateForm(object sender, EventArgs args)
         {
-            if (String.IsNullOrWhiteSpace(serverInput.Text) || String.IsNullOrWhiteSpace(tokenInput.Text))
+            if (Program.IsNullOrWhiteSpace(serverInput.Text) || Program.IsNullOrWhiteSpace(tokenInput.Text))
             {
                 MessageBox.Show("Informe o servidor e o token.", "Sistema Chamados Agent", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 DialogResult = DialogResult.None;

@@ -20,7 +20,7 @@ Estao disponiveis o instalador Windows `.exe` e o instalador Linux `.sh`. O anti
 
 ## Windows
 
-Baixe e execute `SistemaChamadosAgentSetup.exe` como administrador. Durante a instalacao, informe o IP ou URL do servidor, a porta quando aplicavel e o token apresentado pelo administrador.
+Baixe e execute `SistemaChamadosAgentSetup.exe` como administrador. O mesmo instalador atende Windows 7, 8, 10 e 11; no Windows 7 o agente evita recursos exclusivos do PowerShell 3+ e usa coleta via WMI. Durante a instalacao, informe o IP ou URL do servidor, a porta quando aplicavel e o token apresentado pelo administrador.
 
 Exemplos de endereco:
 
@@ -30,7 +30,7 @@ http://192.168.0.10:8000
 https://chamados.seudominio.local
 ```
 
-O instalador cria as tarefas `SistemaChamadosAgentStartup` e `SistemaChamadosAgentInterval`. A coleta ocorre na inicializacao e a cada 6 horas. O icone na bandeja permite:
+O instalador cria as tarefas `SistemaChamadosAgentStartup`, `SistemaChamadosAgentInterval` e `SistemaChamadosAgentSolicitacoes`. A coleta ocorre na inicializacao, a cada 6 horas e tambem quando o servidor marca uma coleta manual pela tela de agentes. A verificacao de solicitacoes e leve e nao executa inventario completo quando nao ha pedido pendente. O icone na bandeja permite:
 
 - configurar servidor, porta e token;
 - enviar uma coleta imediatamente;

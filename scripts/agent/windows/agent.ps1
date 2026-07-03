@@ -33,18 +33,85 @@ function Enable-Tls12IfAvailable {
 }
 
 function ConvertTo-AgentJson($obj) {
-    if (Get-Command ConvertTo-Json -ErrorAction SilentlyContinue) {
-        return $obj | ConvertTo-Json -Depth 8
+    return ConvertTo-AgentJsonValue $obj
+}
+
+function Escape-AgentJsonString {
+    param([string]$Value)
+    if ($null -eq $Value) { return "" }
+    $s = $Value.Replace('\', '\\')
+    $s = $s.Replace('"', '\"')
+    $s = $s.Replace("`r", '\r')
+    $s = $s.Replace("`n", '\n')
+    $s = $s.Replace("`t", '\t')
+    return $s
+}
+
+function ConvertTo-AgentJsonValue {
+    param($Value)
+
+    if ($null -eq $Value) { return "null" }
+
+    if ($Value -is [string]) {
+        return '"' + (Escape-AgentJsonString $Value) + '"'
     }
 
-    try {
-        Add-Type -AssemblyName System.Web.Extensions
-        $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
-        $serializer.MaxJsonLength = 10485760
-        return $serializer.Serialize($obj)
-    } catch {
-        throw "Nao foi possivel serializar JSON. Instale PowerShell 3+ ou .NET com System.Web.Extensions."
+    if ($Value -is [bool]) {
+        if ($Value) { return "true" } else { return "false" }
     }
+
+    if ($Value -is [byte] -or $Value -is [int16] -or $Value -is [int32] -or $Value -is [int64] -or
+        $Value -is [single] -or $Value -is [double] -or $Value -is [decimal]) {
+        return ([string]$Value).Replace(',', '.')
+    }
+
+    if ($Value -is [System.Collections.IDictionary]) {
+        $parts = @()
+        foreach ($key in $Value.Keys) {
+            $parts += ('"' + (Escape-AgentJsonString ([string]$key)) + '":' + (ConvertTo-AgentJsonValue $Value[$key]))
+        }
+        return "{" + ([string]::Join(',', $parts)) + "}"
+    }
+
+    if ($Value -is [System.Collections.IEnumerable]) {
+        $parts = @()
+        foreach ($item in $Value) {
+            $parts += (ConvertTo-AgentJsonValue $item)
+        }
+        return "[" + ([string]::Join(',', $parts)) + "]"
+    }
+
+    return '"' + (Escape-AgentJsonString ([string]$Value)) + '"'
+}
+
+function Read-AgentConfig {
+    param([string]$Path)
+
+    $text = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
+    $config = @{}
+
+    $stringKeys = @("server_url", "token", "numero_serie_manual", "installed_at")
+    foreach ($key in $stringKeys) {
+        $pattern = '"' + [regex]::Escape($key) + '"\s*:\s*"((?:\\.|[^"\\])*)"'
+        $match = [regex]::Match($text, $pattern)
+        if ($match.Success) {
+            $value = $match.Groups[1].Value
+            $value = $value.Replace('\"', '"').Replace('\\', '\')
+            $config[$key] = $value
+        } else {
+            $config[$key] = ""
+        }
+    }
+
+    $numPattern = '"interval_hours"\s*:\s*([0-9]+)'
+    $numMatch = [regex]::Match($text, $numPattern)
+    if ($numMatch.Success) {
+        $config["interval_hours"] = [int]$numMatch.Groups[1].Value
+    } else {
+        $config["interval_hours"] = 6
+    }
+
+    return $config
 }
 
 function Get-PrimaryInterface {
@@ -143,6 +210,57 @@ function Get-LocalDiskTotalGb {
     return $null
 }
 
+function Get-OperatingSystemName {
+    param($WmiOs)
+
+    $productName = ""
+    $currentVersion = ""
+    $currentBuild = ""
+    $servicePack = ""
+
+    try {
+        $reg = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -ErrorAction SilentlyContinue
+        if ($reg) {
+            $productName = [string]$reg.ProductName
+            $currentVersion = [string]$reg.CurrentVersion
+            $currentBuild = [string]$reg.CurrentBuildNumber
+            $servicePack = [string]$reg.CSDVersion
+        }
+    } catch {}
+
+    if (-not $productName -and $WmiOs) {
+        $productName = [string]$WmiOs.Caption
+    }
+
+    if (-not $currentVersion -and $WmiOs) {
+        $currentVersion = [string]$WmiOs.Version
+    }
+
+    if (-not $currentBuild -and $WmiOs) {
+        $currentBuild = [string]$WmiOs.BuildNumber
+    }
+
+    if ($currentVersion -like "6.1*" -or $currentBuild -eq "7600" -or $currentBuild -eq "7601") {
+        if ($productName -match "Windows 10") {
+            $productName = "Microsoft Windows 7"
+        }
+    }
+    if ($currentVersion -like "6.3*" -and $productName -match "Windows 10") {
+        $productName = "Microsoft Windows 8.1"
+    }
+    if ($currentVersion -like "6.2*" -and $productName -match "Windows 10") {
+        $productName = "Microsoft Windows 8"
+    }
+
+    $parts = @()
+    if ($productName) { $parts += $productName }
+    if ($servicePack) { $parts += $servicePack }
+    if ($currentVersion) { $parts += $currentVersion }
+    if ($currentBuild) { $parts += "build $currentBuild" }
+
+    return ([string]::Join(" ", $parts)).Trim()
+}
+
 function Get-AgentPayload {
     param([string]$SerialManual = "")
 
@@ -167,7 +285,7 @@ function Get-AgentPayload {
     }
 
     return @{
-        versao_agente = "1.4.3"
+        versao_agente = "1.4.7"
         hostname = [string]$env:COMPUTERNAME
         ip = $ip
         mac = $mac
@@ -176,7 +294,7 @@ function Get-AgentPayload {
         fabricante = [string]$computer.Manufacturer
         modelo = [string]$computer.Model
         numero_serie = $serial
-        sistema_operacional = "$($os.Caption) $($os.Version) build $($os.BuildNumber)"
+        sistema_operacional = Get-OperatingSystemName -WmiOs $os
         arquitetura = [string]$os.OSArchitecture
         processador = [string]$cpu.Name
         memoria_total_gb = [math]::Round([double]$computer.TotalPhysicalMemory / 1GB, 2)
@@ -212,6 +330,10 @@ function Send-AgentPayload {
             } catch {}
         }
         if ($detalhe) {
+            try {
+                $errPath = Join-Path $logDir "last-server-error.txt"
+                $detalhe | Out-File -FilePath $errPath -Encoding utf8 -Force
+            } catch {}
             throw "Falha HTTP ao enviar inventario: $detalhe"
         }
         throw
@@ -246,18 +368,11 @@ try {
         throw "Arquivo de configuracao nao encontrado: $ConfigPath"
     }
 
-    $configText = Get-Content $ConfigPath -Raw
-    if (Get-Command ConvertFrom-Json -ErrorAction SilentlyContinue) {
-        $config = $configText | ConvertFrom-Json
-    } else {
-        Add-Type -AssemblyName System.Web.Extensions
-        $serializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
-        $config = $serializer.DeserializeObject($configText)
-    }
+    $config = Read-AgentConfig -Path $ConfigPath
 
-    $serverUrl = [string]$config.server_url
-    $token = [string]$config.token
-    $serialManual = [string]$config.numero_serie_manual
+    $serverUrl = [string]$config["server_url"]
+    $token = [string]$config["token"]
+    $serialManual = [string]$config["numero_serie_manual"]
 
     if (-not $serverUrl -or -not $token) {
         throw "Configure server_url e token em $ConfigPath"
@@ -274,6 +389,10 @@ try {
     Write-AgentLog "INFO Enviando coleta para $endpoint"
     $payload = Get-AgentPayload -SerialManual $serialManual
     $json = ConvertTo-AgentJson $payload
+    try {
+        $jsonLog = Join-Path $logDir "last-payload.json"
+        $json | Out-File -FilePath $jsonLog -Encoding utf8 -Force
+    } catch {}
     $response = Send-AgentPayload -Endpoint $endpoint -Token $token -Json $json
     Write-AgentLog "OK $response"
     exit 0

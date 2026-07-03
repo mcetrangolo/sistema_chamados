@@ -4,6 +4,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Test-Is64BitOperatingSystem {
+    try {
+        return [Environment]::Is64BitOperatingSystem
+    } catch {
+        return ($env:PROCESSOR_ARCHITECTURE -eq "AMD64" -or $env:PROCESSOR_ARCHITEW6432 -eq "AMD64")
+    }
+}
+
 function Show-Message {
     param([string]$Message, [string]$Title = "Sistema Chamados Agent")
     if ($Silent) { return }
@@ -16,17 +24,14 @@ function Show-Message {
 }
 
 $installDir = Join-Path $env:ProgramData "SistemaChamadosAgent"
-$programsDir = [Environment]::GetFolderPath("CommonPrograms")
-if (-not $programsDir) {
-    $programsDir = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs"
-}
+$programsDir = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs"
 $menuDir = Join-Path $programsDir "Sistema Chamados Agent"
 $userProgramsDir = [Environment]::GetFolderPath("Programs")
 $userMenuDir = if ($userProgramsDir) { Join-Path $userProgramsDir "Sistema Chamados Agent" } else { "" }
-$startupDir = [Environment]::GetFolderPath("CommonStartup")
+$startupDir = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\Startup"
 $startupShortcut = if ($startupDir) { Join-Path $startupDir "Sistema Chamados Agent.lnk" } else { "" }
 $uninstallKeys = @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent")
-if ([Environment]::Is64BitOperatingSystem) {
+if (Test-Is64BitOperatingSystem) {
     $uninstallKeys += "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent"
 }
 

@@ -1,11 +1,12 @@
 # Agente Windows de Inventário
 
-Agente compatível com Windows 7, 8, 10 e 11. A coleta usa WMI e o agendamento usa `schtasks.exe` para evitar dependência dos cmdlets modernos de tarefas agendadas. Pedidos feitos pelo botão **Solicitar coleta** são consultados a cada minuto sem executar o inventário completo quando não há pedido pendente.
+Agente compatível com Windows 7, 8, 10 e 11 em um único instalador. A coleta usa WMI, serialização JSON própria compatível com PowerShell 2.0 e o agendamento usa `schtasks.exe` para evitar dependência dos cmdlets modernos de tarefas agendadas. Pedidos feitos pelo botão **Solicitar coleta** são consultados a cada minuto sem executar o inventário completo quando não há pedido pendente.
 
 ## Pré-requisitos
 
 - Executar o instalador como Administrador.
-- PowerShell habilitado.
+- PowerShell habilitado. No Windows 7, o agente evita recursos exclusivos do PowerShell 3+.
+- .NET Framework 3.5 ou superior para o instalador gráfico e o ícone da bandeja.
 - O servidor pode usar o token local padrao ou ter `INVENTARIO_AGENT_TOKEN` configurado no `.env`.
 - O computador cliente precisa acessar o servidor na URL informada, por exemplo `http://192.168.0.10:8000`.
 
@@ -25,6 +26,7 @@ releases\agents\windows\SistemaChamadosAgentSetup.exe
 ```
 
 O instalador atual e um `.exe` standalone compilado em C#, sem IExpress. Ele nao depende de arquivos temporarios extraidos pelo Windows para iniciar.
+Durante o build, o script tenta compilar com .NET Framework 3.5 primeiro para manter compatibilidade com Windows 7; se o compilador 3.5 nao existir, usa .NET Framework 4.x.
 
 O `.exe` versionado em `releases\agents\windows` usa o token padrao `sistema-chamados-agent-local`. Se o servidor usar outro `INVENTARIO_AGENT_TOKEN`, gere novamente o instalador com:
 
@@ -67,6 +69,7 @@ C:\ProgramData\SistemaChamadosAgent\last-run.log
 
 - `SistemaChamadosAgentStartup`: executa ao iniciar o Windows.
 - `SistemaChamadosAgentInterval`: executa a cada 6 horas por padrão.
+- `SistemaChamadosAgentSolicitacoes`: verifica a cada minuto se o servidor solicitou uma coleta manual.
 
 ## Arquivos instalados
 

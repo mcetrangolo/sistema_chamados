@@ -2,10 +2,12 @@
 {% load chamados_extras %}
 {% block title %}Relatórios | Sistema de Chamados{% endblock %}
 {% block content %}
-{{ inventario_so_chart|json_script:"inventario-so-chart-data" }}
-{{ inventario_office_chart|json_script:"inventario-office-chart-data" }}
-{{ inventario_tipo_chart|json_script:"inventario-tipo-chart-data" }}
-{{ inventario_status_chart|json_script:"inventario-status-chart-data" }}
+{{ status_chart|json_script:"chamados-status-chart-data" }}
+{{ tipo_chart|json_script:"chamados-tipo-chart-data" }}
+{{ setor_chart|json_script:"chamados-setor-chart-data" }}
+{{ categoria_chart|json_script:"chamados-categoria-chart-data" }}
+{{ prioridade_chart|json_script:"chamados-prioridade-chart-data" }}
+{{ atendente_chart|json_script:"chamados-atendente-chart-data" }}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
@@ -64,32 +66,44 @@
   <div class="col-12">
     <section class="report-block">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="h5 mb-0">Graficos do inventario</h2>
-        <span class="text-secondary small">{{ inventario.total }} ativo(s)</span>
+        <h2 class="h5 mb-0">Graficos dos chamados</h2>
+        <span class="text-secondary small">{{ total }} chamado(s)</span>
       </div>
       <div class="row g-3">
         <div class="col-lg-6 col-xl-3">
           <div class="report-chart">
-            <h3>Sistemas operacionais</h3>
-            <div class="report-chart-canvas"><canvas id="inventarioSoChart"></canvas></div>
+            <h3>Status</h3>
+            <div class="report-chart-canvas"><canvas id="chamadosStatusChart"></canvas></div>
           </div>
         </div>
         <div class="col-lg-6 col-xl-3">
           <div class="report-chart">
-            <h3>Office / Microsoft 365</h3>
-            <div class="report-chart-canvas"><canvas id="inventarioOfficeChart"></canvas></div>
+            <h3>Tipos de chamado</h3>
+            <div class="report-chart-canvas"><canvas id="chamadosTipoChart"></canvas></div>
           </div>
         </div>
         <div class="col-lg-6 col-xl-3">
           <div class="report-chart">
-            <h3>Tipos de ativo</h3>
-            <div class="report-chart-canvas"><canvas id="inventarioTipoChart"></canvas></div>
+            <h3>Setores</h3>
+            <div class="report-chart-canvas"><canvas id="chamadosSetorChart"></canvas></div>
           </div>
         </div>
         <div class="col-lg-6 col-xl-3">
           <div class="report-chart">
-            <h3>Status dos ativos</h3>
-            <div class="report-chart-canvas"><canvas id="inventarioStatusChart"></canvas></div>
+            <h3>Atendentes</h3>
+            <div class="report-chart-canvas"><canvas id="chamadosAtendenteChart"></canvas></div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="report-chart">
+            <h3>Categorias</h3>
+            <div class="report-chart-canvas"><canvas id="chamadosCategoriaChart"></canvas></div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="report-chart">
+            <h3>Prioridades</h3>
+            <div class="report-chart-canvas"><canvas id="chamadosPrioridadeChart"></canvas></div>
           </div>
         </div>
       </div>
@@ -165,108 +179,6 @@
       </table>
     </section>
   </div>
-  <div class="col-xl-6">
-    <section class="report-block">
-      <h2 class="h5">Inventário por status</h2>
-      <table class="table table-sm mb-0">
-        <tbody>
-          {% for item in inventario.por_status %}
-            <tr><td>{{ item.status }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>
-          {% empty %}
-            <tr><td class="text-secondary">Sem ativos inventariados.</td><td></td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
-  </div>
-  <div class="col-xl-6">
-    <section class="report-block">
-      <h2 class="h5">Inventario por tipo</h2>
-      <table class="table table-sm mb-0">
-        <tbody>
-          {% for item in inventario.por_tipo %}
-            <tr><td>{{ item.tipo__nome|default:"Sem tipo" }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>
-          {% empty %}
-            <tr><td class="text-secondary">Sem ativos inventariados.</td><td></td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
-  </div>
-  <div class="col-xl-6">
-    <section class="report-block">
-      <h2 class="h5">Sistemas operacionais instalados</h2>
-      <table class="table table-sm mb-0">
-        <tbody>
-          {% for item in inventario.por_so %}
-            <tr><td>{{ item.sistema_operacional }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>
-          {% empty %}
-            <tr><td class="text-secondary">Nenhum SO coletado pelo inventario.</td><td></td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
-  </div>
-  <div class="col-xl-6">
-    <section class="report-block">
-      <h2 class="h5">Office / Microsoft 365</h2>
-      <table class="table table-sm mb-0">
-        <tbody>
-          {% for item in inventario.por_office %}
-            <tr><td>{{ item.office }}</td><td class="text-end fw-semibold">{{ item.total }}</td></tr>
-          {% empty %}
-            <tr><td class="text-secondary">Nenhuma instalacao de Office coletada.</td><td></td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
-  </div>
-  <div class="col-12">
-    <section class="report-block">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h2 class="h5 mb-0">Equipamentos inventariados</h2>
-        <span class="text-secondary small">Mostrando ate 500 ativos</span>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead>
-            <tr>
-              <th>Equipamento</th>
-              <th>IP</th>
-              <th>MAC</th>
-              <th>Tipo</th>
-              <th>Fabricante</th>
-              <th>Modelo</th>
-              <th>SO</th>
-              <th>Serial</th>
-              <th>Status</th>
-              <th>Origem</th>
-              <th>Coleta</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for ativo in inventario.ativos %}
-              <tr>
-                <td><a href="{{ ativo.get_absolute_url }}">{{ ativo.nome }}</a></td>
-                <td>{{ ativo.ip|default:"-" }}</td>
-                <td>{{ ativo.mac|default:"-" }}</td>
-                <td>{{ ativo.tipo|default:"-" }}</td>
-                <td>{{ ativo.fabricante|default:"-" }}</td>
-                <td>{{ ativo.modelo|default:"-" }}</td>
-                <td>{{ ativo.sistema_operacional|default:"-" }}</td>
-                <td>{{ ativo.numero_serie|default:"-" }}</td>
-                <td>{{ ativo.get_status_display }}</td>
-                <td>{{ ativo.get_origem_display }}</td>
-                <td>{{ ativo.ultima_coleta_em|date:"d/m/Y H:i"|default:"-" }}</td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="11" class="text-center text-secondary py-4">Nenhum ativo inventariado.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
@@ -307,9 +219,11 @@
       options: type === "bar" ? reportBarChartOptions : reportChartOptions
     });
   }
-  buildReportChart("inventarioSoChart", "inventario-so-chart-data", "pie");
-  buildReportChart("inventarioOfficeChart", "inventario-office-chart-data", "doughnut");
-  buildReportChart("inventarioTipoChart", "inventario-tipo-chart-data", "bar");
-  buildReportChart("inventarioStatusChart", "inventario-status-chart-data", "doughnut");
+  buildReportChart("chamadosStatusChart", "chamados-status-chart-data", "doughnut");
+  buildReportChart("chamadosTipoChart", "chamados-tipo-chart-data", "pie");
+  buildReportChart("chamadosSetorChart", "chamados-setor-chart-data", "bar");
+  buildReportChart("chamadosAtendenteChart", "chamados-atendente-chart-data", "bar");
+  buildReportChart("chamadosCategoriaChart", "chamados-categoria-chart-data", "bar");
+  buildReportChart("chamadosPrioridadeChart", "chamados-prioridade-chart-data", "doughnut");
 </script>
 {% endblock %}

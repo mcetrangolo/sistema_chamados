@@ -1385,50 +1385,71 @@ def nome_atendente(chamado):
     return "Não atribuído"
 
 
-def dados_inventario_relatorio():
-    try:
-        from inventario.models import AtivoRede
-    except Exception:
-        return {
-            "disponivel": False,
-            "total": 0,
-            "por_status": [],
-            "por_tipo": [],
-            "por_so": [],
-            "por_office": [],
-            "ativos": [],
-        }
-
-    ativos = (
-        AtivoRede.objects.select_related("tipo", "setor")
-        .exclude(status=AtivoRede.Status.DESATIVADO)
-        .order_by("nome")
-    )
-    return {
-        "disponivel": True,
-        "total": ativos.count(),
-        "por_status": ativos.values("status").annotate(total=Count("id")).order_by("status"),
-        "por_tipo": ativos.values("tipo__nome").annotate(total=Count("id")).order_by("tipo__nome"),
-        "por_so": (
-            ativos.exclude(sistema_operacional="")
-            .values("sistema_operacional")
-            .annotate(total=Count("id"))
-            .order_by("sistema_operacional")
-        ),
-        "por_office": (
-            ativos.exclude(office="")
-            .values("office")
-            .annotate(total=Count("id"))
-            .order_by("office")
-        ),
-        "ativos": ativos[:500],
-    }
+def rotulo_choice(valor, choices):
+    mapa = dict(choices)
+    return mapa.get(valor, valor or "Nao informado")
 
 
 def chart_data(linhas, label_field):
     return {
         "labels": [linha.get(label_field) or "Nao informado" for linha in linhas],
         "data": [linha["total"] for linha in linhas],
+    }
+
+
+def chart_data_choices(linhas, label_field, choices):
+    return {
+        "labels": [rotulo_choice(linha.get(label_field), choices) for linha in linhas],
+        "data": [linha["total"] for linha in linhas],
+    }
+
+
+def chart_data_atendentes(linhas):
+    labels = []
+    for linha in linhas:
+        nome = "Nao atribuido"
+        if linha.get("tecnico_responsavel__first_name") or linha.get("tecnico_responsavel__last_name"):
+            nome = f"{linha.get('tecnico_responsavel__first_name') or ''} {linha.get('tecnico_responsavel__last_name') or ''}".strip()
+        elif linha.get("tecnico_responsavel__username"):
+            nome = linha["tecnico_responsavel__username"]
+        labels.append(nome)
+    return {"labels": labels, "data": [linha["total"] for linha in linhas]}
+
+
+def dados_graficos_chamados(chamados):
+    return {
+        "status": chart_data_choices(
+            chamados.values("status").annotate(total=Count("id")).order_by("status"),
+            "status",
+            Chamado.Status.choices,
+        ),
+        "tipo": chart_data_choices(
+            chamados.values("tipo").annotate(total=Count("id")).order_by("tipo"),
+            "tipo",
+            Chamado.Tipo.choices,
+        ),
+        "setor": chart_data(
+            chamados.values("setor__nome").annotate(total=Count("id")).order_by("setor__nome"),
+            "setor__nome",
+        ),
+        "categoria": chart_data(
+            chamados.values("categoria__nome").annotate(total=Count("id")).order_by("categoria__nome"),
+            "categoria__nome",
+        ),
+        "prioridade": chart_data_choices(
+            chamados.values("prioridade").annotate(total=Count("id")).order_by("prioridade"),
+            "prioridade",
+            Chamado.Prioridade.choices,
+        ),
+        "atendente": chart_data_atendentes(
+            chamados.values(
+                "tecnico_responsavel__username",
+                "tecnico_responsavel__first_name",
+                "tecnico_responsavel__last_name",
+            )
+            .annotate(total=Count("id"))
+            .order_by("tecnico_responsavel__username")
+        ),
     }
 
 
@@ -1465,12 +1486,13 @@ class RelatorioChamadosView(LoginRequiredMixin, TemplateView):
             .annotate(total=Count("id"))
             .order_by("-total")[:10]
         )
-        inventario = dados_inventario_relatorio()
-        context["inventario"] = inventario
-        context["inventario_so_chart"] = chart_data(inventario["por_so"], "sistema_operacional")
-        context["inventario_office_chart"] = chart_data(inventario["por_office"], "office")
-        context["inventario_tipo_chart"] = chart_data(inventario["por_tipo"], "tipo__nome")
-        context["inventario_status_chart"] = chart_data(inventario["por_status"], "status")
+        graficos = dados_graficos_chamados(chamados)
+        context["status_chart"] = graficos["status"]
+        context["tipo_chart"] = graficos["tipo"]
+        context["setor_chart"] = graficos["setor"]
+        context["categoria_chart"] = graficos["categoria"]
+        context["prioridade_chart"] = graficos["prioridade"]
+        context["atendente_chart"] = graficos["atendente"]
         context["querystring"] = self.request.GET.urlencode()
         return context
 
@@ -1482,7 +1504,6 @@ def exportar_relatorio_xls(request):
     campo_agrupamento, titulo_agrupamento, resumo = resumo_relatorio(
         chamados, agrupamento or "status"
     )
-    inventario = dados_inventario_relatorio()
 
     response = HttpResponse(content_type="application/vnd.ms-excel; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="relatorio_chamados.xls"'
@@ -1522,71 +1543,11 @@ def exportar_relatorio_xls(request):
             chamado.get_tipo_display(),
             chamado.criado_em.strftime("%d/%m/%Y %H:%M"),
             chamado.nome_solicitante,
-            chamado.setor.nome,
-            chamado.categoria.nome,
+            chamado.setor.nome if chamado.setor else "",
+            chamado.categoria.nome if chamado.categoria else "",
             chamado.get_prioridade_display(),
             chamado.get_status_display(),
             nome_atendente(chamado),
-        ]
-        response.write("<tr>")
-        for valor in valores:
-            response.write(f"<td>{escape(str(valor))}</td>")
-        response.write("</tr>")
-    response.write("</table><br>")
-
-    response.write("<h1>Inventario</h1>")
-    response.write(f"<p>Total de ativos: {inventario['total']}</p>")
-    for titulo, linhas, campo in [
-        ("Inventario por status", inventario["por_status"], "status"),
-        ("Inventario por tipo", inventario["por_tipo"], "tipo__nome"),
-        ("Sistemas operacionais instalados", inventario["por_so"], "sistema_operacional"),
-        ("Office / Microsoft 365", inventario["por_office"], "office"),
-    ]:
-        response.write(f"<h2>{escape(titulo)}</h2>")
-        response.write("<table border='1'><tr><th>Grupo</th><th>Total</th></tr>")
-        for linha in linhas:
-            response.write(f"<tr><td>{escape(str(linha.get(campo) or 'Nao informado'))}</td><td>{linha['total']}</td></tr>")
-        response.write("</table><br>")
-
-    response.write("<h2>Equipamentos inventariados</h2>")
-    cabecalhos_inventario = [
-        "Equipamento",
-        "IP",
-        "MAC",
-        "Tipo",
-        "Setor",
-        "Fabricante",
-        "Modelo",
-        "SO",
-        "Office",
-        "CPU",
-        "Memoria GB",
-        "Disco GB",
-        "Serial",
-        "Usuario",
-        "Ultima coleta",
-    ]
-    response.write("<table border='1'><tr>")
-    for cabecalho in cabecalhos_inventario:
-        response.write(f"<th>{escape(cabecalho)}</th>")
-    response.write("</tr>")
-    for ativo in inventario["ativos"]:
-        valores = [
-            ativo.nome,
-            ativo.ip or "",
-            ativo.mac,
-            ativo.tipo.nome if ativo.tipo else "",
-            ativo.setor.nome if ativo.setor else "",
-            ativo.fabricante,
-            ativo.modelo,
-            ativo.sistema_operacional,
-            ativo.office,
-            ativo.processador,
-            ativo.memoria_total_gb or "",
-            ativo.disco_total_gb or "",
-            ativo.numero_serie,
-            ativo.usuario_logado,
-            ativo.ultima_coleta_em.strftime("%d/%m/%Y %H:%M") if ativo.ultima_coleta_em else "",
         ]
         response.write("<tr>")
         for valor in valores:
@@ -1640,7 +1601,6 @@ def exportar_relatorio_pdf(request):
     )
 
     config = ConfiguracaoInstitucional.atual()
-    inventario = dados_inventario_relatorio()
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
@@ -1658,7 +1618,6 @@ def exportar_relatorio_pdf(request):
             "Relatorio de chamados",
             f"Total: {chamados.count()}",
             f"Agrupamento por {titulo_agrupamento}",
-            f"Total de ativos inventariados: {inventario['total']}",
             "",
         ]
         for linha in resumo:
@@ -1759,27 +1718,6 @@ def exportar_relatorio_pdf(request):
             f"{chamado.nome_solicitante} | {chamado.get_status_display()} | "
             f"{nome_atendente(chamado)}",
             tamanho=8,
-        )
-
-    y -= 3 * mm
-    escrever_linha("Inventario", tamanho=11, negrito=True)
-    escrever_linha(f"Total de ativos: {inventario['total']}", tamanho=9)
-
-    escrever_linha("Sistemas operacionais", tamanho=9, negrito=True)
-    for item in inventario["por_so"][:20]:
-        escrever_linha(f"{item.get('sistema_operacional') or 'Nao informado'}: {item['total']}", tamanho=8)
-
-    escrever_linha("Office / Microsoft 365", tamanho=9, negrito=True)
-    for item in inventario["por_office"][:20]:
-        escrever_linha(f"{item.get('office') or 'Nao informado'}: {item['total']}", tamanho=8)
-
-    escrever_linha("Equipamentos inventariados", tamanho=9, negrito=True)
-    escrever_linha("Nome | IP | Fabricante | Modelo | Status | Origem", tamanho=8, negrito=True)
-    for ativo in inventario["ativos"][:80]:
-        escrever_linha(
-            f"{ativo.nome} | {ativo.ip or '-'} | {ativo.fabricante or '-'} | "
-            f"{ativo.modelo or '-'} | {ativo.get_status_display()} | {ativo.get_origem_display()}",
-            tamanho=7,
         )
 
     if config.texto_rodape:

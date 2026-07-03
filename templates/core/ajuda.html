@@ -7,198 +7,517 @@
   <div>
     <div class="eyebrow">CENTRAL DE AJUDA</div>
     <h1>Ajuda do sistema</h1>
-    <p>Manual operacional da area interna para atendentes, gestores e administradores autenticados.</p>
+    <p>Guia operacional para uso diário, administração, inventário, relatórios e manutenção da plataforma.</p>
   </div>
   <span class="badge text-bg-light border">{{ sistema_versao }}</span>
 </div>
 
-<div class="help-search mb-4">
-  <label class="form-label" for="help-search-input">Buscar nesta ajuda</label>
-  <input class="form-control" id="help-search-input" type="search"
-         placeholder="Ex.: trocar token, atualizar sistema, encerrar chamado"
-         autocomplete="off">
-  <div class="form-text" id="help-search-status" aria-live="polite"></div>
-</div>
+<section class="help-intro mb-4">
+  <div>
+    <h2>Como usar esta central</h2>
+    <p>Use a busca para localizar uma rotina específica ou navegue pelos módulos. Cada seção explica a finalidade do recurso, quando utilizar, boas práticas e atalhos para a tela correspondente.</p>
+  </div>
+  <div class="help-search">
+    <label class="form-label" for="help-search-input">Buscar nesta ajuda</label>
+    <input class="form-control" id="help-search-input" type="search"
+           placeholder="Ex.: encerrar chamado, agente Windows, backup, permissões"
+           autocomplete="off">
+    <div class="form-text" id="help-search-status" aria-live="polite"></div>
+  </div>
+</section>
 
 <div class="help-layout">
   <nav class="help-nav" aria-label="Topicos da ajuda">
-    <a href="#primeiros-passos">Primeiros passos</a>
+    <a href="#visao-geral">Visão geral</a>
+    <a href="#perfis">Perfis e permissões</a>
     <a href="#chamados">Chamados</a>
-    <a href="#sla">SLA</a>
-    <a href="#catalogo">Catalogo</a>
-    <a href="#inventario">Inventario</a>
-    <a href="#agentes">Agentes e token</a>
-    <a href="#usuarios">Usuarios e LDAP</a>
+    <a href="#catalogo">Catálogo e governança</a>
+    <a href="#sla">SLA e filas</a>
+    <a href="#inventario">Inventário</a>
+    <a href="#agentes">Agentes</a>
+    <a href="#licencas">Licenças</a>
+    <a href="#relatorios">Relatórios</a>
+    <a href="#documentacao">Documentação</a>
     <a href="#contratos">Contratos</a>
-    <a href="#relatorios">Relatorios</a>
+    <a href="#usuarios">Usuários e LDAP</a>
     <a href="#backup">Backup</a>
-    <a href="#atualizacao">Atualizacao</a>
-    <a href="#diagnostico">Diagnostico</a>
+    <a href="#atualizacao">Atualização</a>
+    <a href="#diagnostico">Diagnóstico</a>
   </nav>
 
   <div class="help-content" id="help-content">
-    <section class="help-section" id="primeiros-passos" data-help-section>
-      <h2>Primeiros passos e perfil</h2>
-      <p>Esta central documenta a operacao interna do sistema. Ela nao e destinada aos usuarios finais do portal publico. O menu principal concentra chamados, inventario, relatorios, governanca e configuracoes conforme as permissoes da conta autenticada.</p>
-      <ul>
-        <li><strong>Atendente:</strong> trata chamados, registra interacoes, tarefas e solucoes.</li>
-        <li><strong>Gestor:</strong> acompanha filas, prazos, indicadores, inventario e governanca.</li>
-        <li><strong>Administrador:</strong> configura usuarios, catalogo, SLA, inventario e operacao do servidor.</li>
-      </ul>
-      <p>No menu com seu nome, use <strong>Minhas informacoes</strong> para atualizar e-mail, telefone e outros dados. A opcao <strong>Alterar senha</strong> exige a senha atual.</p>
+    <section class="help-section" id="visao-geral" data-help-section>
+      <div class="help-section-title">
+        <span>01</span>
+        <div>
+          <h2>Visão Geral</h2>
+          <p>Entenda a função de cada área do sistema.</p>
+        </div>
+      </div>
+      <div class="help-card-grid">
+        <article class="help-card">
+          <h3>Chamados</h3>
+          <p>Centraliza incidentes, solicitações, problemas, mudanças, aprovações, tarefas, comentários, anexos e histórico do atendimento.</p>
+        </article>
+        <article class="help-card">
+          <h3>Inventário</h3>
+          <p>Registra equipamentos, agentes, sondas, faixas de rede, licenças, movimentações, termos de responsabilidade e relacionamentos de ativos.</p>
+        </article>
+        <article class="help-card">
+          <h3>Relatórios e governança</h3>
+          <p>Concentra indicadores, exportações, solicitações formais, catálogo público e registros úteis para prestação de contas.</p>
+        </article>
+        <article class="help-card">
+          <h3>Administração</h3>
+          <p>Área restrita para usuários, permissões, tema institucional, LDAP, backup, atualização, auditoria e controle de serviços.</p>
+        </article>
+      </div>
+      <p class="help-note">O menu muda conforme o perfil do usuário. Se uma opção não aparecer, confirme o perfil de acesso com o administrador.</p>
+    </section>
+
+    <section class="help-section" id="perfis" data-help-section>
+      <div class="help-section-title">
+        <span>02</span>
+        <div>
+          <h2>Perfis e Permissões</h2>
+          <p>Defina quem pode acessar cada módulo e evite permissões excessivas.</p>
+        </div>
+      </div>
+      <div class="help-card-grid">
+        <article class="help-card">
+          <h3>Administrador</h3>
+          <p>Acesso total ao sistema. Deve ser usado por poucas contas, preferencialmente da equipe responsável pela operação técnica.</p>
+          <ul>
+            <li>Gerencia usuários, backup, LDAP e atualização.</li>
+            <li>Acessa auditoria e controle de serviços.</li>
+            <li>Configura catálogo, SLA, inventário e cadastros.</li>
+          </ul>
+        </article>
+        <article class="help-card">
+          <h3>Suporte N2</h3>
+          <p>Perfil para equipe técnica avançada. Acessa chamados, inventário, documentação, contratos e relatórios, sem gestão do sistema.</p>
+        </article>
+        <article class="help-card">
+          <h3>Suporte N1</h3>
+          <p>Perfil para atendimento inicial. Atua nas filas de chamados, registra respostas, encaminha demandas e consulta informações necessárias.</p>
+        </article>
+        <article class="help-card">
+          <h3>Usuário comum</h3>
+          <p>Acesso básico ao próprio perfil e aos fluxos permitidos. Não deve administrar configurações nem inventário.</p>
+        </article>
+      </div>
       <div class="help-actions">
-        <a href="{% url 'core:perfil' %}">Minhas informacoes</a>
+        <a href="{% url 'core:perfil' %}">Minhas informações</a>
         <a href="{% url 'password_change' %}">Alterar senha</a>
-        <a href="{% url 'core:notificacoes' %}">Notificacoes</a>
+        {% if perfil_acesso.sistema %}<a href="{% url 'core:usuarios' %}">Usuários e permissões</a>{% endif %}
       </div>
     </section>
 
     <section class="help-section" id="chamados" data-help-section>
-      <h2>Chamados</h2>
-      <p>Todo atendimento deve permanecer registrado no chamado para preservar historico, responsabilidade e indicadores.</p>
-      <ul>
-        <li>Na fila, passe o mouse sobre o numero para ver a descricao do problema.</li>
-        <li>Use filtros e a busca global para localizar chamados por numero, texto, solicitante e periodo.</li>
-        <li>Na tela de tratamento, atribua o atendente ou encaminhe para outra equipe quando a responsabilidade mudar.</li>
-        <li>Respostas publicas ficam visiveis ao solicitante; registros internos devem ser usados apenas pela equipe.</li>
-        <li>Ao resolver ou encerrar, informe claramente a solucao aplicada.</li>
-      </ul>
+      <div class="help-section-title">
+        <span>03</span>
+        <div>
+          <h2>Chamados</h2>
+          <p>Registre toda interação para manter histórico, rastreabilidade e indicadores confiáveis.</p>
+        </div>
+      </div>
+      <div class="help-two-columns">
+        <div>
+          <h3>Para que serve</h3>
+          <p>O módulo de chamados controla incidentes, solicitações, problemas e mudanças. Ele ajuda a organizar a fila, distribuir responsabilidades, medir SLA e manter comunicação com o solicitante.</p>
+          <h3>Como utilizar</h3>
+          <ol>
+            <li>Abra ou localize o chamado pela lista, fila ou busca global.</li>
+            <li>Confira solicitante, setor, categoria, prioridade, anexos e descrição.</li>
+            <li>Atribua um atendente ou equipe quando a responsabilidade estiver definida.</li>
+            <li>Use resposta pública para comunicação com o solicitante e comentário interno para registros técnicos.</li>
+            <li>Ao resolver, informe a solução aplicada de forma clara e objetiva.</li>
+          </ol>
+        </div>
+        <div>
+          <h3>Boas práticas</h3>
+          <ul>
+            <li>Não encerre chamado sem registrar a solução.</li>
+            <li>Use categorias e tópicos corretos para melhorar relatórios.</li>
+            <li>Encaminhe quando a demanda pertencer a outra equipe.</li>
+            <li>Evite registrar senhas em comentários ou anexos.</li>
+            <li>Use tarefas internas quando o atendimento depender de etapas paralelas.</li>
+          </ul>
+        </div>
+      </div>
       <div class="help-actions">
-        <a href="{% url 'chamados:lista' %}">Fila de chamados</a>
+        <a href="{% url 'chamados:painel' %}">Painel de gestão</a>
+        <a href="{% url 'chamados:lista' %}">Lista de chamados</a>
         <a href="{% url 'chamados:novo' %}">Abrir chamado interno</a>
         <a href="{% url 'chamados:busca_global' %}">Busca global</a>
       </div>
     </section>
 
-    <section class="help-section" id="sla" data-help-section>
-      <h2>SLA e prazos</h2>
-      <p>O SLA mede o prazo de primeira resposta e de solucao. A regra aplicavel pode variar por prioridade e categoria.</p>
-      <ul>
-        <li><strong>Primeira resposta:</strong> tempo ate a primeira atuacao registrada pela equipe.</li>
-        <li><strong>Solucao:</strong> tempo ate o chamado ser resolvido.</li>
-        <li>Status de espera podem pausar a contagem quando isso estiver previsto na regra.</li>
-      </ul>
-      {% if user.is_superuser %}
-        <div class="help-actions"><a href="{% url 'chamados:sla_regras' %}">Configurar regras de SLA</a></div>
-      {% endif %}
-    </section>
-
     <section class="help-section" id="catalogo" data-help-section>
-      <h2>Catalogo de servicos e governanca</h2>
-      <p>O catalogo oferece formularios padronizados e gera chamados com o topico correto. Fluxos de aprovacao devem ser ativados somente para servicos que realmente exigem autorizacao.</p>
+      <div class="help-section-title">
+        <span>04</span>
+        <div>
+          <h2>Catálogo de Serviços e Governança</h2>
+          <p>Padronize solicitações recorrentes e colete informações obrigatórias antes do atendimento.</p>
+        </div>
+      </div>
+      <div class="help-two-columns">
+        <div>
+          <h3>Catálogo público</h3>
+          <p>Permite que o usuário solicite serviços com formulário padronizado, como criação de acesso, instalação de software, troca de equipamento ou suporte a impressora.</p>
+          <ul>
+            <li>Use campos personalizados para dados obrigatórios.</li>
+            <li>Defina aprovador quando a solicitação exigir autorização.</li>
+            <li>Associe o serviço a categoria, tópico, prioridade e SLA coerentes.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Governança</h3>
+          <p>Registra solicitações formais de acesso e Wi-Fi com aceite, histórico e geração de documento em PDF. Serve para padronizar evidências e reduzir solicitações informais.</p>
+          <ul>
+            <li>Valide dados do solicitante antes de converter em chamado.</li>
+            <li>Mantenha anexos e documentos vinculados ao processo.</li>
+            <li>Use o status para acompanhar análise, aprovação ou rejeição.</li>
+          </ul>
+        </div>
+      </div>
       <div class="help-actions">
-        <a href="{% url 'chamados:catalogo' %}">Abrir catalogo</a>
-        {% if user.is_superuser %}<a href="{% url 'chamados:servicos' %}">Administrar servicos</a>{% endif %}
+        <a href="{% url 'chamados:catalogo' %}">Catálogo público</a>
+        {% if perfil_acesso.suporte_n2 %}<a href="{% url 'chamados:servicos' %}">Administrar catálogo</a>{% endif %}
+        <a href="{% url 'governanca:portal' %}">Portal de governança</a>
+        {% if perfil_acesso.suporte_n2 %}<a href="{% url 'governanca:solicitacoes' %}">Solicitações de governança</a>{% endif %}
       </div>
     </section>
 
+    <section class="help-section" id="sla" data-help-section>
+      <div class="help-section-title">
+        <span>05</span>
+        <div>
+          <h2>SLA, Filas e Prioridades</h2>
+          <p>Use regras de prazo para dar previsibilidade ao atendimento.</p>
+        </div>
+      </div>
+      <div class="help-two-columns">
+        <div>
+          <h3>Componentes do SLA</h3>
+          <ul>
+            <li><strong>Primeira resposta:</strong> tempo até a primeira atuação registrada pela equipe.</li>
+            <li><strong>Solução:</strong> prazo esperado para resolver o chamado.</li>
+            <li><strong>Pausa:</strong> usada quando o atendimento depende de terceiro, fornecedor, usuário ou aprovação.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Como operar filas</h3>
+          <ul>
+            <li>A fila de abertos mostra demandas em andamento.</li>
+            <li>A fila de não atribuídos ajuda a distribuir novos chamados.</li>
+            <li>A fila de atrasados deve ser revisada diariamente.</li>
+            <li>A fila “Meus chamados” concentra responsabilidades do atendente logado.</li>
+          </ul>
+        </div>
+      </div>
+      {% if perfil_acesso.suporte_n2 %}
+        <div class="help-actions"><a href="{% url 'chamados:sla_regras' %}">Regras de SLA</a></div>
+      {% endif %}
+    </section>
+
     <section class="help-section" id="inventario" data-help-section>
-      <h2>Inventario, CMDB e licencas</h2>
-      <p>Os ativos podem ser cadastrados manualmente, descobertos pela rede ou atualizados pelos agentes. A CMDB relaciona ativos, usuarios, setores, chamados e dependencias.</p>
-      <ul>
-        <li>Revise duplicidades antes de mesclar registros para evitar perda de historico.</li>
-        <li>Ativos sem comunicacao por mais de 30 dias ficam em uma lista separada para verificacao, arquivamento ou exclusao.</li>
-        <li>Ativos arquivados nao entram nos indicadores operacionais correntes.</li>
-        <li>Licencas podem ser por prazo ou perpetuas. Para uma licenca perpetua, marque essa modalidade sem vencimento.</li>
-        <li>O QR Code identifica o ativo e abre sua pagina publica de identificacao.</li>
-      </ul>
+      <div class="help-section-title">
+        <span>06</span>
+        <div>
+          <h2>Inventário e CMDB</h2>
+          <p>Controle equipamentos, responsáveis, localização, histórico e relacionamento entre ativos.</p>
+        </div>
+      </div>
+      <div class="help-two-columns">
+        <div>
+          <h3>Para que serve</h3>
+          <p>O inventário registra computadores, servidores, switches, roteadores, impressoras, periféricos, licenças e ativos descobertos por agente ou varredura.</p>
+          <ul>
+            <li>Ativos ativos entram nos indicadores e relatórios operacionais.</li>
+            <li>Ativos desativados ficam fora dos totais correntes.</li>
+            <li>Relacionamentos ajudam a entender dependências entre sistemas, rede e equipamentos.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Rotina recomendada</h3>
+          <ol>
+            <li>Cadastre tipos de ativo e setores antes de importar muitos registros.</li>
+            <li>Use agente para computadores e servidores quando possível.</li>
+            <li>Use SNMP/sondas para redes e dispositivos sem agente.</li>
+            <li>Revise duplicidades antes de mesclar registros.</li>
+            <li>Movimente ou arquive ativos quando forem substituídos.</li>
+          </ol>
+        </div>
+      </div>
       <div class="help-actions">
-        <a href="{% url 'inventario:painel' %}">Painel do inventario</a>
+        <a href="{% url 'inventario:painel' %}">Painel do inventário</a>
         <a href="{% url 'inventario:ativos' %}">Ativos</a>
-        <a href="{% url 'inventario:ativos_sem_comunicacao' %}">Sem comunicacao</a>
-        <a href="{% url 'inventario:ativos_duplicados' %}">Duplicados</a>
-        <a href="{% url 'inventario:licencas' %}">Licencas</a>
+        <a href="{% url 'inventario:ativos_sem_comunicacao' %}">Sem comunicação</a>
+        <a href="{% url 'inventario:ativos_duplicados' %}">Duplicidades</a>
       </div>
     </section>
 
     <section class="help-section" id="agentes" data-help-section>
-      <h2>Agentes de inventario e troca de token</h2>
-      <p>O agente Windows coleta no inicio do computador e periodicamente. O icone na bandeja permite ajustar servidor, porta e token, solicitar uma coleta, reiniciar o agente e consultar o log. No Linux, a coleta usa um servico e temporizador do systemd.</p>
-      <h3>Quando o servidor ou o token mudar</h3>
-      <ol>
-        <li>O administrador confere o token efetivamente carregado em <strong>Inventario &gt; Agentes de inventario</strong>. Se a variavel estiver ausente, o servidor usa o token fixo de compatibilidade.</li>
-        <li>No Windows, abra o icone do agente na bandeja e atualize servidor e token. Tambem e possivel executar o instalador atual sobre a instalacao existente.</li>
-        <li>No Linux, atualize <code>/etc/sistema-chamados-agent/config.env</code> e reinicie o temporizador.</li>
-      </ol>
-      <p>O erro <strong>403 - Token invalido ou nao configurado</strong> significa que o token salvo no equipamento nao coincide com o token do servidor.</p>
-      {% if user.is_superuser %}
-        <div class="help-actions"><a href="{% url 'inventario:agente_config' %}">Baixar e configurar agentes</a></div>
+      <div class="help-section-title">
+        <span>07</span>
+        <div>
+          <h2>Agentes de Inventário</h2>
+          <p>Automatize a coleta de hardware, sistema operacional, usuário, softwares e interfaces.</p>
+        </div>
+      </div>
+      <div class="help-two-columns">
+        <div>
+          <h3>Windows</h3>
+          <p>O instalador único atende Windows 7, 8, 10 e 11. O agente roda na inicialização, periodicamente e quando o servidor solicita coleta manual.</p>
+          <ul>
+            <li>Instale como administrador.</li>
+            <li>Informe URL do servidor e token exibido na tela de agentes.</li>
+            <li>O ícone na bandeja permite testar, reconfigurar e consultar log.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Linux</h3>
+          <p>O instalador cria serviço e temporizador no systemd. Em ambientes sem systemd, usa cron como alternativa.</p>
+          <ul>
+            <li>Revise `/etc/sistema-chamados-agent/config.env`.</li>
+            <li>Confirme conectividade HTTP/HTTPS com o servidor.</li>
+            <li>Ao trocar token, atualize todos os equipamentos instalados.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="help-note">Erro 403 indica token incorreto. Erro 400 pode indicar `ALLOWED_HOSTS` ou URL incorreta. O log local do Windows fica em `C:\ProgramData\SistemaChamadosAgent\last-run.log`.</p>
+      {% if perfil_acesso.suporte_n2 %}
+        <div class="help-actions"><a href="{% url 'inventario:agente_config' %}">Agentes de inventário</a></div>
+      {% endif %}
+    </section>
+
+    <section class="help-section" id="licencas" data-help-section>
+      <div class="help-section-title">
+        <span>08</span>
+        <div>
+          <h2>Licenças de Software</h2>
+          <p>Acompanhe quantidade comprada, uso, vencimento, anexos e conformidade.</p>
+        </div>
+      </div>
+      <div class="help-two-columns">
+        <div>
+          <h3>Quando utilizar</h3>
+          <p>Use para controlar softwares pagos, contratos, chaves, notas, anexos e vínculo com computadores inventariados.</p>
+        </div>
+        <div>
+          <h3>Boas práticas</h3>
+          <ul>
+            <li>Cadastre validade ou marque como perpétua/sem vencimento.</li>
+            <li>Vincule ativos consumidores da licença.</li>
+            <li>Use conciliação para comparar softwares coletados com licenças cadastradas.</li>
+            <li>Revise saldo antes de autorizar instalação de novos softwares.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="help-actions">
+        <a href="{% url 'inventario:licencas' %}">Licenças</a>
+        <a href="{% url 'inventario:licencas_conciliacao' %}">Conciliação</a>
+      </div>
+    </section>
+
+    <section class="help-section" id="relatorios" data-help-section>
+      <div class="help-section-title">
+        <span>09</span>
+        <div>
+          <h2>Relatórios</h2>
+          <p>Use filtros antes de exportar para PDF ou XLS. As exportações respeitam o mesmo recorte da tela.</p>
+        </div>
+      </div>
+      <div class="help-card-grid">
+        <article class="help-card">
+          <h3>Relatório de chamados</h3>
+          <p>Mostra volume filtrado, abertos, resolvidos, encerrados, SLA vencido, avaliação média e gráficos por status, tipo, setor, categoria, prioridade e atendente.</p>
+        </article>
+        <article class="help-card">
+          <h3>Relatório de inventário</h3>
+          <p>Mostra equipamentos, status, origem, fabricantes, sistemas operacionais, licenças, cobertura de dados, ativos filtrados e varreduras.</p>
+        </article>
+        <article class="help-card">
+          <h3>Indicadores do painel</h3>
+          <p>Servem para acompanhamento rápido. Para auditoria ou prestação de contas, use relatórios filtrados e exportados.</p>
+        </article>
+        <article class="help-card">
+          <h3>Cuidados</h3>
+          <p>Ativos desativados não entram nos totais operacionais do inventário. Chamados cancelados e encerrados devem ser interpretados separadamente.</p>
+        </article>
+      </div>
+      <div class="help-actions">
+        <a href="{% url 'chamados:relatorio' %}">Relatório de chamados</a>
+        <a href="{% url 'inventario:relatorio' %}">Relatório de inventário</a>
+      </div>
+    </section>
+
+    <section class="help-section" id="documentacao" data-help-section>
+      <div class="help-section-title">
+        <span>10</span>
+        <div>
+          <h2>Base de Conhecimento e Documentação</h2>
+          <p>Separe orientação pública de documentação interna sensível.</p>
+        </div>
+      </div>
+      <div class="help-two-columns">
+        <div>
+          <h3>Base de conhecimento</h3>
+          <p>Guarda artigos reutilizáveis para orientar usuários e atendentes. Ideal para procedimentos comuns, perguntas frequentes e resolução de problemas recorrentes.</p>
+        </div>
+        <div>
+          <h3>Documentação restrita</h3>
+          <p>Guarda informações internas de infraestrutura, procedimentos técnicos e anexos. Documentos restritos devem ser autorizados somente para usuários necessários.</p>
+        </div>
+      </div>
+      <div class="help-actions">
+        <a href="{% url 'chamados:conhecimento' %}">Base pública</a>
+        {% if perfil_acesso.suporte_n2 %}<a href="{% url 'chamados:artigos' %}">Artigos internos</a>{% endif %}
+        {% if perfil_acesso.suporte_n2 %}<a href="{% url 'documentacao:lista' %}">Documentação restrita</a>{% endif %}
+      </div>
+    </section>
+
+    <section class="help-section" id="contratos" data-help-section>
+      <div class="help-section-title">
+        <span>11</span>
+        <div>
+          <h2>Contratos Públicos</h2>
+          <p>Organize fornecedores, vigência, fiscais, anexos, aditivos e prorrogações.</p>
+        </div>
+      </div>
+      <p>O módulo apoia a gestão administrativa de contratos vinculados à TI, mas não substitui análise jurídica, publicação oficial ou procedimentos formais do órgão. Use alertas e relatórios para acompanhar vencimentos e documentos pendentes.</p>
+      <ul>
+        <li>Cadastre fornecedor e dados essenciais do contrato.</li>
+        <li>Anexe documentos oficiais e aditivos.</li>
+        <li>Registre pedidos de prorrogação com antecedência.</li>
+        <li>Mantenha fiscais e responsáveis atualizados.</li>
+      </ul>
+      {% if perfil_acesso.suporte_n2 %}
+        <div class="help-actions"><a href="{% url 'contratos:lista' %}">Contratos</a></div>
       {% endif %}
     </section>
 
     <section class="help-section" id="usuarios" data-help-section>
-      <h2>Usuarios, senhas e LDAP</h2>
-      <p>O login local nao diferencia letras maiusculas e minusculas no nome do usuario. Cada pessoa deve usar uma conta individual para que a auditoria seja confiavel.</p>
-      <ul>
-        <li>Usuarios alteram os proprios dados e senha pelo menu do perfil.</li>
-        <li>Administradores podem criar, desativar e redefinir contas.</li>
-        <li>A integracao LDAP/Active Directory e opcional e configurada pela interface web.</li>
-      </ul>
-      {% if user.is_superuser %}
+      <div class="help-section-title">
+        <span>12</span>
+        <div>
+          <h2>Usuários, Atendentes e LDAP</h2>
+          <p>Usuário do sistema é a conta de login. Atendente é um usuário com perfil operacional para receber chamados.</p>
+        </div>
+      </div>
+      <div class="help-two-columns">
+        <div>
+          <h3>Usuários</h3>
+          <ul>
+            <li>Cada pessoa deve ter conta individual.</li>
+            <li>Evite contas compartilhadas para preservar auditoria.</li>
+            <li>Desative contas de pessoas desligadas.</li>
+            <li>Revise perfil de acesso periodicamente.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>LDAP / Active Directory</h3>
+          <ul>
+            <li>Use para autenticar ou sincronizar dados do diretório.</li>
+            <li>Teste conexão antes de sincronizar.</li>
+            <li>Guarde credenciais de bind com menor privilégio possível.</li>
+            <li>Verifique filtros de usuários e computadores antes de ativar em produção.</li>
+          </ul>
+        </div>
+      </div>
+      {% if perfil_acesso.sistema %}
         <div class="help-actions">
-          <a href="{% url 'admin:auth_user_changelist' %}">Administrar usuarios</a>
-          <a href="{% url 'core:ldap' %}">Configurar LDAP</a>
+          <a href="{% url 'core:usuarios' %}">Usuários e permissões</a>
+          <a href="{% url 'chamados:tecnicos' %}">Atendentes de TI</a>
+          <a href="{% url 'core:ldap' %}">LDAP / Active Directory</a>
         </div>
       {% endif %}
     </section>
 
-    <section class="help-section" id="contratos" data-help-section>
-      <h2>Contratos publicos</h2>
-      <p>O modulo registra fornecedores, vigencia, fiscais, anexos, aditivos, pedidos de prorrogacao e alertas. Ele apoia a gestao administrativa relacionada as Leis 14.133/2021 e 8.666/1993, mas nao substitui analise juridica nem os procedimentos oficiais do orgao.</p>
-      <div class="help-actions"><a href="{% url 'contratos:lista' %}">Contratos</a></div>
-    </section>
-
-    <section class="help-section" id="relatorios" data-help-section>
-      <h2>Relatorios, conhecimento e documentacao</h2>
-      <p>Use os filtros antes de exportar PDF ou planilha. Os relatorios de inventario excluem ativos arquivados dos totais operacionais. A base de conhecimento registra solucoes reutilizaveis; a documentacao de infraestrutura guarda procedimentos internos e anexos.</p>
-      <div class="help-actions">
-        <a href="{% url 'chamados:relatorio' %}">Relatorio de chamados</a>
-        <a href="{% url 'inventario:relatorio' %}">Relatorio de inventario</a>
-        <a href="{% url 'chamados:conhecimento' %}">Base de conhecimento</a>
-        <a href="{% url 'documentacao:lista' %}">Documentacao interna</a>
-      </div>
-    </section>
-
     <section class="help-section" id="backup" data-help-section>
-      <h2>Backup e restauracao</h2>
-      <p>Faca backup antes de atualizar e mantenha uma copia fora do servidor. O backup deve proteger banco de dados, anexos e configuracao. Teste periodicamente a restauracao em ambiente separado.</p>
-      {% if user.is_superuser %}
-        <div class="help-actions"><a href="{% url 'core:backup' %}">Gerenciar backups</a></div>
+      <div class="help-section-title">
+        <span>13</span>
+        <div>
+          <h2>Backup e Restauração</h2>
+          <p>Proteja banco de dados, anexos e documentos antes de atualizações ou manutenções.</p>
+        </div>
+      </div>
+      <div class="help-two-columns">
+        <div>
+          <h3>Rotina recomendada</h3>
+          <ol>
+            <li>Configure pasta de destino segura.</li>
+            <li>Mantenha cópia fora do servidor principal.</li>
+            <li>Execute backup antes de atualizar.</li>
+            <li>Teste restauração em ambiente separado periodicamente.</li>
+          </ol>
+        </div>
+        <div>
+          <h3>Cuidados</h3>
+          <ul>
+            <li>Backup contém dados sensíveis e não deve ir para GitHub.</li>
+            <li>Controle acesso ao local de armazenamento.</li>
+            <li>Registre falhas e acompanhe alertas.</li>
+          </ul>
+        </div>
+      </div>
+      {% if perfil_acesso.sistema %}
+        <div class="help-actions"><a href="{% url 'core:backup' %}">Backup e restauração</a></div>
       {% endif %}
     </section>
 
     <section class="help-section" id="atualizacao" data-help-section>
-      <h2>Atualizacao do sistema</h2>
-      <p>Antes de atualizar, confirme que o repositorio esta acessivel, gere um backup e reserve uma janela de manutencao. A atualizacao pela interface executa o fluxo do servidor e apresenta o resultado.</p>
-      {% if user.is_superuser %}
+      <div class="help-section-title">
+        <span>14</span>
+        <div>
+          <h2>Atualização do Sistema</h2>
+          <p>Mantenha a instalação alinhada ao repositório oficial e reduza risco com backup prévio.</p>
+        </div>
+      </div>
+      <ol>
+        <li>Avise usuários e reserve janela de manutenção.</li>
+        <li>Execute backup local e confirme se foi criado com sucesso.</li>
+        <li>Use a tela de atualização ou o script de deploy no servidor.</li>
+        <li>Após atualizar, valide login, chamados, inventário e agentes.</li>
+      </ol>
+      {% if perfil_acesso.sistema %}
         <pre class="help-code"><code>cd /opt/sistema-chamados
 docker compose exec web python manage.py backup_local
 bash scripts/deploy_linux.sh</code></pre>
-        <div class="help-actions"><a href="{% url 'core:atualizacoes' %}">Verificar atualizacoes</a></div>
-      {% else %}
-        <p>Somente administradores podem executar atualizacoes.</p>
+        <div class="help-actions"><a href="{% url 'core:atualizacoes' %}">Atualizações</a></div>
       {% endif %}
     </section>
 
     <section class="help-section" id="diagnostico" data-help-section>
-      <h2>Diagnostico e seguranca</h2>
+      <div class="help-section-title">
+        <span>15</span>
+        <div>
+          <h2>Diagnóstico e Segurança</h2>
+          <p>Checklist para problemas comuns e proteção básica da plataforma.</p>
+        </div>
+      </div>
       <dl class="help-diagnostics">
-        <dt>Pagina indisponivel</dt><dd>Verifique o controle de servicos e os logs do container web.</dd>
-        <dt>Agente retorna 403</dt><dd>Compare o token do equipamento com o valor exibido em <strong>Inventario &gt; Agentes de inventario</strong>.</dd>
-        <dt>Scan nao encontra IPs</dt><dd>Revise a faixa, a rota da rede, firewall, ICMP, portas TCP, Nmap e permissoes do servidor.</dd>
-        <dt>Dados desatualizados</dt><dd>Confira a ultima coleta, o agendamento e o relogio do servidor e do equipamento.</dd>
+        <dt>Página indisponível</dt><dd>Verifique serviço web, porta 8000, proxy reverso, container e logs do servidor.</dd>
+        <dt>Erro 400 no agente</dt><dd>Confira `ALLOWED_HOSTS`, URL do servidor e cabeçalho Host usado pelo equipamento.</dd>
+        <dt>Erro 403 no agente</dt><dd>Token do equipamento não coincide com `INVENTARIO_AGENT_TOKEN` carregado no servidor.</dd>
+        <dt>Scan incompleto</dt><dd>Revise firewall, ICMP, SNMP, credenciais, VLANs, rotas e permissões do servidor.</dd>
+        <dt>Relatórios vazios</dt><dd>Revise filtros, período, status e se os registros estão arquivados/desativados.</dd>
+        <dt>Usuário sem menu</dt><dd>Confirme perfil em Administração > Usuários e permissões.</dd>
       </dl>
-      <p>Nunca publique o arquivo <code>.env</code>, tokens, senhas ou backups no GitHub. Use HTTPS quando o sistema sair da rede interna.</p>
-      {% if user.is_superuser %}
+      <div class="help-warning">
+        <strong>Segurança:</strong> nunca publique `.env`, tokens, senhas, backups, chaves privadas ou anexos sensíveis no GitHub. Use HTTPS quando houver acesso fora da rede interna.
+      </div>
+      {% if perfil_acesso.sistema %}
         <div class="help-actions">
-          <a href="{% url 'core:servicos' %}">Controle de servicos</a>
+          <a href="{% url 'core:servicos' %}">Controle de serviços</a>
           <a href="{% url 'core:auditoria' %}">Auditoria</a>
-          <a href="https://github.com/mcetrangolo/sistema_chamados" target="_blank" rel="noopener">Repositorio no GitHub</a>
+          <a href="https://github.com/mcetrangolo/sistema_chamados" target="_blank" rel="noopener">GitHub</a>
         </div>
       {% endif %}
     </section>
 
-    <p class="help-empty" id="help-empty" hidden>Nenhum topico corresponde a essa busca.</p>
+    <p class="help-empty" id="help-empty" hidden>Nenhum tópico corresponde a essa busca.</p>
   </div>
 </div>
 
@@ -219,7 +538,7 @@ bash scripts/deploy_linux.sh</code></pre>
         if (matches) visible += 1;
       });
       empty.hidden = visible !== 0;
-      status.textContent = query ? visible + (visible === 1 ? ' topico encontrado.' : ' topicos encontrados.') : '';
+      status.textContent = query ? visible + (visible === 1 ? ' tópico encontrado.' : ' tópicos encontrados.') : '';
     });
   }());
 </script>

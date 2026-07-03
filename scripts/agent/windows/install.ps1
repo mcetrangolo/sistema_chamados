@@ -63,6 +63,32 @@ function JsonEscape([string]$value) {
     return $value.Replace("\", "\\").Replace('"', '\"').Replace("`r", "\r").Replace("`n", "\n")
 }
 
+function Test-Is64BitOperatingSystem {
+    try {
+        return [Environment]::Is64BitOperatingSystem
+    } catch {
+        return ($env:PROCESSOR_ARCHITECTURE -eq "AMD64" -or $env:PROCESSOR_ARCHITEW6432 -eq "AMD64")
+    }
+}
+
+function Read-ConfigValue {
+    param(
+        [string]$Path,
+        [string]$Key
+    )
+
+    if (-not (Test-Path $Path)) { return "" }
+    try {
+        $text = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
+        $pattern = '"' + [regex]::Escape($Key) + '"\s*:\s*"((?:\\.|[^"\\])*)"'
+        $match = [regex]::Match($text, $pattern)
+        if ($match.Success) {
+            return $match.Groups[1].Value.Replace('\"', '"').Replace('\\', '\')
+        }
+    } catch {}
+    return ""
+}
+
 function Write-ConfigJson {
     param(
         [string]$Path,
@@ -109,14 +135,14 @@ function Register-UninstallEntry {
     )
 
     $keyPaths = @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent")
-    if ([Environment]::Is64BitOperatingSystem) {
+    if (Test-Is64BitOperatingSystem) {
         $keyPaths += "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\SistemaChamadosAgent"
     }
 
     foreach ($keyPath in $keyPaths) {
         New-Item -Path $keyPath -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayName" -Value "Sistema Chamados Agent" -PropertyType String -Force | Out-Null
-        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.4.3" -PropertyType String -Force | Out-Null
+        New-ItemProperty -Path $keyPath -Name "DisplayVersion" -Value "1.4.7" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "Publisher" -Value "Sistema de Chamados" -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "InstallLocation" -Value $InstallDir -PropertyType String -Force | Out-Null
         New-ItemProperty -Path $keyPath -Name "DisplayIcon" -Value (Join-Path $InstallDir "SistemaChamadosAgentTray.exe") -PropertyType String -Force | Out-Null
@@ -138,10 +164,7 @@ function Register-StartMenuShortcuts {
         [string]$TrayPath
     )
 
-    $programsDir = [Environment]::GetFolderPath("CommonPrograms")
-    if (-not $programsDir) {
-        $programsDir = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs"
-    }
+    $programsDir = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs"
     $menuDir = Join-Path $programsDir "Sistema Chamados Agent"
     New-Item -ItemType Directory -Path $menuDir -Force | Out-Null
 
@@ -191,8 +214,9 @@ function Register-StartMenuShortcuts {
         $trayShortcut.Description = "Abre os controles do agente na bandeja do Windows."
         $trayShortcut.Save()
 
-        $startupDir = [Environment]::GetFolderPath("CommonStartup")
+        $startupDir = Join-Path $env:ProgramData "Microsoft\Windows\Start Menu\Programs\Startup"
         if ($startupDir) {
+            New-Item -ItemType Directory -Path $startupDir -Force | Out-Null
             $startupShortcut = $shell.CreateShortcut((Join-Path $startupDir "Sistema Chamados Agent.lnk"))
             $startupShortcut.TargetPath = $TrayPath
             $startupShortcut.WorkingDirectory = $InstallDir
@@ -224,10 +248,12 @@ $installDir = Join-Path $env:ProgramData "SistemaChamadosAgent"
 $configPath = Join-Path $installDir "config.json"
 if (Test-Path $configPath) {
     try {
-        $configExistente = Get-Content $configPath -Raw | ConvertFrom-Json
-        if ($configExistente.server_url) { $ServerUrl = [string]$configExistente.server_url }
-        if ($configExistente.token) { $Token = [string]$configExistente.token }
-        if ($configExistente.numero_serie_manual) { $NumeroSerieManual = [string]$configExistente.numero_serie_manual }
+        $serverExistente = Read-ConfigValue -Path $configPath -Key "server_url"
+        $tokenExistente = Read-ConfigValue -Path $configPath -Key "token"
+        $serialExistente = Read-ConfigValue -Path $configPath -Key "numero_serie_manual"
+        if ($serverExistente) { $ServerUrl = [string]$serverExistente }
+        if ($tokenExistente) { $Token = [string]$tokenExistente }
+        if ($serialExistente) { $NumeroSerieManual = [string]$serialExistente }
     } catch {
         # A instalacao continua com os valores informados caso o JSON anterior esteja corrompido.
     }

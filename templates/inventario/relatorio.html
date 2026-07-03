@@ -5,8 +5,7 @@
 {{ status_chart|json_script:"inventario-status-chart-data" }}
 {{ origem_chart|json_script:"inventario-origem-chart-data" }}
 {{ fabricante_chart|json_script:"inventario-fabricante-chart-data" }}
-{{ licenca_status_chart|json_script:"inventario-licenca-status-chart-data" }}
-{{ software_chart|json_script:"inventario-software-chart-data" }}
+{{ sistema_operacional_chart|json_script:"inventario-so-chart-data" }}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
@@ -85,14 +84,8 @@
   </div>
   <div class="col-lg-6 col-xl-4">
     <section class="report-block">
-      <h2 class="h5">Licencas por status</h2>
-      <div class="report-chart-canvas"><canvas id="inventarioLicencaStatusChart"></canvas></div>
-    </section>
-  </div>
-  <div class="col-lg-6 col-xl-4">
-    <section class="report-block">
-      <h2 class="h5">Softwares mais presentes</h2>
-      <div class="report-chart-canvas"><canvas id="inventarioSoftwareChart"></canvas></div>
+      <h2 class="h5">Sistemas operacionais</h2>
+      <div class="report-chart-canvas"><canvas id="inventarioSoChart"></canvas></div>
     </section>
   </div>
 </div>
@@ -257,7 +250,6 @@
   buildInventoryChart("inventarioStatusChart", "inventario-status-chart-data", "doughnut");
   buildInventoryChart("inventarioOrigemChart", "inventario-origem-chart-data", "doughnut");
   buildInventoryChart("inventarioFabricanteChart", "inventario-fabricante-chart-data", "bar");
-  buildInventoryChart("inventarioLicencaStatusChart", "inventario-licenca-status-chart-data", "doughnut");
-  buildInventoryChart("inventarioSoftwareChart", "inventario-software-chart-data", "bar");
+  buildInventoryChart("inventarioSoChart", "inventario-so-chart-data", "pie");
 </script>
 {% endblock %}

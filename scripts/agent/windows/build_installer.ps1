@@ -15,24 +15,40 @@ $releaseExePath = Join-Path $releaseDir $OutputName
 $releaseTrayPath = Join-Path $releaseDir "SistemaChamadosAgentTray.exe"
 $releaseIconPath = Join-Path $releaseDir "SistemaChamadosAgent.ico"
 
+function Invoke-CSharpCompiler {
+    param(
+        [string[]]$Arguments,
+        [string]$ErrorMessage
+    )
+
+    & $csc @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw $ErrorMessage
+    }
+}
+
 if (Test-Path $packageDir) {
     Remove-Item -Path $packageDir -Recurse -Force
 }
 New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
+if (Test-Path $exePath) {
+    Remove-Item -LiteralPath $exePath -Force
+}
 
 $csc = @(
+    (Join-Path $env:WINDIR "Microsoft.NET\Framework\v3.5\csc.exe"),
     (Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe"),
-    (Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"),
-    (Join-Path $env:WINDIR "Microsoft.NET\Framework\v3.5\csc.exe")
+    (Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe")
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $csc) {
     throw "Compilador C# do .NET Framework nao encontrado. Nao foi possivel gerar o instalador grafico."
 }
+Write-Host "Compilador C# selecionado: $csc"
 
 $iconGeneratorSource = Join-Path $baseDir "AgentIconGenerator.cs"
 $iconGeneratorExe = Join-Path $packageDir "AgentIconGenerator.exe"
 $iconPath = Join-Path $packageDir "SistemaChamadosAgent.ico"
-& $csc /nologo /target:exe /out:$iconGeneratorExe /reference:System.Drawing.dll $iconGeneratorSource
+Invoke-CSharpCompiler -Arguments @("/nologo", "/target:exe", "/out:$iconGeneratorExe", "/reference:System.Drawing.dll", $iconGeneratorSource) -ErrorMessage "Nao foi possivel compilar o gerador do icone."
 if (-not (Test-Path $iconGeneratorExe)) {
     throw "Nao foi possivel compilar o gerador do icone."
 }
@@ -43,7 +59,7 @@ if (-not (Test-Path $iconPath)) {
 
 $traySourcePath = Join-Path $baseDir "AgentTray.cs"
 $trayExePath = Join-Path $packageDir "SistemaChamadosAgentTray.exe"
-& $csc /nologo /target:winexe /out:$trayExePath /win32icon:$iconPath /reference:System.Windows.Forms.dll /reference:System.Drawing.dll $traySourcePath
+Invoke-CSharpCompiler -Arguments @("/nologo", "/target:winexe", "/out:$trayExePath", "/win32icon:$iconPath", "/reference:System.Windows.Forms.dll", "/reference:System.Drawing.dll", $traySourcePath) -ErrorMessage "Nao foi possivel compilar o aplicativo da bandeja."
 if (-not (Test-Path $trayExePath)) {
     throw "Nao foi possivel compilar o aplicativo da bandeja."
 }
@@ -71,7 +87,7 @@ $source = $source.Replace("__UNINSTALL_SCRIPT_BASE64__", $uninstallScript)
 $source = $source.Replace("__TRAY_EXECUTABLE_BASE64__", $trayExecutable)
 $source | Out-File -FilePath $generatedSource -Encoding UTF8 -Force
 
-& $csc /nologo /target:winexe /out:$exePath /win32icon:$iconPath /reference:System.Windows.Forms.dll $generatedSource
+Invoke-CSharpCompiler -Arguments @("/nologo", "/target:winexe", "/out:$exePath", "/win32icon:$iconPath", "/reference:System.Windows.Forms.dll", $generatedSource) -ErrorMessage "Nao foi possivel compilar o instalador standalone."
 
 if (Test-Path $exePath) {
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
