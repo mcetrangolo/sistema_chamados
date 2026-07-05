@@ -14,8 +14,9 @@
       --primary: {{ config_institucional.cor_primaria|default:"#155eef" }};
       --primary-dark: {{ config_institucional.cor_secundaria|default:"#0f172a" }};
       --app-bg: {{ config_institucional.cor_fundo|default:"#f4f7fb" }};
+      --text: {{ config_institucional.cor_texto|default:"#172033" }};
     }
-    body { background: var(--app-bg); }
+    body { background: var(--app-bg); color: var(--text); }
   </style>
   <nav class="navbar navbar-expand-lg public-navbar">
     <div class="container">

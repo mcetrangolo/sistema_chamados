@@ -10,8 +10,7 @@
   <div class="d-flex gap-2">
     <a class="btn btn-outline-primary" href="{% url 'inventario:painel' %}">Voltar ao inventario</a>
     {% if pode_configurar_agente %}
-      <a class="btn btn-outline-primary" href="{% url 'inventario:agente_linux_download' %}">Baixar Linux</a>
-      <a class="btn btn-primary" href="{% url 'inventario:agente_windows_download' %}">Baixar Windows</a>
+      <a class="btn btn-primary" href="{% url 'inventario:agente_downloads' %}">Download agente</a>
     {% endif %}
   </div>
 </div>

@@ -13,6 +13,7 @@ urlpatterns = [
         name="agente_coleta_solicitada",
     ),
     path("agente/configuracao/", views.configuracao_agente, name="agente_config"),
+    path("agente/downloads/", views.downloads_agente, name="agente_downloads"),
     path("agente/windows/download/", views.baixar_agente_windows, name="agente_windows_download"),
     path("agente/linux/download/", views.baixar_agente_linux, name="agente_linux_download"),
     path("agentes/saude/", views.SaudeAgentesView.as_view(), name="agentes_saude"),

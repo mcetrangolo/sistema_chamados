@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Download do agente | Inventario{% endblock %}
+{% block content %}
+<div class="page-heading mb-4">
+  <div>
+    <span class="section-label">Inventario automatico</span>
+    <h1>Download do agente</h1>
+    <p>Baixe o instalador, confira o endpoint de coleta e use o token correto para conectar as estacoes ao servidor.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'inventario:agente_config' %}">Ver agentes</a>
+    <a class="btn btn-outline-secondary" href="{% url 'inventario:painel' %}">Voltar</a>
+  </div>
+</div>
+
+{% if not pode_baixar_agente %}
+  <div class="alert alert-warning">Downloads e credenciais do agente sao restritos ao administrador.</div>
+{% endif %}
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-6">
+    <section class="detail-section h-100">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h2 class="h5 mb-1">Windows</h2>
+          <p class="text-secondary mb-0">Instalador recomendado para Windows 7, 8, 10, 11 e servidores Windows.</p>
+        </div>
+        {% if instalador_windows_existe %}
+          <span class="badge text-bg-success">Disponivel</span>
+        {% else %}
+          <span class="badge text-bg-warning">Nao encontrado</span>
+        {% endif %}
+      </div>
+      {% if instalador_windows_existe %}
+        <dl class="config-list">
+          <dt>Arquivo</dt><dd>{{ instalador_windows_nome }}</dd>
+          <dt>Tamanho</dt><dd>{{ instalador_windows_tamanho|filesizeformat }}</dd>
+          <dt>Atualizado</dt><dd>{{ instalador_windows_atualizado_em|date:"d/m/Y H:i" }}</dd>
+        </dl>
+      {% else %}
+        <p class="text-secondary">Gere o instalador com <code>scripts/agent/windows/build_installer.ps1</code>.</p>
+      {% endif %}
+      <ol class="mb-3">
+        <li>Baixe o instalador no computador de destino.</li>
+        <li>Execute como administrador.</li>
+        <li>Informe a URL do servidor e o token exibido nesta pagina.</li>
+        <li>Aguarde a primeira coleta aparecer na tela de agentes.</li>
+      </ol>
+      <a class="btn btn-primary {% if not pode_baixar_agente or not instalador_windows_existe %}disabled{% endif %}" href="{% url 'inventario:agente_windows_download' %}">Baixar agente Windows</a>
+    </section>
+  </div>
+
+  <div class="col-lg-6">
+    <section class="detail-section h-100">
+      <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h2 class="h5 mb-1">Linux</h2>
+          <p class="text-secondary mb-0">Script de instalacao com systemd e fallback para cron quando necessario.</p>
+        </div>
+        <span class="badge text-bg-success">Disponivel</span>
+      </div>
+      <dl class="config-list">
+        <dt>Arquivo</dt><dd>{{ instalador_linux_nome }}</dd>
+        <dt>Configuracao</dt><dd>O script ja inclui URL e token padrao do servidor no momento do download.</dd>
+      </dl>
+      <ol class="mb-3">
+        <li>Baixe o script no servidor ou estacao Linux.</li>
+        <li>Execute <code>chmod +x sistema-chamados-agent-linux.sh</code>.</li>
+        <li>Rode com <code>sudo ./sistema-chamados-agent-linux.sh</code>.</li>
+        <li>Confira o servico e a proxima coleta.</li>
+      </ol>
+      <a class="btn btn-primary {% if not pode_baixar_agente %}disabled{% endif %}" href="{% url 'inventario:agente_linux_download' %}">Baixar agente Linux</a>
+    </section>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <section class="detail-section">
+      <h2 class="h5">Dados de conexao</h2>
+      {% if usa_endereco_local %}
+        <div class="alert alert-warning py-2">Use o IP ou DNS do servidor nas estacoes da rede. Evite instalar agentes apontando para localhost.</div>
+      {% endif %}
+      {% if token_origem == "padrao" %}
+        <div class="alert alert-warning py-2">
+          O servidor esta usando o token fixo de compatibilidade. Em producao, defina <code>INVENTARIO_AGENT_TOKEN</code> no <code>.env</code>.
+        </div>
+      {% endif %}
+      <dl class="config-list mb-0">
+        <dt>Endpoint</dt><dd><code>{{ endpoint }}</code></dd>
+        <dt>Token</dt><dd>{% if pode_baixar_agente %}<code>{{ token }}</code>{% else %}-{% endif %}</dd>
+        <dt>Origem do token</dt><dd>{% if token_origem == "env" %}Arquivo .env{% elif token_origem %}Token fixo de compatibilidade{% else %}-{% endif %}</dd>
+        <dt>Endereco detectado</dt><dd><code>{{ url_detectada }}</code></dd>
+        {% if public_base_url %}<dt>PUBLIC_BASE_URL</dt><dd><code>{{ public_base_url }}</code></dd>{% endif %}
+      </dl>
+    </section>
+  </div>
+  <div class="col-lg-5">
+    <section class="detail-section">
+      <h2 class="h5">Enderecos sugeridos</h2>
+      {% if bases_sugeridas %}
+        <p class="text-secondary">Use um destes enderecos se as estacoes estiverem na mesma rede do servidor.</p>
+        {% for base in bases_sugeridas %}
+          <code class="d-block mb-2">{{ base }}</code>
+        {% endfor %}
+      {% else %}
+        <p class="text-secondary mb-0">Nenhum endereco de rede detectado automaticamente.</p>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

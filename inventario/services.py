@@ -8,8 +8,17 @@ from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from django.conf import settings
+from django.db.models import Q
+from django.utils import timezone
 
-from .models import AtivoRede, MetodoDescoberta
+from .models import (
+    AtivoRede,
+    HistoricoAlteracaoAtivo,
+    InterfaceRede,
+    MetodoDescoberta,
+    RegistroColetaAgente,
+    TipoAtivo,
+)
 
 
 @dataclass
@@ -30,6 +39,265 @@ class DescobertaAtivo:
     def __post_init__(self):
         if self.interfaces is None:
             self.interfaces = []
+
+
+class ColetaAgenteErro(Exception):
+    def __init__(self, mensagem, status=400):
+        self.mensagem = mensagem
+        self.status = status
+        super().__init__(mensagem)
+
+
+def normalizar_texto(valor, limite=250):
+    if valor is None:
+        return ""
+    return str(valor).strip()[:limite]
+
+
+def identificador_valido(valor):
+    normalizado = (valor or "").strip().lower()
+    invalidos = {
+        "",
+        "none",
+        "unknown",
+        "default string",
+        "to be filled by o.e.m.",
+        "to be filled by oem",
+        "system serial number",
+        "00000000",
+        "000000000000",
+    }
+    return normalizado not in invalidos
+
+
+def decimal_ou_none(valor):
+    try:
+        if valor in ("", None):
+            return None
+        return round(float(valor), 2)
+    except (TypeError, ValueError):
+        return None
+
+
+def localizar_ativo_por_identidade(serial="", mac="", hostname="", ip=None):
+    if identificador_valido(serial):
+        ativo = AtivoRede.objects.filter(numero_serie__iexact=serial).order_by("id").first()
+        if ativo:
+            return ativo
+    if identificador_valido(mac) and mac.replace(":", "").replace("-", "") != "000000000000":
+        ativo = AtivoRede.objects.filter(mac__iexact=mac).order_by("id").first()
+        if ativo:
+            return ativo
+    if identificador_valido(hostname):
+        ativo = AtivoRede.objects.filter(
+            Q(hostname__iexact=hostname) | Q(nome__iexact=hostname)
+        ).order_by("id").first()
+        if ativo:
+            return ativo
+    if not ip:
+        return None
+
+    candidato = AtivoRede.objects.filter(ip=ip).order_by("id").first()
+    if not candidato:
+        return None
+    conflitos = [
+        (
+            identificador_valido(serial)
+            and identificador_valido(candidato.numero_serie)
+            and serial.lower() != candidato.numero_serie.lower()
+        ),
+        (
+            identificador_valido(mac)
+            and identificador_valido(candidato.mac)
+            and mac.lower() != candidato.mac.lower()
+        ),
+        (
+            identificador_valido(hostname)
+            and identificador_valido(candidato.hostname)
+            and hostname.lower() != candidato.hostname.lower()
+        ),
+    ]
+    return None if any(conflitos) else candidato
+
+
+def registrar_alteracoes_ativo(ativo, antes, campos, origem):
+    alteracoes = []
+    for campo in campos:
+        anterior = antes.get(campo)
+        novo = getattr(ativo, campo)
+        if str(anterior or "") != str(novo or ""):
+            alteracoes.append(
+                HistoricoAlteracaoAtivo(
+                    ativo=ativo,
+                    campo=campo,
+                    valor_anterior=str(anterior or ""),
+                    valor_novo=str(novo or ""),
+                    origem=origem,
+                )
+            )
+    if alteracoes:
+        HistoricoAlteracaoAtivo.objects.bulk_create(alteracoes)
+
+
+def _softwares_para_texto(softwares):
+    if isinstance(softwares, list):
+        return "\n".join(
+            normalizar_texto(item, 220)
+            for item in softwares
+            if normalizar_texto(item, 220)
+        )
+    return normalizar_texto(softwares, 12000)
+
+
+def _resumo_interfaces(interfaces):
+    interfaces_txt = []
+    for interface in interfaces[:10]:
+        interfaces_txt.append(
+            " / ".join(
+                parte
+                for parte in [
+                    normalizar_texto(interface.get("nome"), 80),
+                    normalizar_texto(interface.get("ip"), 45),
+                    normalizar_texto(interface.get("mac"), 30),
+                ]
+                if parte
+            )
+        )
+    return interfaces_txt
+
+
+def _sincronizar_interfaces(ativo, interfaces):
+    for interface in interfaces[:20]:
+        nome_interface = normalizar_texto(interface.get("nome"), 120)
+        mac_interface = normalizar_texto(interface.get("mac"), 30)
+        ip_interface = normalizar_texto(interface.get("ip"), 45) or None
+        if not nome_interface and not mac_interface and not ip_interface:
+            continue
+        filtro_interface = {"ativo": ativo}
+        if mac_interface:
+            filtro_interface["mac__iexact"] = mac_interface
+        elif nome_interface:
+            filtro_interface["nome__iexact"] = nome_interface
+        else:
+            filtro_interface["ip"] = ip_interface
+
+        registro = InterfaceRede.objects.filter(**filtro_interface).first()
+        if not registro:
+            registro = InterfaceRede(ativo=ativo)
+        registro.nome = nome_interface or registro.nome or "Interface"
+        registro.mac = mac_interface or registro.mac
+        registro.ip = ip_interface or registro.ip
+        registro.status = normalizar_texto(interface.get("status"), 80) or registro.status
+        registro.velocidade = normalizar_texto(interface.get("velocidade"), 80) or registro.velocidade
+        registro.save()
+
+
+def processar_coleta_agente(dados, ip_origem=None):
+    hostname = normalizar_texto(dados.get("hostname"), 150)
+    ip = normalizar_texto(dados.get("ip"), 45) or None
+    serial = normalizar_texto(dados.get("numero_serie") or dados.get("serial"), 120)
+    mac = normalizar_texto(dados.get("mac"), 30)
+    if not identificador_valido(serial):
+        serial = ""
+
+    if not any([hostname, ip, serial, mac]):
+        RegistroColetaAgente.objects.create(
+            hostname=hostname,
+            status=RegistroColetaAgente.Status.ERRO,
+            mensagem="Coleta sem identificador valido.",
+            ip_origem=ip_origem,
+        )
+        raise ColetaAgenteErro("Informe hostname, IP, serial ou MAC.")
+
+    tipo_padrao, _ = TipoAtivo.objects.get_or_create(nome="Computador")
+    ativo = localizar_ativo_por_identidade(serial=serial, mac=mac, hostname=hostname, ip=ip)
+    criado = ativo is None
+    if criado:
+        ativo = AtivoRede(tipo=tipo_padrao)
+
+    campos_monitorados = [
+        "nome",
+        "hostname",
+        "ip",
+        "mac",
+        "fabricante",
+        "modelo",
+        "numero_serie",
+        "sistema_operacional",
+        "processador",
+        "memoria_total_gb",
+        "disco_total_gb",
+        "office",
+        "softwares_instalados",
+        "usuario_logado",
+        "dominio",
+        "status",
+    ]
+    antes = {campo: getattr(ativo, campo, "") for campo in campos_monitorados}
+
+    interfaces = dados.get("interfaces") or []
+    if not isinstance(interfaces, list):
+        interfaces = []
+    interfaces_txt = _resumo_interfaces(interfaces)
+    observacoes = [
+        "Coleta recebida pelo agente de inventario.",
+        f"Usuario logado: {normalizar_texto(dados.get('usuario_logado'), 120) or '-'}",
+        f"Dominio/grupo: {normalizar_texto(dados.get('dominio'), 120) or '-'}",
+        f"CPU: {normalizar_texto(dados.get('processador'), 180) or '-'}",
+        f"Memoria: {normalizar_texto(dados.get('memoria_total_gb'), 40) or '-'} GB",
+        f"Disco: {normalizar_texto(dados.get('disco_total_gb'), 40) or '-'} GB",
+        f"Office: {normalizar_texto(dados.get('office'), 180) or '-'}",
+    ]
+    if interfaces_txt:
+        observacoes.append("Interfaces: " + " | ".join(interfaces_txt))
+
+    ativo.nome = hostname or ativo.nome or f"Ativo {ip or serial or mac}"
+    ativo.hostname = hostname or ativo.hostname
+    ativo.ip = ip or ativo.ip
+    ativo.mac = mac or ativo.mac
+    ativo.fabricante = normalizar_texto(dados.get("fabricante"), 120) or ativo.fabricante
+    ativo.modelo = normalizar_texto(dados.get("modelo"), 120) or ativo.modelo
+    ativo.numero_serie = serial or ativo.numero_serie
+    ativo.sistema_operacional = normalizar_texto(dados.get("sistema_operacional"), 150) or ativo.sistema_operacional
+    ativo.arquitetura = normalizar_texto(dados.get("arquitetura"), 40) or ativo.arquitetura
+    ativo.processador = normalizar_texto(dados.get("processador"), 180) or ativo.processador
+    ativo.memoria_total_gb = decimal_ou_none(dados.get("memoria_total_gb")) or ativo.memoria_total_gb
+    ativo.disco_total_gb = decimal_ou_none(dados.get("disco_total_gb")) or ativo.disco_total_gb
+    ativo.office = normalizar_texto(dados.get("office"), 180) or ativo.office
+    ativo.softwares_instalados = _softwares_para_texto(dados.get("softwares_instalados") or []) or ativo.softwares_instalados
+    ativo.usuario_logado = normalizar_texto(dados.get("usuario_logado"), 150) or ativo.usuario_logado
+    ativo.dominio = normalizar_texto(dados.get("dominio"), 150) or ativo.dominio
+    ativo.responsavel = normalizar_texto(dados.get("usuario_logado"), 150) or ativo.responsavel
+    estava_arquivado = ativo.status == AtivoRede.Status.DESATIVADO
+    ativo.status = AtivoRede.Status.ONLINE
+    if estava_arquivado:
+        ativo.ciclo_vida = AtivoRede.CicloVida.EM_USO
+        ativo.data_baixa = None
+        ativo.motivo_baixa = ""
+    ativo.origem = AtivoRede.Origem.AGENTE
+    ativo.observacoes = "\n".join(observacoes)
+    ativo.ultima_coleta_em = timezone.now()
+    ativo.coleta_solicitada_em = None
+    ativo.save()
+
+    registrar_alteracoes_ativo(ativo, antes, campos_monitorados, "agente")
+    RegistroColetaAgente.objects.create(
+        ativo=ativo,
+        hostname=hostname,
+        status=RegistroColetaAgente.Status.SUCESSO,
+        mensagem="Inventario recebido e processado.",
+        ip_origem=ip_origem,
+        versao_agente=normalizar_texto(dados.get("versao_agente"), 40),
+    )
+    _sincronizar_interfaces(ativo, interfaces)
+
+    return {
+        "ok": True,
+        "criado": criado,
+        "ativo_id": ativo.pk,
+        "ativo": ativo.nome,
+        "ultima_coleta_em": ativo.ultima_coleta_em.isoformat(),
+    }
 
 
 def hosts_da_faixa(cidr, limite=254):

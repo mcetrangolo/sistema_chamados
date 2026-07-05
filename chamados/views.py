@@ -4,8 +4,6 @@ from io import BytesIO
 import socket
 
 from django.contrib import messages
-from django.core.files import File
-from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -19,8 +17,11 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView
 from core.models import ConfiguracaoInstitucional
+from core.audit import registrar_evento
+from core.models import RegistroAuditoria
 from core.permissions import usuario_e_suporte_n2
 
+from . import report_services
 from .forms import (
     AtualizacaoChamadoForm,
     AnexoChamadoForm,
@@ -68,6 +69,21 @@ from .models import (
     SolicitacaoServico,
     TarefaChamado,
     TopicoAjuda,
+)
+from .services import (
+    ChamadoErro,
+    atribuir_chamado_para_usuario,
+    atualizar_chamado,
+    criar_chamado_de_governanca as criar_chamado_de_governanca_service,
+    criar_chamado_de_solicitacao as criar_chamado_de_solicitacao_service,
+    decidir_solicitacao,
+    encerrar_chamado as encerrar_chamado_service,
+    notificar_chamado,
+    registrar_atribuicao_chamado,
+    registrar_chamado_aberto,
+    registrar_resposta_interna,
+    resolver_chamado_rapido as resolver_chamado_rapido_service,
+    reabrir_chamado_pelo_portal,
 )
 
 
@@ -409,11 +425,10 @@ class ChamadoCreateView(LoginRequiredMixin, CreateView):
         form.instance.solicitante = self.request.user
         form.instance.origem = Chamado.Origem.INTERNO
         response = super().form_valid(form)
-        HistoricoChamado.objects.create(
-            chamado=self.object,
-            usuario=self.request.user,
-            status=self.object.status,
-            comentario="Chamado aberto pela equipe de TI.",
+        registrar_chamado_aberto(
+            self.object,
+            self.request.user,
+            "Chamado aberto pela equipe de TI.",
         )
         messages.success(self.request, "Chamado aberto com sucesso.")
         return response
@@ -473,17 +488,7 @@ class ChamadoUpdateView(LoginRequiredMixin, UpdateView):
         status_anterior = Chamado.objects.get(pk=self.object.pk).status
         response = super().form_valid(form)
         registro = form.cleaned_data.get("registro_atendimento", "").strip()
-
-        if status_anterior != self.object.status or registro:
-            if registro and not self.object.primeira_resposta_em:
-                self.object.primeira_resposta_em = timezone.now()
-                self.object.save(update_fields=["primeira_resposta_em", "atualizado_em"])
-            HistoricoChamado.objects.create(
-                chamado=self.object,
-                usuario=self.request.user,
-                status=self.object.status,
-                comentario=registro,
-            )
+        atualizar_chamado(self.object, self.request.user, status_anterior, registro)
 
         messages.success(self.request, "Chamado atualizado com sucesso.")
         return response
@@ -813,7 +818,7 @@ class CatalogoServicoSolicitarView(TemplateView):
             solicitacao = form.save(commit=False)
             solicitacao.servico = servico
             solicitacao.save()
-            chamado = criar_chamado_de_solicitacao(solicitacao)
+            chamado = criar_chamado_de_solicitacao_service(solicitacao)
             if servico.requer_aprovacao:
                 AprovacaoSolicitacao.objects.create(
                     origem=AprovacaoSolicitacao.Origem.CATALOGO,
@@ -1116,6 +1121,19 @@ def decidir_aprovacao(request, pk, decisao):
     aprovacao = get_object_or_404(AprovacaoSolicitacao, pk=pk)
     chamado_destino = aprovacao.solicitacao_servico.chamado if aprovacao.solicitacao_servico else None
     if request.method == "POST" and aprovacao.status == AprovacaoSolicitacao.Status.PENDENTE:
+        decidir_solicitacao(
+            aprovacao,
+            decisao,
+            request.user,
+            request.POST.get("observacao", ""),
+        )
+        if decisao == "aprovar":
+            messages.success(request, "SolicitaÃ§Ã£o aprovada.")
+        else:
+            messages.success(request, "SolicitaÃ§Ã£o rejeitada.")
+        if chamado_destino:
+            return redirect(chamado_destino)
+        return redirect("chamados:aprovacoes")
         aprovacao.aprovado_por = request.user
         aprovacao.observacao = request.POST.get("observacao", "").strip()
         aprovacao.decidido_em = timezone.now()
@@ -1166,6 +1184,7 @@ def decidir_aprovacao(request, pk, decisao):
 
 
 def criar_chamado_de_solicitacao(solicitacao):
+    return criar_chamado_de_solicitacao_service(solicitacao)
     servico = solicitacao.servico
     detalhes_personalizados = []
     for item in (solicitacao.dados_personalizados or {}).values():
@@ -1202,6 +1221,7 @@ def criar_chamado_de_solicitacao(solicitacao):
 
 
 def criar_chamado_de_governanca(governanca_id):
+    return criar_chamado_de_governanca_service(governanca_id)
     from governanca.models import SolicitacaoGovernanca
 
     solicitacao = get_object_or_404(SolicitacaoGovernanca, pk=governanca_id)
@@ -1333,177 +1353,31 @@ def remover_atendente(request, pk):
     return redirect("chamados:tecnicos")
 
 
-AGRUPAMENTO_MAP = {
-    "status": ("status", "Status"),
-    "tipo": ("tipo", "Tipo"),
-    "atendente": ("tecnico_responsavel__username", "Atendente"),
-    "setor": ("setor__nome", "Setor"),
-    "categoria": ("categoria__nome", "Categoria"),
-    "prioridade": ("prioridade", "Prioridade"),
-}
-
-
-def filtrar_chamados_relatorio(params):
-    form = RelatorioChamadosForm(params or None)
-    chamados = Chamado.objects.select_related("setor", "categoria", "tecnico_responsavel")
-
-    if form.is_valid():
-        dados = form.cleaned_data
-        if dados.get("data_inicio"):
-            chamados = chamados.filter(criado_em__date__gte=dados["data_inicio"])
-        if dados.get("data_fim"):
-            chamados = chamados.filter(criado_em__date__lte=dados["data_fim"])
-        if dados.get("status"):
-            chamados = chamados.filter(status=dados["status"])
-        if dados.get("tipo"):
-            chamados = chamados.filter(tipo=dados["tipo"])
-        if dados.get("prioridade"):
-            chamados = chamados.filter(prioridade=dados["prioridade"])
-        if dados.get("setor"):
-            chamados = chamados.filter(setor=dados["setor"])
-        if dados.get("categoria"):
-            chamados = chamados.filter(categoria=dados["categoria"])
-        if dados.get("atendente"):
-            chamados = chamados.filter(tecnico_responsavel=dados["atendente"])
-
-    return form, chamados
-
-
-def resumo_relatorio(chamados, agrupamento):
-    campo, titulo = AGRUPAMENTO_MAP.get(agrupamento, AGRUPAMENTO_MAP["status"])
-    linhas = chamados.values(campo).annotate(total=Count("id")).order_by(campo)
-    return campo, titulo, linhas
-
-
-def linhas_analiticas(chamados):
-    return chamados.order_by("-criado_em")[:500]
-
-
-def nome_atendente(chamado):
-    if chamado.tecnico_responsavel:
-        return chamado.tecnico_responsavel.get_full_name() or chamado.tecnico_responsavel.username
-    return "Não atribuído"
-
-
-def rotulo_choice(valor, choices):
-    mapa = dict(choices)
-    return mapa.get(valor, valor or "Nao informado")
-
-
-def chart_data(linhas, label_field):
-    return {
-        "labels": [linha.get(label_field) or "Nao informado" for linha in linhas],
-        "data": [linha["total"] for linha in linhas],
-    }
-
-
-def chart_data_choices(linhas, label_field, choices):
-    return {
-        "labels": [rotulo_choice(linha.get(label_field), choices) for linha in linhas],
-        "data": [linha["total"] for linha in linhas],
-    }
-
-
-def chart_data_atendentes(linhas):
-    labels = []
-    for linha in linhas:
-        nome = "Nao atribuido"
-        if linha.get("tecnico_responsavel__first_name") or linha.get("tecnico_responsavel__last_name"):
-            nome = f"{linha.get('tecnico_responsavel__first_name') or ''} {linha.get('tecnico_responsavel__last_name') or ''}".strip()
-        elif linha.get("tecnico_responsavel__username"):
-            nome = linha["tecnico_responsavel__username"]
-        labels.append(nome)
-    return {"labels": labels, "data": [linha["total"] for linha in linhas]}
-
-
-def dados_graficos_chamados(chamados):
-    return {
-        "status": chart_data_choices(
-            chamados.values("status").annotate(total=Count("id")).order_by("status"),
-            "status",
-            Chamado.Status.choices,
-        ),
-        "tipo": chart_data_choices(
-            chamados.values("tipo").annotate(total=Count("id")).order_by("tipo"),
-            "tipo",
-            Chamado.Tipo.choices,
-        ),
-        "setor": chart_data(
-            chamados.values("setor__nome").annotate(total=Count("id")).order_by("setor__nome"),
-            "setor__nome",
-        ),
-        "categoria": chart_data(
-            chamados.values("categoria__nome").annotate(total=Count("id")).order_by("categoria__nome"),
-            "categoria__nome",
-        ),
-        "prioridade": chart_data_choices(
-            chamados.values("prioridade").annotate(total=Count("id")).order_by("prioridade"),
-            "prioridade",
-            Chamado.Prioridade.choices,
-        ),
-        "atendente": chart_data_atendentes(
-            chamados.values(
-                "tecnico_responsavel__username",
-                "tecnico_responsavel__first_name",
-                "tecnico_responsavel__last_name",
-            )
-            .annotate(total=Count("id"))
-            .order_by("tecnico_responsavel__username")
-        ),
-    }
-
-
 class RelatorioChamadosView(LoginRequiredMixin, TemplateView):
     template_name = "chamados/relatorio.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        form, chamados = filtrar_chamados_relatorio(self.request.GET)
-        agrupamento = form.cleaned_data.get("agrupamento") if form.is_valid() else "status"
-        campo_agrupamento, titulo_agrupamento, resumo = resumo_relatorio(
-            chamados, agrupamento or "status"
-        )
-
-        context["total"] = chamados.count()
-        context["form"] = form
-        context["resumo"] = resumo
-        context["campo_agrupamento"] = campo_agrupamento
-        context["titulo_agrupamento"] = titulo_agrupamento
-        context["chamados"] = linhas_analiticas(chamados)
-        context["abertos"] = chamados.exclude(
-            status__in=[Chamado.Status.ENCERRADO, Chamado.Status.CANCELADO]
-        ).count()
-        context["resolvidos"] = chamados.filter(status=Chamado.Status.RESOLVIDO).count()
-        context["encerrados"] = chamados.filter(status=Chamado.Status.ENCERRADO).count()
-        context["sla_vencidos"] = chamados.filter(vencimento_em__lt=timezone.now()).exclude(
-            status__in=[Chamado.Status.RESOLVIDO, Chamado.Status.ENCERRADO, Chamado.Status.CANCELADO]
-        ).count()
-        context["avaliacao_media"] = chamados.filter(avaliacao__isnull=False).aggregate(
-            media=Avg("avaliacao__nota")
-        )["media"]
-        context["servicos_mais_solicitados"] = (
-            SolicitacaoServico.objects.values("servico__nome")
-            .annotate(total=Count("id"))
-            .order_by("-total")[:10]
-        )
-        graficos = dados_graficos_chamados(chamados)
-        context["status_chart"] = graficos["status"]
-        context["tipo_chart"] = graficos["tipo"]
-        context["setor_chart"] = graficos["setor"]
-        context["categoria_chart"] = graficos["categoria"]
-        context["prioridade_chart"] = graficos["prioridade"]
-        context["atendente_chart"] = graficos["atendente"]
+        context.update(report_services.contexto_relatorio_chamados(self.request.GET))
         context["querystring"] = self.request.GET.urlencode()
         return context
 
 
 @login_required
+@user_passes_test(usuario_e_suporte_n2)
 def exportar_relatorio_xls(request):
-    form, chamados = filtrar_chamados_relatorio(request.GET)
-    agrupamento = form.cleaned_data.get("agrupamento") if form.is_valid() else "status"
-    campo_agrupamento, titulo_agrupamento, resumo = resumo_relatorio(
-        chamados, agrupamento or "status"
+    registrar_evento(
+        RegistroAuditoria.Acao.EXPORTACAO,
+        "RelatorioChamados",
+        objeto="Exportacao XLS",
+        usuario=request.user,
+        caminho=request.path,
     )
+    dados_relatorio = report_services.contexto_relatorio_chamados(request.GET)
+    chamados = dados_relatorio["chamados_queryset"]
+    campo_agrupamento = dados_relatorio["campo_agrupamento"]
+    titulo_agrupamento = dados_relatorio["titulo_agrupamento"]
+    resumo = dados_relatorio["resumo"]
 
     response = HttpResponse(content_type="application/vnd.ms-excel; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="relatorio_chamados.xls"'
@@ -1537,7 +1411,7 @@ def exportar_relatorio_xls(request):
     for cabecalho in cabecalhos:
         response.write(f"<th>{escape(cabecalho)}</th>")
     response.write("</tr>")
-    for chamado in linhas_analiticas(chamados):
+    for chamado in report_services.linhas_analiticas(chamados):
         valores = [
             chamado.numero,
             chamado.get_tipo_display(),
@@ -1547,7 +1421,7 @@ def exportar_relatorio_xls(request):
             chamado.categoria.nome if chamado.categoria else "",
             chamado.get_prioridade_display(),
             chamado.get_status_display(),
-            nome_atendente(chamado),
+            report_services.nome_atendente(chamado),
         ]
         response.write("<tr>")
         for valor in valores:
@@ -1593,12 +1467,20 @@ def montar_pdf_simples(linhas):
 
 
 @login_required
+@user_passes_test(usuario_e_suporte_n2)
 def exportar_relatorio_pdf(request):
-    form, chamados = filtrar_chamados_relatorio(request.GET)
-    agrupamento = form.cleaned_data.get("agrupamento") if form.is_valid() else "status"
-    campo_agrupamento, titulo_agrupamento, resumo = resumo_relatorio(
-        chamados, agrupamento or "status"
+    registrar_evento(
+        RegistroAuditoria.Acao.EXPORTACAO,
+        "RelatorioChamados",
+        objeto="Exportacao PDF",
+        usuario=request.user,
+        caminho=request.path,
     )
+    dados_relatorio = report_services.contexto_relatorio_chamados(request.GET)
+    chamados = dados_relatorio["chamados_queryset"]
+    campo_agrupamento = dados_relatorio["campo_agrupamento"]
+    titulo_agrupamento = dados_relatorio["titulo_agrupamento"]
+    resumo = dados_relatorio["resumo"]
 
     config = ConfiguracaoInstitucional.atual()
     try:
@@ -1712,11 +1594,11 @@ def exportar_relatorio_pdf(request):
     y -= 3 * mm
     escrever_linha("Chamados", tamanho=11, negrito=True)
     escrever_linha("Numero | Tipo | Abertura | Solicitante | Status | Atendente", tamanho=8, negrito=True)
-    for chamado in linhas_analiticas(chamados)[:120]:
+    for chamado in report_services.linhas_analiticas(chamados)[:120]:
         escrever_linha(
             f"{chamado.numero} | {chamado.get_tipo_display()} | {chamado.criado_em:%d/%m/%Y} | "
             f"{chamado.nome_solicitante} | {chamado.get_status_display()} | "
-            f"{nome_atendente(chamado)}",
+            f"{report_services.nome_atendente(chamado)}",
             tamanho=8,
         )
 
@@ -1739,20 +1621,11 @@ def encerrar_chamado(request, pk):
     chamado = get_object_or_404(Chamado, pk=pk)
     if request.method == "POST":
         solucao = request.POST.get("solucao_aplicada", "").strip()
-        if not solucao:
+        try:
+            encerrar_chamado_service(chamado, request.user, solucao)
+            messages.success(request, "Chamado encerrado com sucesso.")
+        except ChamadoErro:
             messages.error(request, "Informe a solução aplicada para encerrar o chamado.")
-            return redirect(chamado)
-
-        chamado.solucao_aplicada = solucao
-        chamado.status = Chamado.Status.ENCERRADO
-        chamado.save()
-        HistoricoChamado.objects.create(
-            chamado=chamado,
-            usuario=request.user,
-            status=chamado.status,
-            comentario="Chamado encerrado.",
-        )
-        messages.success(request, "Chamado encerrado com sucesso.")
     return redirect(chamado)
 
 
@@ -1760,16 +1633,7 @@ def encerrar_chamado(request, pk):
 def atribuir_chamado_mim(request, pk):
     chamado = get_object_or_404(Chamado, pk=pk)
     if request.method == "POST":
-        chamado.tecnico_responsavel = request.user
-        if chamado.status == Chamado.Status.ABERTO:
-            chamado.status = Chamado.Status.EM_ATENDIMENTO
-        chamado.save()
-        HistoricoChamado.objects.create(
-            chamado=chamado,
-            usuario=request.user,
-            status=chamado.status,
-            comentario="Chamado atribuído ao atendente logado.",
-        )
+        atribuir_chamado_para_usuario(chamado, request.user)
         messages.success(request, "Chamado atribuído a você.")
     return redirect(chamado)
 
@@ -1781,15 +1645,7 @@ def atribuir_chamado(request, pk):
         form = AtribuicaoChamadoForm(request.POST, instance=chamado)
         if form.is_valid():
             chamado = form.save(commit=False)
-            if chamado.tecnico_responsavel_id and chamado.status == Chamado.Status.ABERTO:
-                chamado.status = Chamado.Status.EM_ATENDIMENTO
-            chamado.save()
-            HistoricoChamado.objects.create(
-                chamado=chamado,
-                usuario=request.user,
-                status=chamado.status,
-                comentario="Chamado encaminhado/reatribuído.",
-            )
+            registrar_atribuicao_chamado(chamado, request.user)
             messages.success(request, "Chamado encaminhado com sucesso.")
         else:
             messages.error(request, "Não foi possível encaminhar o chamado.")
@@ -1801,30 +1657,11 @@ def resolver_chamado_rapido(request, pk):
     chamado = get_object_or_404(Chamado, pk=pk)
     if request.method == "POST":
         solucao = request.POST.get("solucao_aplicada", "").strip()
-        if not solucao:
+        try:
+            resolver_chamado_rapido_service(chamado, request.user, solucao)
+            messages.success(request, "Chamado resolvido com sucesso.")
+        except ChamadoErro:
             messages.error(request, "Informe a solução aplicada.")
-            return redirect(chamado)
-        chamado.solucao_aplicada = solucao
-        chamado.status = Chamado.Status.RESOLVIDO
-        if not chamado.primeira_resposta_em:
-            chamado.primeira_resposta_em = timezone.now()
-        chamado.save()
-        ComentarioChamado.objects.create(
-            chamado=chamado,
-            autor=request.user,
-            nome_autor=request.user.get_full_name() or request.user.username,
-            email_autor=request.user.email,
-            mensagem=solucao,
-            publico=True,
-        )
-        HistoricoChamado.objects.create(
-            chamado=chamado,
-            usuario=request.user,
-            status=chamado.status,
-            comentario="Chamado resolvido rapidamente.",
-        )
-        notificar_chamado(chamado, "Chamado resolvido", solucao)
-        messages.success(request, "Chamado resolvido com sucesso.")
     return redirect(chamado)
 
 
@@ -1850,41 +1687,11 @@ def responder_chamado(request, pk):
         form = ComentarioInternoForm(request.POST)
         if form.is_valid():
             comentario = form.save(commit=False)
-            comentario.chamado = chamado
-            comentario.autor = request.user
-            comentario.nome_autor = request.user.get_full_name() or request.user.username
-            comentario.email_autor = request.user.email
-            comentario.save()
-            HistoricoChamado.objects.create(
-                chamado=chamado,
-                usuario=request.user,
-                status=chamado.status,
-                comentario="Resposta registrada no chamado.",
-            )
+            registrar_resposta_interna(chamado, request.user, comentario)
             messages.success(request, "Resposta registrada com sucesso.")
-            if comentario.publico:
-                if not chamado.primeira_resposta_em:
-                    chamado.primeira_resposta_em = timezone.now()
-                    chamado.save(update_fields=["primeira_resposta_em", "atualizado_em"])
-                notificar_chamado(chamado, "Nova resposta no chamado", comentario.mensagem)
         else:
             messages.error(request, "Não foi possível registrar a resposta.")
     return redirect(chamado)
-
-
-def notificar_chamado(chamado, assunto, mensagem):
-    if not chamado.email:
-        return
-    try:
-        send_mail(
-            f"{assunto} {chamado.numero}",
-            f"{mensagem}\n\nChamado: {chamado.numero}",
-            None,
-            [chamado.email],
-            fail_silently=True,
-        )
-    except Exception:
-        return
 
 
 @login_required
@@ -1974,20 +1781,6 @@ def reabrir_chamado_portal(request, pk):
             messages.error(request, "Informe o motivo da reabertura.")
             return redirect("chamados:portal_consultar")
 
-        chamado.status = Chamado.Status.EM_ATENDIMENTO
-        chamado.concluido_em = None
-        chamado.save(update_fields=["status", "concluido_em", "atualizado_em"])
-        ComentarioChamado.objects.create(
-            chamado=chamado,
-            nome_autor=chamado.nome_solicitante,
-            email_autor=chamado.email,
-            mensagem=f"Solicitação de reabertura: {motivo}",
-            publico=True,
-        )
-        HistoricoChamado.objects.create(
-            chamado=chamado,
-            status=chamado.status,
-            comentario="Chamado reaberto pelo solicitante.",
-        )
+        reabrir_chamado_pelo_portal(chamado, motivo)
         messages.success(request, "Chamado reaberto e enviado para a equipe de TI.")
     return redirect("chamados:portal_consultar")

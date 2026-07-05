@@ -24,7 +24,10 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from django.views.generic import CreateView, DetailView, ListView, RedirectView, TemplateView, UpdateView
+from core.audit import registrar_evento
 from core.models import ConfiguracaoInstitucional
+from core.models import RegistroAuditoria
+from core.permissions import usuario_e_suporte_n2
 from governanca.pdf import montar_pdf
 
 from .forms import (
@@ -65,7 +68,14 @@ from .models import (
     TipoAtivo,
     VarreduraRede,
 )
-from .services import DescobertaAtivo, descobrir_por_faixa, descobrir_por_host, ping_host
+from .services import (
+    ColetaAgenteErro,
+    DescobertaAtivo,
+    descobrir_por_faixa,
+    descobrir_por_host,
+    ping_host,
+    processar_coleta_agente,
+)
 
 
 AGENTE_WINDOWS_EXE = "SistemaChamadosAgentSetup.exe"
@@ -345,6 +355,37 @@ def configuracao_agente(request):
     return TemplateView.as_view(template_name="inventario/agente_config.html")(request, **contexto)
 
 
+@login_required
+def downloads_agente(request):
+    caminho = _caminho_agente_windows()
+    url_detectada = request.build_absolute_uri("/").rstrip("/")
+    base_url = _base_url_agente(request)
+    porta = request.get_port()
+    esquema = "https" if request.is_secure() else "http"
+    bases_sugeridas = [f"{esquema}://{ip}:{porta}" for ip in _ips_rede_local()]
+    contexto = {
+        "pode_baixar_agente": request.user.is_superuser,
+        "token": settings.INVENTARIO_AGENT_TOKEN if request.user.is_superuser else "",
+        "token_origem": settings.INVENTARIO_AGENT_TOKEN_ORIGEM if request.user.is_superuser else "",
+        "endpoint": f"{base_url}/inventario/agente/coleta/",
+        "url_detectada": url_detectada,
+        "public_base_url": settings.PUBLIC_BASE_URL,
+        "bases_sugeridas": bases_sugeridas,
+        "usa_endereco_local": "localhost" in base_url.lower() or "127.0.0.1" in base_url,
+        "instalador_windows_existe": caminho.exists(),
+        "instalador_windows_nome": AGENTE_WINDOWS_EXE,
+        "instalador_windows_tamanho": caminho.stat().st_size if caminho.exists() else None,
+        "instalador_windows_atualizado_em": timezone.datetime.fromtimestamp(
+            caminho.stat().st_mtime,
+            tz=timezone.get_current_timezone(),
+        )
+        if caminho.exists()
+        else None,
+        "instalador_linux_nome": "sistema-chamados-agent-linux.sh",
+    }
+    return TemplateView.as_view(template_name="inventario/agente_downloads.html")(request, **contexto)
+
+
 @csrf_exempt
 @require_POST
 def receber_coleta_agente(request):
@@ -373,151 +414,12 @@ def receber_coleta_agente(request):
         )
         return JsonResponse({"erro": "JSON invalido."}, status=400)
 
-    hostname = _normalizar_texto(dados.get("hostname"), 150)
-    ip = _normalizar_texto(dados.get("ip"), 45) or None
-    serial = _normalizar_texto(dados.get("numero_serie") or dados.get("serial"), 120)
-    mac = _normalizar_texto(dados.get("mac"), 30)
-    if not _identificador_valido(serial):
-        serial = ""
+    try:
+        resposta = processar_coleta_agente(dados, ip_origem=ip_origem_request(request))
+    except ColetaAgenteErro as exc:
+        return JsonResponse({"erro": exc.mensagem}, status=exc.status)
 
-    if not any([hostname, ip, serial, mac]):
-        RegistroColetaAgente.objects.create(
-            hostname=hostname,
-            status=RegistroColetaAgente.Status.ERRO,
-            mensagem="Coleta sem identificador valido.",
-            ip_origem=ip_origem_request(request),
-        )
-        return JsonResponse({"erro": "Informe hostname, IP, serial ou MAC."}, status=400)
-
-    tipo_padrao, _ = TipoAtivo.objects.get_or_create(nome="Computador")
-    ativo = localizar_ativo_por_identidade(serial=serial, mac=mac, hostname=hostname, ip=ip)
-    criado = ativo is None
-    if criado:
-        ativo = AtivoRede(tipo=tipo_padrao)
-    campos_monitorados = [
-        "nome",
-        "hostname",
-        "ip",
-        "mac",
-        "fabricante",
-        "modelo",
-        "numero_serie",
-        "sistema_operacional",
-        "processador",
-        "memoria_total_gb",
-        "disco_total_gb",
-        "office",
-        "softwares_instalados",
-        "usuario_logado",
-        "dominio",
-        "status",
-    ]
-    antes = {campo: getattr(ativo, campo, "") for campo in campos_monitorados}
-
-    interfaces = dados.get("interfaces") or []
-    interfaces_txt = []
-    for interface in interfaces[:10]:
-        interfaces_txt.append(
-            " / ".join(
-                parte
-                for parte in [
-                    _normalizar_texto(interface.get("nome"), 80),
-                    _normalizar_texto(interface.get("ip"), 45),
-                    _normalizar_texto(interface.get("mac"), 30),
-                ]
-                if parte
-            )
-        )
-
-    observacoes = [
-        "Coleta recebida pelo agente de inventario.",
-        f"Usuario logado: {_normalizar_texto(dados.get('usuario_logado'), 120) or '-'}",
-        f"Dominio/grupo: {_normalizar_texto(dados.get('dominio'), 120) or '-'}",
-        f"CPU: {_normalizar_texto(dados.get('processador'), 180) or '-'}",
-        f"Memoria: {_normalizar_texto(dados.get('memoria_total_gb'), 40) or '-'} GB",
-        f"Disco: {_normalizar_texto(dados.get('disco_total_gb'), 40) or '-'} GB",
-        f"Office: {_normalizar_texto(dados.get('office'), 180) or '-'}",
-    ]
-    if interfaces_txt:
-        observacoes.append("Interfaces: " + " | ".join(interfaces_txt))
-
-    softwares = dados.get("softwares_instalados") or []
-    if isinstance(softwares, list):
-        softwares_texto = "\n".join(_normalizar_texto(item, 220) for item in softwares if _normalizar_texto(item, 220))
-    else:
-        softwares_texto = _normalizar_texto(softwares, 12000)
-
-    ativo.nome = hostname or ativo.nome or f"Ativo {ip or serial or mac}"
-    ativo.hostname = hostname or ativo.hostname
-    ativo.ip = ip or ativo.ip
-    ativo.mac = mac or ativo.mac
-    ativo.fabricante = _normalizar_texto(dados.get("fabricante"), 120) or ativo.fabricante
-    ativo.modelo = _normalizar_texto(dados.get("modelo"), 120) or ativo.modelo
-    ativo.numero_serie = serial or ativo.numero_serie
-    ativo.sistema_operacional = _normalizar_texto(dados.get("sistema_operacional"), 150) or ativo.sistema_operacional
-    ativo.arquitetura = _normalizar_texto(dados.get("arquitetura"), 40) or ativo.arquitetura
-    ativo.processador = _normalizar_texto(dados.get("processador"), 180) or ativo.processador
-    ativo.memoria_total_gb = _decimal_ou_none(dados.get("memoria_total_gb")) or ativo.memoria_total_gb
-    ativo.disco_total_gb = _decimal_ou_none(dados.get("disco_total_gb")) or ativo.disco_total_gb
-    ativo.office = _normalizar_texto(dados.get("office"), 180) or ativo.office
-    ativo.softwares_instalados = softwares_texto or ativo.softwares_instalados
-    ativo.usuario_logado = _normalizar_texto(dados.get("usuario_logado"), 150) or ativo.usuario_logado
-    ativo.dominio = _normalizar_texto(dados.get("dominio"), 150) or ativo.dominio
-    ativo.responsavel = _normalizar_texto(dados.get("usuario_logado"), 150) or ativo.responsavel
-    estava_arquivado = ativo.status == AtivoRede.Status.DESATIVADO
-    ativo.status = AtivoRede.Status.ONLINE
-    if estava_arquivado:
-        ativo.ciclo_vida = AtivoRede.CicloVida.EM_USO
-        ativo.data_baixa = None
-        ativo.motivo_baixa = ""
-    ativo.origem = AtivoRede.Origem.AGENTE
-    ativo.observacoes = "\n".join(observacoes)
-    ativo.ultima_coleta_em = timezone.now()
-    ativo.coleta_solicitada_em = None
-    ativo.save()
-    registrar_alteracoes_ativo(ativo, antes, campos_monitorados, "agente")
-    RegistroColetaAgente.objects.create(
-        ativo=ativo,
-        hostname=hostname,
-        status=RegistroColetaAgente.Status.SUCESSO,
-        mensagem="Inventario recebido e processado.",
-        ip_origem=ip_origem_request(request),
-        versao_agente=_normalizar_texto(dados.get("versao_agente"), 40),
-    )
-
-    for interface in interfaces[:20]:
-        nome_interface = _normalizar_texto(interface.get("nome"), 120)
-        mac_interface = _normalizar_texto(interface.get("mac"), 30)
-        ip_interface = _normalizar_texto(interface.get("ip"), 45) or None
-        if not nome_interface and not mac_interface and not ip_interface:
-            continue
-        filtro_interface = {"ativo": ativo}
-        if mac_interface:
-            filtro_interface["mac__iexact"] = mac_interface
-        elif nome_interface:
-            filtro_interface["nome__iexact"] = nome_interface
-        else:
-            filtro_interface["ip"] = ip_interface
-
-        registro = InterfaceRede.objects.filter(**filtro_interface).first()
-        if not registro:
-            registro = InterfaceRede(ativo=ativo)
-        registro.nome = nome_interface or registro.nome or "Interface"
-        registro.mac = mac_interface or registro.mac
-        registro.ip = ip_interface or registro.ip
-        registro.status = _normalizar_texto(interface.get("status"), 80) or registro.status
-        registro.velocidade = _normalizar_texto(interface.get("velocidade"), 80) or registro.velocidade
-        registro.save()
-
-    return JsonResponse(
-        {
-            "ok": True,
-            "criado": criado,
-            "ativo_id": ativo.pk,
-            "ativo": ativo.nome,
-            "ultima_coleta_em": ativo.ultima_coleta_em.isoformat(),
-        }
-    )
+    return JsonResponse(resposta)
 
 
 @require_GET
@@ -1068,7 +970,15 @@ class RelatorioInventarioView(LoginRequiredMixin, TemplateView):
 
 
 @login_required
+@user_passes_test(usuario_e_suporte_n2)
 def exportar_ativos_xls(request):
+    registrar_evento(
+        RegistroAuditoria.Acao.EXPORTACAO,
+        "InventarioAtivos",
+        objeto="Exportacao XLS",
+        usuario=request.user,
+        caminho=request.path,
+    )
     ativos = (
         AtivoRede.objects.select_related("tipo", "setor")
         .exclude(status=AtivoRede.Status.DESATIVADO)
@@ -1204,7 +1114,15 @@ def etiqueta_ativo_pdf(request, pk):
 
 
 @login_required
+@user_passes_test(usuario_e_suporte_n2)
 def exportar_relatorio_inventario_xls(request):
+    registrar_evento(
+        RegistroAuditoria.Acao.EXPORTACAO,
+        "RelatorioInventario",
+        objeto="Exportacao XLS",
+        usuario=request.user,
+        caminho=request.path,
+    )
     form, ativos, filtro_aplicado = filtrar_ativos_relatorio(request.GET)
     indicadores = dados_relatorio_inventario(ativos, filtro_aplicado)
 
@@ -1326,7 +1244,15 @@ def exportar_relatorio_inventario_xls(request):
 
 
 @login_required
+@user_passes_test(usuario_e_suporte_n2)
 def exportar_relatorio_inventario_pdf(request):
+    registrar_evento(
+        RegistroAuditoria.Acao.EXPORTACAO,
+        "RelatorioInventario",
+        objeto="Exportacao PDF",
+        usuario=request.user,
+        caminho=request.path,
+    )
     form, ativos, filtro_aplicado = filtrar_ativos_relatorio(request.GET)
     indicadores = dados_relatorio_inventario(ativos, filtro_aplicado)
     config = ConfiguracaoInstitucional.atual()

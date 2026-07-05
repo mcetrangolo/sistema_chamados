@@ -1,0 +1,9 @@
+flowchart TD
+    A[Interface Web] --> B[API]
+    B --> C[Services]
+    C --> D[Repositories]
+    D --> E[(Banco de Dados)]
+    F[Agente de Inventário] --> B
+    B --> G[Active Directory/LDAP]
+    B --> H[Guacamole/RustDesk]
+    B --> I[Dashboards/Relatórios]

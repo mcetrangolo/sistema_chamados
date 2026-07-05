@@ -35,17 +35,28 @@ class ConfiguracaoInstitucionalForm(BootstrapFormMixin, forms.ModelForm):
             "cor_primaria",
             "cor_secundaria",
             "cor_fundo",
+            "cor_texto",
+            "cor_menu_texto",
             "texto_rodape",
         ]
         widgets = {
             "cor_primaria": forms.TextInput(attrs={"type": "color"}),
             "cor_secundaria": forms.TextInput(attrs={"type": "color"}),
             "cor_fundo": forms.TextInput(attrs={"type": "color"}),
+            "cor_texto": forms.TextInput(attrs={"type": "color"}),
+            "cor_menu_texto": forms.TextInput(attrs={"type": "color"}),
             "portal_subtitulo": forms.Textarea(attrs={"rows": 3}),
             "portal_texto_apoio": forms.Textarea(attrs={"rows": 3}),
         }
         help_texts = {
             "tema_visual": "Escolha Personalizado para liberar o uso manual das cores abaixo.",
+        }
+        labels = {
+            "cor_primaria": "Cor primaria",
+            "cor_secundaria": "Cor secundaria",
+            "cor_fundo": "Cor de fundo",
+            "cor_texto": "Cor da fonte",
+            "cor_menu_texto": "Cor da fonte do menu lateral",
         }
 
 

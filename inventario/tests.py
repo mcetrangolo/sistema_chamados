@@ -1,5 +1,7 @@
 import json
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import TestCase, override_settings
 from django.urls import reverse
 
@@ -75,3 +77,42 @@ class ColetaAgenteTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 403)
+
+
+class InventarioApiTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        user_model = get_user_model()
+        cls.usuario_n2 = user_model.objects.create_user(
+            username="api-n2",
+            email="api-n2@example.com",
+            password="senha-teste",
+        )
+        cls.usuario_n2.groups.add(Group.objects.create(name="Suporte N2"))
+        cls.tipo = TipoAtivo.objects.create(nome="Computador API")
+        cls.ativo = AtivoRede.objects.create(
+            nome="PC-API",
+            hostname="PC-API",
+            ip="192.168.20.10",
+            tipo=cls.tipo,
+        )
+
+    def test_api_lista_ativos_com_resposta_padronizada(self):
+        self.client.force_login(self.usuario_n2)
+
+        response = self.client.get("/api/v1/ativos/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["data"][0]["nome"], self.ativo.nome)
+
+    def test_api_detalha_ativo(self):
+        self.client.force_login(self.usuario_n2)
+
+        response = self.client.get(f"/api/v1/ativos/{self.ativo.pk}/")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["data"]["hostname"], "PC-API")

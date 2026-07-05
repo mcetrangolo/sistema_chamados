@@ -29,6 +29,8 @@ class ConfiguracaoInstitucionalAdmin(admin.ModelAdmin):
                     "cor_primaria",
                     "cor_secundaria",
                     "cor_fundo",
+                    "cor_texto",
+                    "cor_menu_texto",
                     "texto_rodape",
                 )
             },

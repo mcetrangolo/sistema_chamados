@@ -8,6 +8,7 @@ from django.urls import reverse_lazy
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/", include("core.api_urls")),
     path("configuracoes/", include("core.urls")),
     path(
         "login/",

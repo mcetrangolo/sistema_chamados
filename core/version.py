@@ -1,2 +1,2 @@
-SISTEMA_VERSAO = "v1.9.3"
-SISTEMA_VERSAO_NOME = "Compatibilidade do Token do Agente"
+SISTEMA_VERSAO = "v2.0"
+SISTEMA_VERSAO_NOME = "Navegacao Lateral e Inventario Aprimorado"
