@@ -7,6 +7,8 @@ from .models import (
     AtivoRede,
     CredencialSNMP,
     FaixaRede,
+    CampoExternoAtivo,
+    IntegracaoExterna,
     LicencaSoftware,
     MetodoDescoberta,
     MovimentacaoAtivo,
@@ -113,6 +115,27 @@ class RelacionamentoAtivoForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = RelacionamentoAtivo
         fields = ["destino", "tipo", "descricao"]
+
+
+class IntegracaoExternaForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = IntegracaoExterna
+        fields = ["nome", "descricao", "tipo", "url_template", "abrir_em_nova_aba", "ativo", "ordem"]
+        widgets = {
+            "descricao": forms.Textarea(attrs={"rows": 3}),
+        }
+        help_texts = {
+            "url_template": "Exemplo: https://zabbix.local/host?name={{ hostname }} ou https://grafana.local/d/x?var-host={{ hostname }}",
+        }
+
+
+class CampoExternoAtivoForm(BootstrapFormMixin, forms.ModelForm):
+    class Meta:
+        model = CampoExternoAtivo
+        fields = ["chave", "valor", "descricao"]
+        help_texts = {
+            "chave": "Identificador usado nas URLs. Exemplo: id_zabbix, id_guacamole, id_rustdesk.",
+        }
 
 
 class MovimentacaoAtivoForm(BootstrapFormMixin, forms.ModelForm):

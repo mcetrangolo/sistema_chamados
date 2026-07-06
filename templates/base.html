@@ -40,7 +40,7 @@
       <nav class="sidebar-nav" aria-label="Menu principal">
         <div class="sidebar-section">
           <button class="sidebar-group-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarOperacao" aria-expanded="true" aria-controls="sidebarOperacao">
-            <span>Operacao</span>
+            <span>Operação</span>
             <span class="sidebar-chevron">v</span>
           </button>
           <div class="collapse show sidebar-subnav" id="sidebarOperacao">
@@ -57,16 +57,15 @@
         {% if perfil_acesso.inventario %}
           <div class="sidebar-section">
             <button class="sidebar-group-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarInventario" aria-expanded="{% if request.resolver_match.app_name == 'inventario' %}true{% else %}false{% endif %}" aria-controls="sidebarInventario">
-              <span>Inventario</span>
+              <span>Inventário</span>
               <span class="sidebar-chevron">v</span>
             </button>
             <div class="collapse {% if request.resolver_match.app_name == 'inventario' %}show{% endif %} sidebar-subnav" id="sidebarInventario">
               <a class="sidebar-link {% if request.resolver_match.app_name == 'inventario' and request.resolver_match.url_name == 'painel' %}active{% endif %}" href="{% url 'inventario:painel' %}">Painel</a>
               <a class="sidebar-link" href="{% url 'inventario:ativos' %}">Ativos</a>
-              <a class="sidebar-link" href="{% url 'inventario:licencas' %}">Licencas</a>
-              <a class="sidebar-link" href="{% url 'documentacao:lista' %}">Documentacao</a>
+              <a class="sidebar-link" href="{% url 'documentacao:lista' %}">Documentação</a>
               <a class="sidebar-link" href="{% url 'inventario:agente_downloads' %}">Download agente</a>
-              <a class="sidebar-link" href="{% url 'inventario:ativos_sem_comunicacao' %}">Sem comunicacao</a>
+              <a class="sidebar-link" href="{% url 'inventario:ativos_sem_comunicacao' %}">Sem comunicação</a>
               <a class="sidebar-link" href="{% url 'inventario:ativos_duplicados' %}">Duplicidades</a>
             </div>
           </div>
@@ -75,15 +74,14 @@
         {% if perfil_acesso.suporte_n2 %}
           <div class="sidebar-section">
             <button class="sidebar-group-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarGestao" aria-expanded="false" aria-controls="sidebarGestao">
-              <span>Gestao</span>
+              <span>Gestão</span>
               <span class="sidebar-chevron">v</span>
             </button>
             <div class="collapse sidebar-subnav" id="sidebarGestao">
-              <a class="sidebar-link" href="{% url 'chamados:relatorio' %}">Relatorios chamados</a>
-              <a class="sidebar-link" href="{% url 'inventario:relatorio' %}">Relatorios inventario</a>
+              <a class="sidebar-link" href="{% url 'chamados:relatorio' %}">Relatórios chamados</a>
+              <a class="sidebar-link" href="{% url 'inventario:relatorio' %}">Relatórios inventário</a>
               <a class="sidebar-link" href="{% url 'contratos:lista' %}">Contratos</a>
-              <a class="sidebar-link" href="{% url 'chamados:catalogo' %}">Catalogo publico</a>
-              <a class="sidebar-link" href="{% url 'governanca:solicitacoes' %}">Governanca</a>
+              <a class="sidebar-link" href="{% url 'chamados:catalogo' %}">Catálogo público</a>
             </div>
           </div>
 
@@ -96,7 +94,7 @@
               <a class="sidebar-link" href="{% url 'chamados:setores' %}">Setores</a>
               <a class="sidebar-link" href="{% url 'chamados:categorias' %}">Categorias</a>
               <a class="sidebar-link" href="{% url 'chamados:topicos' %}">Base de conhecimento</a>
-              <a class="sidebar-link" href="{% url 'chamados:servicos' %}">Servicos</a>
+              <a class="sidebar-link" href="{% url 'chamados:servicos' %}">Serviços</a>
               {% if perfil_acesso.sistema %}
                 <a class="sidebar-link" href="{% url 'chamados:tecnicos' %}">Atendentes</a>
               {% endif %}
@@ -111,15 +109,15 @@
         {% if perfil_acesso.sistema %}
           <div class="sidebar-section">
             <button class="sidebar-group-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarConfiguracoes" aria-expanded="{% if request.resolver_match.app_name == 'core' %}true{% else %}false{% endif %}" aria-controls="sidebarConfiguracoes">
-              <span>Configuracoes</span>
+              <span>Configurações</span>
               <span class="sidebar-chevron">v</span>
             </button>
             <div class="collapse {% if request.resolver_match.app_name == 'core' %}show{% endif %} sidebar-subnav" id="sidebarConfiguracoes">
               <a class="sidebar-link" href="{% url 'core:configuracao' %}">Tema, cores e logo</a>
-              <a class="sidebar-link" href="{% url 'core:usuarios' %}">Usuarios e permissoes</a>
+              <a class="sidebar-link" href="{% url 'core:usuarios' %}">Usuários e permissões</a>
               <a class="sidebar-link" href="{% url 'core:ldap' %}">LDAP / AD</a>
               <a class="sidebar-link" href="{% url 'core:backup' %}">Backup</a>
-              <a class="sidebar-link" href="{% url 'core:atualizacoes' %}">Atualizacoes</a>
+              <a class="sidebar-link" href="{% url 'core:atualizacoes' %}">Atualizações</a>
               <a class="sidebar-link" href="{% url 'core:auditoria' %}">Auditoria</a>
             </div>
           </div>
@@ -133,12 +131,12 @@
           Menu
         </button>
         <form class="topbar-search d-none d-md-block" method="get" action="{% url 'chamados:busca_global' %}">
-          <input class="form-control" type="search" name="q" placeholder="Buscar chamados, ativos ou usuarios" aria-label="Buscar">
+          <input class="form-control" type="search" name="q" placeholder="Buscar chamados, ativos ou usuários" aria-label="Buscar">
         </form>
         {% if user.is_authenticated %}
           <div class="topbar-actions">
-            <a class="btn topbar-button" href="{% url 'core:notificacoes' %}" title="Notificacoes">
-              Notificacoes{% if notificacoes_nao_lidas %} ({{ notificacoes_nao_lidas }}){% endif %}
+            <a class="btn topbar-button" href="{% url 'core:notificacoes' %}" title="Notificações">
+              Notificações{% if notificacoes_nao_lidas %} ({{ notificacoes_nao_lidas }}){% endif %}
             </a>
             <div class="dropdown user-menu">
               <button class="btn topbar-button user-menu-toggle dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -146,7 +144,7 @@
               </button>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><h6 class="dropdown-header">{{ user.get_username }}</h6></li>
-                <li><a class="dropdown-item" href="{% url 'core:perfil' %}">Minhas informacoes</a></li>
+                <li><a class="dropdown-item" href="{% url 'core:perfil' %}">Minhas informações</a></li>
                 <li><a class="dropdown-item" href="{% url 'password_change' %}">Alterar senha</a></li>
                 <li><a class="dropdown-item" href="{% url 'core:ajuda' %}">Ajuda do sistema</a></li>
                 <li><hr class="dropdown-divider"></li>

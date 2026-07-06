@@ -1,10 +1,10 @@
-{% extends "base.html" %}
-{% block title %}Ativos sem comunicacao | Inventario{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}Ativos sem comunicação | Inventário{% endblock %}
 {% block content %}
 <div class="page-heading mb-4">
   <div>
-    <span class="section-label">Higiene do inventario</span>
-    <h1>Ativos sem comunicacao</h1>
+    <span class="section-label">Higiene do inventário</span>
+    <h1>Ativos sem comunicação</h1>
     <p>Equipamentos sem coleta ou resposta ha mais de {{ dias_limite }} dias aguardam revisao antes de serem removidos.</p>
   </div>
   <a class="btn btn-outline-primary" href="{% url 'inventario:ativos' %}">Voltar aos ativos</a>
@@ -28,7 +28,7 @@
           <th>IP / hostname</th>
           <th>Tipo</th>
           <th>Setor</th>
-          <th>Ultima comunicacao</th>
+          <th>Última comunicação</th>
           <th>Dias</th>
           <th class="text-end">Acoes</th>
         </tr>
@@ -58,7 +58,7 @@
                     {% csrf_token %}
                     <button class="btn btn-sm btn-outline-success" type="submit">Verificar</button>
                   </form>
-                  <form method="post" action="{% url 'inventario:ativo_sem_comunicacao_arquivar' ativo.pk %}" onsubmit="return confirm('Arquivar este ativo? O historico sera preservado.');">
+                  <form method="post" action="{% url 'inventario:ativo_sem_comunicacao_arquivar' ativo.pk %}" onsubmit="return confirm('Arquivar este ativo? O histórico será preservado.');">
                     {% csrf_token %}
                     <button class="btn btn-sm btn-outline-secondary" type="submit">Arquivar</button>
                   </form>
@@ -75,10 +75,11 @@
 </section>
 
 {% if is_paginated %}
-  <nav class="mt-3" aria-label="Paginacao">
+  <nav class="mt-3" aria-label="Paginação">
     {% if page_obj.has_previous %}<a class="btn btn-sm btn-outline-primary" href="?situacao={{ situacao }}&page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}
     <span class="mx-2 text-secondary">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-    {% if page_obj.has_next %}<a class="btn btn-sm btn-outline-primary" href="?situacao={{ situacao }}&page={{ page_obj.next_page_number }}">Proxima</a>{% endif %}
+    {% if page_obj.has_next %}<a class="btn btn-sm btn-outline-primary" href="?situacao={{ situacao }}&page={{ page_obj.next_page_number }}">Próxima</a>{% endif %}
   </nav>
 {% endif %}
 {% endblock %}
+

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Usuarios e permissoes | Sistema de Chamados{% endblock %}
+{% block title %}Usuários e permissões | Sistema de Chamados{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-start mb-3">
   <div>
-    <h1 class="h3 mb-1">Usuarios e permissoes</h1>
+    <h1 class="h3 mb-1">Usuários e permissões</h1>
     <p class="text-secondary mb-0">Gerencie dados cadastrais e o perfil operacional de cada conta.</p>
   </div>
   <a class="btn btn-outline-secondary" href="{% url 'admin:auth_user_add' %}">Novo usuario</a>
@@ -12,8 +12,8 @@
 <section class="detail-section mb-3">
   <h2 class="h5 mb-3">Perfis de acesso</h2>
   <div class="permission-grid">
-    <div><strong>Administrador</strong><span>Acesso total, incluindo configuracoes, usuarios, backup, atualizacoes e auditoria.</span></div>
-    <div><strong>Suporte N2</strong><span>Chamados, inventario, documentacao, governanca, contratos e relatorios; sem gestao do sistema.</span></div>
+    <div><strong>Administrador</strong><span>Acesso total, incluindo configurações, usuários, backup, atualizações e auditoria.</span></div>
+    <div><strong>Suporte N2</strong><span>Chamados, inventário, documentação, governança, contratos e relatórios; sem gestão do sistema.</span></div>
     <div><strong>Suporte N1</strong><span>Chamados, filas, atendimento, respostas e base de conhecimento.</span></div>
     <div><strong>Usuario comum</strong><span>Acesso basico ao proprio perfil e fluxos permitidos.</span></div>
   </div>

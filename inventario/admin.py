@@ -4,15 +4,18 @@ from .models import (
     AtivoRede,
     AgendamentoVarredura,
     AnexoLicencaSoftware,
+    CampoExternoAtivo,
     CredencialSNMP,
     FaixaRede,
     InterfaceRede,
+    IntegracaoExterna,
     LicencaSoftware,
     HistoricoAlteracaoAtivo,
     MetodoDescoberta,
     MovimentacaoAtivo,
     OcorrenciaAtivo,
     RelacionamentoAtivo,
+    RegistroAcessoIntegracao,
     RegistroColetaAgente,
     SondaRemota,
     TermoResponsabilidadeAtivo,
@@ -38,6 +41,11 @@ class HistoricoAlteracaoInline(admin.TabularInline):
     extra = 0
     readonly_fields = ("campo", "valor_anterior", "valor_novo", "origem", "criado_em")
     can_delete = False
+
+
+class CampoExternoInline(admin.TabularInline):
+    model = CampoExternoAtivo
+    extra = 0
 
 
 class MovimentacaoInline(admin.TabularInline):
@@ -85,7 +93,7 @@ class AtivoRedeAdmin(admin.ModelAdmin):
     list_display = ("nome", "tipo", "ip", "hostname", "sistema_operacional", "office", "status", "origem", "ultima_coleta_em")
     list_filter = ("tipo", "status", "origem", "setor", "sistema_operacional", "office")
     search_fields = ("nome", "ip", "mac", "hostname", "fabricante", "modelo", "numero_serie", "processador", "office")
-    inlines = [InterfaceInline, RelacionamentoOrigemInline, OcorrenciaInline, HistoricoAlteracaoInline, MovimentacaoInline]
+    inlines = [InterfaceInline, CampoExternoInline, RelacionamentoOrigemInline, OcorrenciaInline, HistoricoAlteracaoInline, MovimentacaoInline]
 
 
 @admin.register(RegistroColetaAgente)
@@ -148,6 +156,27 @@ class RelacionamentoAtivoAdmin(admin.ModelAdmin):
     list_display = ("origem", "tipo", "destino", "descricao")
     list_filter = ("tipo",)
     search_fields = ("origem__nome", "destino__nome", "descricao")
+
+
+@admin.register(IntegracaoExterna)
+class IntegracaoExternaAdmin(admin.ModelAdmin):
+    list_display = ("nome", "tipo", "ativo", "ordem", "atualizado_em")
+    list_filter = ("tipo", "ativo")
+    search_fields = ("nome", "descricao", "url_template")
+
+
+@admin.register(CampoExternoAtivo)
+class CampoExternoAtivoAdmin(admin.ModelAdmin):
+    list_display = ("ativo", "chave", "valor", "atualizado_em")
+    search_fields = ("ativo__nome", "chave", "valor")
+
+
+@admin.register(RegistroAcessoIntegracao)
+class RegistroAcessoIntegracaoAdmin(admin.ModelAdmin):
+    list_display = ("criado_em", "usuario", "ativo", "integracao", "modo", "ip_origem")
+    list_filter = ("integracao", "modo", "criado_em")
+    search_fields = ("ativo__nome", "integracao__nome", "url_gerada", "usuario__username")
+    readonly_fields = ("usuario", "ativo", "integracao", "url_gerada", "modo", "ip_origem", "criado_em")
 
 
 @admin.register(LicencaSoftware)

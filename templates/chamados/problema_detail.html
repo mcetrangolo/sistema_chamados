@@ -9,8 +9,8 @@
   <div class="col-lg-8">
     <section class="detail-section"><h2 class="h5">Causa raiz</h2>{{ problema.causa_raiz|default:"Ainda nao identificada."|linebreaks }}</section>
     <section class="detail-section"><h2 class="h5">Workaround</h2>{{ problema.workaround|default:"Ainda nao informado."|linebreaks }}</section>
-    <section class="detail-section"><h2 class="h5">Solucao definitiva</h2>{{ problema.solucao_definitiva|default:"Ainda nao informada."|linebreaks }}</section>
+    <section class="detail-section"><h2 class="h5">Solução definitiva</h2>{{ problema.solucao_definitiva|default:"Ainda não informada."|linebreaks }}</section>
   </div>
-  <aside class="col-lg-4"><div class="side-panel"><dl class="row mb-0"><dt class="col-5">Responsavel</dt><dd class="col-7">{{ problema.responsavel|default:"-" }}</dd><dt class="col-5">Chamado</dt><dd class="col-7">{{ problema.chamado_principal|default:"-" }}</dd><dt class="col-5">Criado</dt><dd class="col-7">{{ problema.criado_em|date:"d/m/Y H:i" }}</dd></dl></div></aside>
+  <aside class="col-lg-4"><div class="side-panel"><dl class="row mb-0"><dt class="col-5">Responsável</dt><dd class="col-7">{{ problema.responsavel|default:"-" }}</dd><dt class="col-5">Chamado</dt><dd class="col-7">{{ problema.chamado_principal|default:"-" }}</dd><dt class="col-5">Criado</dt><dd class="col-7">{{ problema.criado_em|date:"d/m/Y H:i" }}</dd></dl></div></aside>
 </div>
 {% endblock %}

@@ -17,7 +17,7 @@
   <a class="btn btn-sm {% if fila == 'nao-atribuidos' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'chamados:fila' 'nao-atribuidos' %}">Não atribuídos</a>
   <a class="btn btn-sm {% if fila == 'atrasados' %}btn-primary{% else %}btn-outline-danger{% endif %}" href="{% url 'chamados:fila' 'atrasados' %}">Atrasados</a>
   <a class="btn btn-sm {% if fila == 'problemas' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'chamados:fila' 'problemas' %}">Problemas</a>
-  <a class="btn btn-sm {% if fila == 'mudancas' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'chamados:fila' 'mudancas' %}">Mudancas</a>
+  <a class="btn btn-sm {% if fila == 'mudancas' %}btn-primary{% else %}btn-outline-primary{% endif %}" href="{% url 'chamados:fila' 'mudancas' %}">Mudanças</a>
 </div>
 
 <form method="get" class="row g-2 mb-3 filters">

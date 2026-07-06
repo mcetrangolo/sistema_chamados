@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Integracoes externas | Inventario{% endblock %}
+{% block content %}
+<div class="page-heading mb-4">
+  <div>
+    <span class="section-label">Experimental</span>
+    <h1>Integracoes externas</h1>
+    <p>Cadastre atalhos para Zabbix, Guacamole, Grafana, RustDesk Web ou sistemas internos usando dados do ativo.</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'inventario:integracao_nova' %}">Nova integracao</a>
+</div>
+
+<section class="detail-section">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr><th>Nome</th><th>Tipo</th><th>URL modelo</th><th>Status</th><th class="text-end">Acao</th></tr>
+      </thead>
+      <tbody>
+        {% for integracao in integracoes %}
+          <tr>
+            <td>
+              <strong>{{ integracao.nome }}</strong>
+              {% if integracao.descricao %}<span class="d-block text-secondary small">{{ integracao.descricao }}</span>{% endif %}
+            </td>
+            <td>{{ integracao.get_tipo_display }}</td>
+            <td><code>{{ integracao.url_template }}</code></td>
+            <td>{{ integracao.ativo|yesno:"Ativa,Inativa" }}</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'inventario:integracao_editar' integracao.pk %}">Editar</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-center text-secondary py-4">Nenhuma integracao cadastrada.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="detail-section mt-4">
+  <h2 class="h5">Variaveis disponiveis</h2>
+  <p class="text-secondary">Use as variaveis entre chaves na URL modelo. Campos externos cadastrados no ativo tambem podem ser usados pelo nome da chave.</p>
+  <div class="d-flex flex-wrap gap-2">
+    <code>{% templatetag openvariable %} nome {% templatetag closevariable %}</code>
+    <code>{% templatetag openvariable %} ip {% templatetag closevariable %}</code>
+    <code>{% templatetag openvariable %} hostname {% templatetag closevariable %}</code>
+    <code>{% templatetag openvariable %} patrimonio {% templatetag closevariable %}</code>
+    <code>{% templatetag openvariable %} mac {% templatetag closevariable %}</code>
+    <code>{% templatetag openvariable %} serial {% templatetag closevariable %}</code>
+    <code>{% templatetag openvariable %} id_zabbix {% templatetag closevariable %}</code>
+    <code>{% templatetag openvariable %} id_guacamole {% templatetag closevariable %}</code>
+  </div>
+</section>
+{% endblock %}

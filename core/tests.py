@@ -97,7 +97,7 @@ class UsuariosPermissoesTests(TestCase):
         response = self.client.get(reverse("core:usuarios"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Usuarios e permissoes")
+        self.assertContains(response, "Usuários e permissões")
         self.assertContains(response, "Suporte N2")
 
     def test_usuario_comum_nao_acessa_tela_de_usuarios(self):
