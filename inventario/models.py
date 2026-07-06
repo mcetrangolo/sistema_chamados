@@ -2,6 +2,8 @@ from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
 from django.urls import reverse
+from urllib.parse import quote
+import re
 
 from chamados.models import Setor
 
@@ -185,6 +187,87 @@ class RelacionamentoAtivo(models.Model):
 
     def __str__(self):
         return f"{self.origem} {self.get_tipo_display()} {self.destino}"
+
+
+class IntegracaoExterna(models.Model):
+    class Tipo(models.TextChoices):
+        LINK = "link", "Link externo"
+        IFRAME = "iframe", "Iframe embutido"
+
+    nome = models.CharField(max_length=100)
+    descricao = models.TextField(blank=True)
+    tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.LINK)
+    url_template = models.CharField(
+        max_length=600,
+        help_text="Use variaveis como {{ ip }}, {{ hostname }}, {{ nome }}, {{ patrimonio }} ou campos externos.",
+    )
+    abrir_em_nova_aba = models.BooleanField(default=True)
+    ativo = models.BooleanField(default=True)
+    ordem = models.PositiveIntegerField(default=0)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["ordem", "nome"]
+        verbose_name = "integracao externa"
+        verbose_name_plural = "integracoes externas"
+
+    def __str__(self):
+        return self.nome
+
+    def renderizar_url(self, ativo):
+        variaveis = {
+            "id": ativo.pk,
+            "nome": ativo.nome,
+            "ip": ativo.ip or "",
+            "hostname": ativo.hostname,
+            "patrimonio": ativo.patrimonio,
+            "mac": ativo.mac,
+            "serial": ativo.numero_serie,
+            "numero_serie": ativo.numero_serie,
+            "tipo": str(ativo.tipo or ""),
+            "setor": str(ativo.setor or ""),
+            "responsavel": ativo.responsavel,
+        }
+        variaveis.update({campo.chave: campo.valor for campo in ativo.campos_externos.all()})
+
+        def substituir(match):
+            chave = match.group(1).strip()
+            return quote(str(variaveis.get(chave, "")), safe="")
+
+        return re.sub(r"\{\{\s*([\w.-]+)\s*\}\}", substituir, self.url_template)
+
+
+class CampoExternoAtivo(models.Model):
+    ativo = models.ForeignKey(AtivoRede, on_delete=models.CASCADE, related_name="campos_externos")
+    chave = models.SlugField(max_length=80)
+    valor = models.CharField(max_length=250)
+    descricao = models.CharField(max_length=180, blank=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["chave"]
+        unique_together = ("ativo", "chave")
+        verbose_name = "campo externo do ativo"
+        verbose_name_plural = "campos externos dos ativos"
+
+    def __str__(self):
+        return f"{self.ativo} - {self.chave}"
+
+
+class RegistroAcessoIntegracao(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    ativo = models.ForeignKey(AtivoRede, on_delete=models.CASCADE, related_name="acessos_integracoes")
+    integracao = models.ForeignKey(IntegracaoExterna, on_delete=models.CASCADE, related_name="acessos")
+    url_gerada = models.CharField(max_length=800)
+    modo = models.CharField(max_length=20, blank=True)
+    ip_origem = models.GenericIPAddressField(null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-criado_em"]
+        verbose_name = "acesso a integracao"
+        verbose_name_plural = "acessos a integracoes"
 
 
 class LicencaSoftware(models.Model):

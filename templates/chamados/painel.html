@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load chamados_extras %}
-{% block title %}Gestao | Sistema de Chamados{% endblock %}
+{% block title %}Gestão | Sistema de Chamados{% endblock %}
 {% block content %}
 {{ status_chart|json_script:"status-chart-data" }}
 {{ categoria_chart|json_script:"categoria-chart-data" }}
@@ -10,8 +10,8 @@
 <div class="page-heading mb-4">
   <div>
     <span class="section-label">Service desk</span>
-    <h1>Gestao de chamados</h1>
-    <p>Visao operacional com filas, SLA, criticidade e produtividade.</p>
+    <h1>Gestão de chamados</h1>
+    <p>Visão operacional com filas, SLA, criticidade e produtividade.</p>
   </div>
   <div class="d-flex gap-2">
     <a class="btn btn-outline-primary" href="{% url 'chamados:lista' %}">Fila de chamados</a>
@@ -30,16 +30,15 @@
 
 <div class="row g-3 mb-4">
   <div class="col-md-3"><a class="metric metric-link metric-danger" href="{% url 'chamados:fila' 'atrasados' %}"><span>SLA vencido</span><strong>{{ contadores.atrasados }}</strong></a></div>
-  <div class="col-md-3"><a class="metric metric-link metric-warning" href="{% url 'chamados:fila' 'nao-atribuidos' %}"><span>Nao atribuidos</span><strong>{{ contadores.nao_atribuidos }}</strong></a></div>
+  <div class="col-md-3"><a class="metric metric-link metric-warning" href="{% url 'chamados:fila' 'nao-atribuidos' %}"><span>Não atribuídos</span><strong>{{ contadores.nao_atribuidos }}</strong></a></div>
   <div class="col-md-3"><div class="metric metric-danger"><span>Criticos abertos</span><strong>{{ contadores.criticos }}</strong></div></div>
   <div class="col-md-3"><div class="metric"><span>Sem 1a resposta</span><strong>{{ contadores.sem_primeira_resposta }}</strong></div></div>
 </div>
 
 <div class="row g-3 mb-4">
-  <div class="col-md-3"><a class="metric metric-link metric-warning" href="{% url 'contratos:lista' %}?alerta=a_vencer"><span>Contratos a vencer</span><strong>{{ indicadores_executivos.contratos_a_vencer|default:0 }}</strong></a></div>
-  <div class="col-md-3"><a class="metric metric-link metric-danger" href="{% url 'contratos:lista' %}?alerta=vencidos"><span>Contratos vencidos</span><strong>{{ indicadores_executivos.contratos_vencidos|default:0 }}</strong></a></div>
-  <div class="col-md-3"><a class="metric metric-link" href="{% url 'inventario:ativos' %}"><span>Agentes sem coleta</span><strong>{{ indicadores_executivos.agentes_sem_coleta|default:0 }}</strong></a></div>
-  <div class="col-md-3"><a class="metric metric-link metric-danger" href="{% url 'inventario:licencas' %}?status=vencida"><span>Licencas vencidas</span><strong>{{ indicadores_executivos.licencas_vencidas|default:0 }}</strong></a></div>
+  <div class="col-md-4"><a class="metric metric-link metric-warning" href="{% url 'contratos:lista' %}?alerta=a_vencer"><span>Contratos a vencer</span><strong>{{ indicadores_executivos.contratos_a_vencer|default:0 }}</strong></a></div>
+  <div class="col-md-4"><a class="metric metric-link metric-danger" href="{% url 'contratos:lista' %}?alerta=vencidos"><span>Contratos vencidos</span><strong>{{ indicadores_executivos.contratos_vencidos|default:0 }}</strong></a></div>
+  <div class="col-md-4"><a class="metric metric-link" href="{% url 'inventario:ativos' %}"><span>Agentes sem coleta</span><strong>{{ indicadores_executivos.agentes_sem_coleta|default:0 }}</strong></a></div>
 </div>
 
 <div class="row g-4 mb-4">

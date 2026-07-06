@@ -1,8 +1,8 @@
-{% extends "base.html" %}
-{% block title %}Mudancas | Sistema de Chamados{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}Mudanças | Sistema de Chamados{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <div><h1 class="h3 mb-0">Gestao de mudancas</h1><p class="text-secondary mb-0">Risco, janela, plano de execucao e rollback.</p></div>
+  <div><h1 class="h3 mb-0">Gestão de mudanças</h1><p class="text-secondary mb-0">Risco, janela, plano de execução e rollback.</p></div>
   <a class="btn btn-primary" href="{% url 'chamados:mudanca_nova' %}">Nova mudanca</a>
 </div>
 <form method="get" class="row g-2 mb-3 filters">
@@ -13,7 +13,7 @@
 </form>
 <section class="detail-section">
   <table class="table table-hover align-middle mb-0">
-    <thead><tr><th>Titulo</th><th>Status</th><th>Risco</th><th>Responsavel</th><th>Janela</th></tr></thead>
+    <thead><tr><th>Título</th><th>Status</th><th>Risco</th><th>Responsável</th><th>Janela</th></tr></thead>
     <tbody>
       {% for mudanca in mudancas %}
         <tr><td><a href="{{ mudanca.get_absolute_url }}">{{ mudanca.titulo }}</a></td><td>{{ mudanca.get_status_display }}</td><td>{{ mudanca.get_risco_display }}</td><td>{{ mudanca.responsavel|default:"-" }}</td><td>{{ mudanca.janela_inicio|date:"d/m/Y H:i"|default:"-" }}</td></tr>
@@ -24,3 +24,4 @@
   </table>
 </section>
 {% endblock %}
+

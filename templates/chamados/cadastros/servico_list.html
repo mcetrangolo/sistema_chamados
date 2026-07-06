@@ -34,7 +34,7 @@
             <div class="d-inline-flex gap-2">
               <a class="btn btn-sm btn-outline-secondary" href="{% url 'chamados:servico_campos' servico.pk %}">Campos</a>
               <a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:servico_editar' servico.pk %}">Editar</a>
-              <form method="post" action="{% url 'chamados:servico_excluir' servico.pk %}" onsubmit="return confirm('Excluir este servico do catalogo? Se houver solicitacoes vinculadas, a exclusao sera bloqueada.');">
+              <form method="post" action="{% url 'chamados:servico_excluir' servico.pk %}" onsubmit="return confirm('Excluir este serviço do catálogo? Se houver solicitações vinculadas, a exclusão será bloqueada.');">
                 {% csrf_token %}
                 <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
               </form>

@@ -108,25 +108,12 @@
       </table>
     </section>
     <section class="detail-section">
-      <h2 class="h5">Licencas vinculadas</h2>
-      <table class="table table-sm mb-0">
-        <thead><tr><th>Software</th><th>Fabricante</th><th>Validade</th><th>Status</th></tr></thead>
-        <tbody>
-          {% for licenca in ativo.licencas.all %}
-            <tr><td>{{ licenca.nome }}</td><td>{{ licenca.fabricante|default:"-" }}</td><td>{{ licenca.validade|date:"d/m/Y"|default:"-" }}</td><td>{{ licenca.get_status_display }}</td></tr>
-          {% empty %}
-            <tr><td colspan="4" class="text-secondary">Nenhuma licenca vinculada.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
-    <section class="detail-section">
       <h2 class="h5">Termos de responsabilidade</h2>
-      <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Data</th><th>Tipo</th><th>Responsavel</th><th>Matricula</th><th>Assinatura</th><th class="text-end">Documento</th></tr></thead><tbody>{% for termo in ativo.termos_responsabilidade.all %}<tr><td>{{ termo.data_evento|date:"d/m/Y" }}</td><td>{{ termo.get_tipo_display }}</td><td>{{ termo.responsavel }}</td><td>{{ termo.matricula|default:"-" }}</td><td>{{ termo.assinatura_nome|default:"-" }}</td><td class="text-end"><a class="btn btn-sm btn-outline-danger" href="{% url 'inventario:termo_pdf' termo.pk %}" target="_blank">PDF</a></td></tr>{% empty %}<tr><td colspan="6" class="text-secondary">Nenhum termo registrado.</td></tr>{% endfor %}</tbody></table></div>
+      <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Data</th><th>Tipo</th><th>Responsável</th><th>Matrícula</th><th>Assinatura</th><th class="text-end">Documento</th></tr></thead><tbody>{% for termo in ativo.termos_responsabilidade.all %}<tr><td>{{ termo.data_evento|date:"d/m/Y" }}</td><td>{{ termo.get_tipo_display }}</td><td>{{ termo.responsavel }}</td><td>{{ termo.matricula|default:"-" }}</td><td>{{ termo.assinatura_nome|default:"-" }}</td><td class="text-end"><a class="btn btn-sm btn-outline-danger" href="{% url 'inventario:termo_pdf' termo.pk %}" target="_blank">PDF</a></td></tr>{% empty %}<tr><td colspan="6" class="text-secondary">Nenhum termo registrado.</td></tr>{% endfor %}</tbody></table></div>
     </section>
     <section class="detail-section">
       <h2 class="h5">Movimentacoes patrimoniais</h2>
-      <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Data</th><th>Ciclo</th><th>Setor</th><th>Local</th><th>Responsavel</th><th>Motivo</th></tr></thead><tbody>{% for item in ativo.movimentacoes.all %}<tr><td>{{ item.criado_em|date:"d/m/Y H:i" }}</td><td>{{ item.get_ciclo_anterior_display }} &rarr; {{ item.get_ciclo_novo_display }}</td><td>{{ item.setor_origem|default:"-" }} &rarr; {{ item.setor_destino|default:"-" }}</td><td>{{ item.local_origem|default:"-" }} &rarr; {{ item.local_destino|default:"-" }}</td><td>{{ item.responsavel_origem|default:"-" }} &rarr; {{ item.responsavel_destino|default:"-" }}</td><td>{{ item.motivo }}</td></tr>{% empty %}<tr><td colspan="6" class="text-secondary">Nenhuma movimentacao registrada.</td></tr>{% endfor %}</tbody></table></div>
+      <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Data</th><th>Ciclo</th><th>Setor</th><th>Local</th><th>Responsável</th><th>Motivo</th></tr></thead><tbody>{% for item in ativo.movimentacoes.all %}<tr><td>{{ item.criado_em|date:"d/m/Y H:i" }}</td><td>{{ item.get_ciclo_anterior_display }} &rarr; {{ item.get_ciclo_novo_display }}</td><td>{{ item.setor_origem|default:"-" }} &rarr; {{ item.setor_destino|default:"-" }}</td><td>{{ item.local_origem|default:"-" }} &rarr; {{ item.local_destino|default:"-" }}</td><td>{{ item.responsavel_origem|default:"-" }} &rarr; {{ item.responsavel_destino|default:"-" }}</td><td>{{ item.motivo }}</td></tr>{% empty %}<tr><td colspan="6" class="text-secondary">Nenhuma movimentação registrada.</td></tr>{% endfor %}</tbody></table></div>
     </section>
     <section class="detail-section">
       <h2 class="h5">Historico de alteracoes</h2>
@@ -149,6 +136,46 @@
       <p class="text-secondary small mb-0">Patrimonio {{ ativo.patrimonio|default:"nao informado" }}</p>
       <a class="btn btn-sm btn-outline-primary mt-3" href="{{ qr_public_url }}" target="_blank" rel="noopener">Testar QR Code</a>
     </section>
+    {% if False %}
+    <section class="side-panel mt-3">
+      <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+        <h2 class="h6 mb-0">Integracoes externas</h2>
+        {% if perfil_acesso.suporte_n2 %}
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'inventario:integracoes' %}">Configurar</a>
+        {% endif %}
+      </div>
+      {% for item in integracoes_externas %}
+        <a class="btn btn-outline-primary w-100 mb-2" href="{% url 'inventario:ativo_integracao_abrir' ativo.pk item.objeto.pk %}" {% if item.objeto.tipo == "link" and item.objeto.abrir_em_nova_aba %}target="_blank" rel="noopener"{% endif %}>
+          {{ item.objeto.nome }}
+        </a>
+      {% empty %}
+        <p class="text-secondary small mb-0">Nenhuma integracao ativa cadastrada.</p>
+      {% endfor %}
+    </section>
+    {% if perfil_acesso.suporte_n2 %}
+      <section class="side-panel mt-3">
+        <h2 class="h6">Campos externos</h2>
+        <ul class="task-list mb-3">
+          {% for campo in ativo.campos_externos.all %}
+            <li>
+              <strong>{{ campo.chave }}</strong>
+              <span>{{ campo.valor }}{% if campo.descricao %} - {{ campo.descricao }}{% endif %}</span>
+              <form method="post" action="{% url 'inventario:ativo_campo_externo_excluir' ativo.pk campo.pk %}" class="mt-2">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger" type="submit">Remover</button>
+              </form>
+            </li>
+          {% empty %}
+            <li class="text-secondary">Nenhum campo externo cadastrado.</li>
+          {% endfor %}
+        </ul>
+        <form method="post" action="{% url 'inventario:ativo_campo_externo_salvar' ativo.pk %}">
+          {% csrf_token %}
+          {% include "chamados/partials/form_fields.html" with form=campo_externo_form %}
+          <button class="btn btn-outline-primary w-100" type="submit">Salvar campo externo</button>
+        </form>
+      </section>
+    {% endif %}
     <section class="side-panel mt-3">
       <h2 class="h6">Movimentar / alterar ciclo</h2>
       <form method="post" action="{% url 'inventario:ativo_movimentar' ativo.pk %}">
@@ -225,6 +252,18 @@
         {% endfor %}
       </ul>
     </section>
+    {% endif %}
+    <section class="side-panel mt-3">
+      <h2 class="h6">Ocorrências</h2>
+      <ul class="task-list">
+        {% for ocorrencia in ativo.ocorrencias.all %}
+          <li><strong>{{ ocorrencia.titulo }}</strong><span>{{ ocorrencia.get_tipo_display }} - {{ ocorrencia.criado_em|date:"d/m/Y H:i" }}</span></li>
+        {% empty %}
+          <li class="text-secondary">Nenhuma ocorrencia registrada.</li>
+        {% endfor %}
+      </ul>
+    </section>
   </aside>
 </div>
 {% endblock %}
+

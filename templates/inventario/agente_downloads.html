@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Download do agente | Inventario{% endblock %}
+{% block title %}Download do agente | Inventário{% endblock %}
 {% block content %}
 <div class="page-heading mb-4">
   <div>
-    <span class="section-label">Inventario automatico</span>
+    <span class="section-label">Inventário automático</span>
     <h1>Download do agente</h1>
-    <p>Baixe o instalador, confira o endpoint de coleta e use o token correto para conectar as estacoes ao servidor.</p>
+    <p>Baixe o instalador, confira o endpoint de coleta e use o token correto para conectar as estações ao servidor.</p>
   </div>
   <div class="d-flex gap-2">
     <a class="btn btn-outline-primary" href="{% url 'inventario:agente_config' %}">Ver agentes</a>
@@ -61,13 +61,13 @@
       </div>
       <dl class="config-list">
         <dt>Arquivo</dt><dd>{{ instalador_linux_nome }}</dd>
-        <dt>Configuracao</dt><dd>O script ja inclui URL e token padrao do servidor no momento do download.</dd>
+        <dt>Configuração</dt><dd>O script já inclui URL e token padrão do servidor no momento do download.</dd>
       </dl>
       <ol class="mb-3">
         <li>Baixe o script no servidor ou estacao Linux.</li>
         <li>Execute <code>chmod +x sistema-chamados-agent-linux.sh</code>.</li>
         <li>Rode com <code>sudo ./sistema-chamados-agent-linux.sh</code>.</li>
-        <li>Confira o servico e a proxima coleta.</li>
+        <li>Confira o serviço e a próxima coleta.</li>
       </ol>
       <a class="btn btn-primary {% if not pode_baixar_agente %}disabled{% endif %}" href="{% url 'inventario:agente_linux_download' %}">Baixar agente Linux</a>
     </section>
@@ -79,7 +79,7 @@
     <section class="detail-section">
       <h2 class="h5">Dados de conexao</h2>
       {% if usa_endereco_local %}
-        <div class="alert alert-warning py-2">Use o IP ou DNS do servidor nas estacoes da rede. Evite instalar agentes apontando para localhost.</div>
+        <div class="alert alert-warning py-2">Use o IP ou DNS do servidor nas estações da rede. Evite instalar agentes apontando para localhost.</div>
       {% endif %}
       {% if token_origem == "padrao" %}
         <div class="alert alert-warning py-2">
@@ -90,16 +90,16 @@
         <dt>Endpoint</dt><dd><code>{{ endpoint }}</code></dd>
         <dt>Token</dt><dd>{% if pode_baixar_agente %}<code>{{ token }}</code>{% else %}-{% endif %}</dd>
         <dt>Origem do token</dt><dd>{% if token_origem == "env" %}Arquivo .env{% elif token_origem %}Token fixo de compatibilidade{% else %}-{% endif %}</dd>
-        <dt>Endereco detectado</dt><dd><code>{{ url_detectada }}</code></dd>
+        <dt>Endereço detectado</dt><dd><code>{{ url_detectada }}</code></dd>
         {% if public_base_url %}<dt>PUBLIC_BASE_URL</dt><dd><code>{{ public_base_url }}</code></dd>{% endif %}
       </dl>
     </section>
   </div>
   <div class="col-lg-5">
     <section class="detail-section">
-      <h2 class="h5">Enderecos sugeridos</h2>
+      <h2 class="h5">Endereços sugeridos</h2>
       {% if bases_sugeridas %}
-        <p class="text-secondary">Use um destes enderecos se as estacoes estiverem na mesma rede do servidor.</p>
+        <p class="text-secondary">Use um destes endereços se as estações estiverem na mesma rede do servidor.</p>
         {% for base in bases_sugeridas %}
           <code class="d-block mb-2">{{ base }}</code>
         {% endfor %}

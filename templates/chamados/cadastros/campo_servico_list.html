@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Campos do servico | Catalogo{% endblock %}
+{% block title %}Campos do serviço | Catálogo{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h1 class="h3 mb-0">Campos do servico</h1>
+    <h1 class="h3 mb-0">Campos do serviço</h1>
     <p class="text-secondary mb-0">{{ servico.nome }}</p>
   </div>
   <div class="d-flex gap-2">
@@ -26,7 +26,7 @@
           <td class="text-end">
             <div class="d-inline-flex gap-2">
               <a class="btn btn-sm btn-outline-primary" href="{% url 'chamados:servico_campo_editar' campo.pk %}">Editar</a>
-              <form method="post" action="{% url 'chamados:servico_campo_excluir' campo.pk %}" onsubmit="return confirm('Excluir este campo do servico?');">
+              <form method="post" action="{% url 'chamados:servico_campo_excluir' campo.pk %}" onsubmit="return confirm('Excluir este campo do serviço?');">
                 {% csrf_token %}
                 <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
               </form>

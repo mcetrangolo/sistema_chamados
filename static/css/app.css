@@ -1235,6 +1235,21 @@ a {
   width: 100%;
 }
 
+.integration-frame-shell {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  height: calc(100vh - 180px);
+  min-height: 520px;
+  overflow: hidden;
+}
+
+.integration-frame-shell iframe {
+  border: 0;
+  height: 100%;
+  width: 100%;
+}
+
 .app-shell {
   display: flex;
   min-height: 100vh;

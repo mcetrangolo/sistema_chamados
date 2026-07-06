@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Duplicidades | Inventario{% endblock %}
+{% block title %}Duplicidades | Inventário{% endblock %}
 {% block content %}
 <div class="page-heading mb-4">
   <div><span class="section-label">Qualidade dos dados</span><h1>Ativos possivelmente duplicados</h1><p>Compare registros com identificadores repetidos antes de mesclar.</p></div>
   <a class="btn btn-outline-primary" href="{% url 'inventario:ativos' %}">Voltar aos ativos</a>
 </div>
-<div class="alert alert-info">A mesclagem transfere chamados, licencas, interfaces, ocorrencias, coletas e relacionamentos para o registro principal.</div>
+<div class="alert alert-info">A mesclagem transfere chamados, interfaces, ocorrencias, coletas e relacionamentos para o registro principal.</div>
 <section class="detail-section">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
-      <thead><tr><th>Conflito</th><th>Valor</th><th>Registros</th><th class="text-end">Acao</th></tr></thead>
+      <thead><tr><th>Conflito</th><th>Valor</th><th>Registros</th><th class="text-end">Ação</th></tr></thead>
       <tbody>
         {% for grupo in grupos %}
           <tr>

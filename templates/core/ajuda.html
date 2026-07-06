@@ -35,7 +35,6 @@
     <a href="#sla">SLA e filas</a>
     <a href="#inventario">Inventário</a>
     <a href="#agentes">Agentes</a>
-    <a href="#licencas">Licenças</a>
     <a href="#relatorios">Relatórios</a>
     <a href="#documentacao">Documentação</a>
     <a href="#contratos">Contratos</a>
@@ -61,7 +60,7 @@
         </article>
         <article class="help-card">
           <h3>Inventário</h3>
-          <p>Registra equipamentos, agentes, sondas, faixas de rede, licenças, movimentações, termos de responsabilidade e relacionamentos de ativos.</p>
+          <p>Registra equipamentos, agentes, sondas, faixas de rede, movimentações, termos de responsabilidade e relacionamentos de ativos.</p>
         </article>
         <article class="help-card">
           <h3>Relatórios e governança</h3>
@@ -185,7 +184,6 @@
         <a href="{% url 'chamados:catalogo' %}">Catálogo público</a>
         {% if perfil_acesso.suporte_n2 %}<a href="{% url 'chamados:servicos' %}">Administrar catálogo</a>{% endif %}
         <a href="{% url 'governanca:portal' %}">Portal de governança</a>
-        {% if perfil_acesso.suporte_n2 %}<a href="{% url 'governanca:solicitacoes' %}">Solicitações de governança</a>{% endif %}
       </div>
     </section>
 
@@ -232,7 +230,7 @@
       <div class="help-two-columns">
         <div>
           <h3>Para que serve</h3>
-          <p>O inventário registra computadores, servidores, switches, roteadores, impressoras, periféricos, licenças e ativos descobertos por agente ou varredura.</p>
+          <p>O inventário registra computadores, servidores, switches, roteadores, impressoras, periféricos e ativos descobertos por agente ou varredura.</p>
           <ul>
             <li>Ativos ativos entram nos indicadores e relatórios operacionais.</li>
             <li>Ativos desativados ficam fora dos totais correntes.</li>
@@ -292,35 +290,6 @@
       {% endif %}
     </section>
 
-    <section class="help-section" id="licencas" data-help-section>
-      <div class="help-section-title">
-        <span>08</span>
-        <div>
-          <h2>Licenças de Software</h2>
-          <p>Acompanhe quantidade comprada, uso, vencimento, anexos e conformidade.</p>
-        </div>
-      </div>
-      <div class="help-two-columns">
-        <div>
-          <h3>Quando utilizar</h3>
-          <p>Use para controlar softwares pagos, contratos, chaves, notas, anexos e vínculo com computadores inventariados.</p>
-        </div>
-        <div>
-          <h3>Boas práticas</h3>
-          <ul>
-            <li>Cadastre validade ou marque como perpétua/sem vencimento.</li>
-            <li>Vincule ativos consumidores da licença.</li>
-            <li>Use conciliação para comparar softwares coletados com licenças cadastradas.</li>
-            <li>Revise saldo antes de autorizar instalação de novos softwares.</li>
-          </ul>
-        </div>
-      </div>
-      <div class="help-actions">
-        <a href="{% url 'inventario:licencas' %}">Licenças</a>
-        <a href="{% url 'inventario:licencas_conciliacao' %}">Conciliação</a>
-      </div>
-    </section>
-
     <section class="help-section" id="relatorios" data-help-section>
       <div class="help-section-title">
         <span>09</span>
@@ -336,7 +305,7 @@
         </article>
         <article class="help-card">
           <h3>Relatório de inventário</h3>
-          <p>Mostra equipamentos, status, origem, fabricantes, sistemas operacionais, licenças, cobertura de dados, ativos filtrados e varreduras.</p>
+          <p>Mostra equipamentos, status, origem, fabricantes, sistemas operacionais, cobertura de dados, ativos filtrados e varreduras.</p>
         </article>
         <article class="help-card">
           <h3>Indicadores do painel</h3>

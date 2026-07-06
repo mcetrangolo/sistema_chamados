@@ -13,7 +13,7 @@ from django.core import signing
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, JsonResponse, HttpResponse
@@ -34,9 +34,11 @@ from .forms import (
     AtivoRedeForm,
     AgendamentoVarreduraForm,
     AnexoLicencaSoftwareForm,
+    CampoExternoAtivoForm,
     CredencialSNMPForm,
     FaixaRedeForm,
     ImportacaoAtivosCSVForm,
+    IntegracaoExternaForm,
     LicencaSoftwareForm,
     MesclarAtivosForm,
     MovimentacaoAtivoForm,
@@ -52,8 +54,10 @@ from .models import (
     AgendamentoVarredura,
     AnexoLicencaSoftware,
     AtivoRede,
+    CampoExternoAtivo,
     CredencialSNMP,
     FaixaRede,
+    IntegracaoExterna,
     InterfaceRede,
     LicencaSoftware,
     HistoricoAlteracaoAtivo,
@@ -61,6 +65,7 @@ from .models import (
     MovimentacaoAtivo,
     OcorrenciaAtivo,
     RelacionamentoAtivo,
+    RegistroAcessoIntegracao,
     RegistroColetaAgente,
     SondaRemota,
     TermoResponsabilidadeAtivo,
@@ -1463,7 +1468,7 @@ class AtivoRedeDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return AtivoRede.objects.select_related("tipo", "setor").prefetch_related(
-            "interfaces", "ocorrencias", "chamados", "relacoes_origem__destino", "relacoes_destino__origem", "licencas", "historico_alteracoes", "movimentacoes", "termos_responsabilidade"
+            "interfaces", "ocorrencias", "chamados", "relacoes_origem__destino", "relacoes_destino__origem", "licencas", "historico_alteracoes", "movimentacoes", "termos_responsabilidade", "campos_externos"
         )
 
     def get_context_data(self, **kwargs):
@@ -1478,7 +1483,102 @@ class AtivoRedeDetailView(LoginRequiredMixin, DetailView):
             "setor": self.object.setor,
             "data_evento": timezone.localdate(),
         })
+        integracoes = []
+        for integracao in IntegracaoExterna.objects.filter(ativo=True):
+            integracoes.append({
+                "objeto": integracao,
+                "url": integracao.renderizar_url(self.object),
+            })
+        context["integracoes_externas"] = integracoes
+        context["campo_externo_form"] = CampoExternoAtivoForm()
         return context
+
+
+class SuporteN2RequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return usuario_e_suporte_n2(self.request.user)
+
+
+class IntegracaoExternaListView(LoginRequiredMixin, SuporteN2RequiredMixin, ListView):
+    model = IntegracaoExterna
+    template_name = "inventario/integracao_list.html"
+    context_object_name = "integracoes"
+
+
+class IntegracaoExternaCreateView(LoginRequiredMixin, SuporteN2RequiredMixin, CreateView):
+    model = IntegracaoExterna
+    form_class = IntegracaoExternaForm
+    template_name = "inventario/integracao_form.html"
+    success_url = reverse_lazy("inventario:integracoes")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Integracao experimental criada com sucesso.")
+        return super().form_valid(form)
+
+
+class IntegracaoExternaUpdateView(LoginRequiredMixin, SuporteN2RequiredMixin, UpdateView):
+    model = IntegracaoExterna
+    form_class = IntegracaoExternaForm
+    template_name = "inventario/integracao_form.html"
+    success_url = reverse_lazy("inventario:integracoes")
+
+    def form_valid(self, form):
+        messages.success(self.request, "Integracao experimental atualizada com sucesso.")
+        return super().form_valid(form)
+
+
+@login_required
+def abrir_integracao_ativo(request, ativo_pk, integracao_pk):
+    ativo = get_object_or_404(AtivoRede.objects.prefetch_related("campos_externos"), pk=ativo_pk)
+    integracao = get_object_or_404(IntegracaoExterna, pk=integracao_pk, ativo=True)
+    url = integracao.renderizar_url(ativo)
+    RegistroAcessoIntegracao.objects.create(
+        usuario=request.user,
+        ativo=ativo,
+        integracao=integracao,
+        url_gerada=url,
+        modo=integracao.tipo,
+        ip_origem=ip_origem_request(request),
+    )
+    if integracao.tipo == IntegracaoExterna.Tipo.IFRAME:
+        return TemplateView.as_view(template_name="inventario/integracao_iframe.html")(
+            request,
+            ativo=ativo,
+            integracao=integracao,
+            url_integracao=url,
+        )
+    return redirect(url)
+
+
+@login_required
+@user_passes_test(usuario_e_suporte_n2)
+def salvar_campo_externo_ativo(request, pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk)
+    form = CampoExternoAtivoForm(request.POST)
+    if form.is_valid():
+        CampoExternoAtivo.objects.update_or_create(
+            ativo=ativo,
+            chave=form.cleaned_data["chave"],
+            defaults={
+                "valor": form.cleaned_data["valor"],
+                "descricao": form.cleaned_data["descricao"],
+            },
+        )
+        messages.success(request, "Campo externo salvo para este ativo.")
+    else:
+        messages.error(request, "Revise o campo externo informado.")
+    return redirect(ativo)
+
+
+@login_required
+@user_passes_test(usuario_e_suporte_n2)
+def excluir_campo_externo_ativo(request, pk, campo_pk):
+    ativo = get_object_or_404(AtivoRede, pk=pk)
+    campo = get_object_or_404(CampoExternoAtivo, pk=campo_pk, ativo=ativo)
+    if request.method == "POST":
+        campo.delete()
+        messages.success(request, "Campo externo removido.")
+    return redirect(ativo)
 
 
 class LicencaSoftwareListView(LoginRequiredMixin, ListView):

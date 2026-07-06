@@ -8,17 +8,15 @@
   </div>
   <div class="d-flex gap-2">
     <a class="btn btn-outline-secondary" href="{% url 'inventario:agente_config' %}">Agentes</a>
-    <a class="btn btn-outline-primary" href="{% url 'inventario:licencas' %}">Licencas</a>
     <a class="btn btn-primary" href="{% url 'inventario:ativo_novo' %}">Novo ativo</a>
   </div>
 </div>
 <div class="row g-3 mb-4">
-  <div class="col-md-2"><div class="metric"><span>Ativos</span><strong>{{ contadores.total }}</strong></div></div>
-  <div class="col-md-2"><div class="metric"><span>Online</span><strong>{{ contadores.online }}</strong></div></div>
-  <div class="col-md-2"><div class="metric"><span>Offline</span><strong>{{ contadores.offline }}</strong></div></div>
-  <div class="col-md-2"><a class="metric metric-link metric-warning" href="{% url 'inventario:ativos_sem_comunicacao' %}"><span>Sem comunicacao</span><strong>{{ contadores.sem_comunicacao }}</strong></a></div>
-  <div class="col-md-2"><a class="metric metric-link" href="{% url 'inventario:ativos_sem_comunicacao' %}?situacao=arquivados"><span>Arquivados</span><strong>{{ contadores.arquivados }}</strong></a></div>
-  <div class="col-md-2"><div class="metric"><span>Licencas</span><strong>{{ contadores.licencas }}</strong></div></div>
+  <div class="col-md"><div class="metric"><span>Ativos</span><strong>{{ contadores.total }}</strong></div></div>
+  <div class="col-md"><div class="metric"><span>Online</span><strong>{{ contadores.online }}</strong></div></div>
+  <div class="col-md"><div class="metric"><span>Offline</span><strong>{{ contadores.offline }}</strong></div></div>
+  <div class="col-md"><a class="metric metric-link metric-warning" href="{% url 'inventario:ativos_sem_comunicacao' %}"><span>Sem comunicação</span><strong>{{ contadores.sem_comunicacao }}</strong></a></div>
+  <div class="col-md"><a class="metric metric-link" href="{% url 'inventario:ativos_sem_comunicacao' %}?situacao=arquivados"><span>Arquivados</span><strong>{{ contadores.arquivados }}</strong></a></div>
 </div>
 <div class="row g-4">
   <div class="col-xl-8">
@@ -50,7 +48,7 @@
           {% endif %}
           <span class="text-secondary small">Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
           {% if page_obj.has_next %}
-            <a class="btn btn-sm btn-outline-primary" href="?page={{ page_obj.next_page_number }}">Proxima</a>
+            <a class="btn btn-sm btn-outline-primary" href="?page={{ page_obj.next_page_number }}">Próxima</a>
           {% endif %}
         </div>
       {% endif %}
@@ -72,3 +70,4 @@
   </div>
 </div>
 {% endblock %}
+

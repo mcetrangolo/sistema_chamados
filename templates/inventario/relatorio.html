@@ -1,5 +1,5 @@
-{% extends "base.html" %}
-{% block title %}Relatorios de inventario | Inventario{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}Relatórios de inventário | Inventário{% endblock %}
 {% block content %}
 {{ tipo_chart|json_script:"inventario-tipo-chart-data" }}
 {{ status_chart|json_script:"inventario-status-chart-data" }}
@@ -9,8 +9,8 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h1 class="h3 mb-0">Relatorios de inventario</h1>
-    <p class="text-secondary mb-0">Equipamentos, softwares detectados, licencas, cobertura de dados e varreduras.</p>
+    <h1 class="h3 mb-0">Relatórios de inventário</h1>
+    <p class="text-secondary mb-0">Equipamentos, softwares detectados, cobertura de dados e varreduras.</p>
   </div>
   <div class="d-flex gap-2">
     <a class="btn btn-outline-secondary" href="{% url 'inventario:ativos' %}">Ativos</a>
@@ -24,7 +24,7 @@
   </div>
 {% endif %}
 <div class="alert alert-secondary py-2">
-  Ativos arquivados/desativados nao participam dos totais, graficos, licencas em uso ou exportacoes operacionais.
+  Ativos arquivados/desativados nao participam dos totais, graficos ou exportacoes operacionais.
 </div>
 
 <form method="get" class="filters report-filters mb-4">
@@ -44,16 +44,14 @@
 </form>
 
 <div class="row g-3 mb-4">
-  <div class="col-md-3"><div class="metric"><span>Equipamentos</span><strong>{{ indicadores.total }}</strong></div></div>
-  <div class="col-md-3"><div class="metric"><span>Softwares detectados</span><strong>{{ indicadores.softwares_total }}</strong></div></div>
-  <div class="col-md-3"><div class="metric"><span>Licencas</span><strong>{{ indicadores.licencas_total }}</strong></div></div>
-  <div class="col-md-3"><div class="metric"><span>Posicoes livres</span><strong>{{ indicadores.licencas_saldo }}</strong></div></div>
+  <div class="col-md-6"><div class="metric"><span>Equipamentos</span><strong>{{ indicadores.total }}</strong></div></div>
+  <div class="col-md-6"><div class="metric"><span>Softwares detectados</span><strong>{{ indicadores.softwares_total }}</strong></div></div>
 </div>
 <div class="row g-3 mb-4">
   <div class="col-md"><div class="metric"><span>Online</span><strong>{{ indicadores.online }}</strong></div></div>
   <div class="col-md"><div class="metric"><span>Offline</span><strong>{{ indicadores.offline }}</strong></div></div>
   <div class="col-md"><div class="metric"><span>Sem coleta</span><strong>{{ indicadores.sem_coleta }}</strong></div></div>
-  <div class="col-md"><a class="metric metric-link metric-warning" href="{% url 'inventario:ativos_sem_comunicacao' %}"><span>Sem comunicacao</span><strong>{{ indicadores.sem_comunicacao }}</strong></a></div>
+  <div class="col-md"><a class="metric metric-link metric-warning" href="{% url 'inventario:ativos_sem_comunicacao' %}"><span>Sem comunicação</span><strong>{{ indicadores.sem_comunicacao }}</strong></a></div>
   <div class="col-md"><div class="metric"><span>Interfaces mapeadas</span><strong>{{ indicadores.com_interfaces }}</strong></div></div>
 </div>
 
@@ -72,7 +70,7 @@
   </div>
   <div class="col-lg-6 col-xl-4">
     <section class="report-block">
-      <h2 class="h5">Origem do inventario</h2>
+      <h2 class="h5">Origem do inventário</h2>
       <div class="report-chart-canvas"><canvas id="inventarioOrigemChart"></canvas></div>
     </section>
   </div>
@@ -109,42 +107,19 @@
     </section>
   </div>
 
-  <div class="col-xl-8">
-    <section class="report-block">
-      <h2 class="h5">Licencas de software</h2>
-      <table class="table table-sm align-middle mb-0">
-        <thead><tr><th>Licenca</th><th>Status</th><th>Total</th><th>Uso</th><th>Saldo</th></tr></thead>
-        <tbody>
-          {% for item in indicadores.licencas_lista %}
-            <tr>
-              <td><a href="{% url 'inventario:licenca_detalhe' item.licenca.pk %}">{{ item.licenca.nome }}</a></td>
-              <td>{{ item.licenca.get_status_display }}</td>
-              <td>{{ item.licenca.quantidade_total }}</td>
-              <td>{{ item.em_uso }}</td>
-              <td class="fw-semibold">{{ item.saldo }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="5" class="text-secondary">Nenhuma licenca cadastrada.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
-  </div>
-
   <div class="col-xl-5">
     <section class="report-block">
       <h2 class="h5">Softwares detectados</h2>
       <table class="table table-sm align-middle mb-0">
-        <thead><tr><th>Software</th><th>Ocorrencias</th><th>Cobertura</th></tr></thead>
+        <thead><tr><th>Software</th><th>Ocorrências</th></tr></thead>
         <tbody>
           {% for item in indicadores.softwares %}
             <tr>
               <td>{{ item.nome }}</td>
               <td class="fw-semibold">{{ item.total }}</td>
-              <td>{% if item.coberto %}<span class="badge text-bg-success">Licenciado</span>{% else %}<span class="badge text-bg-warning">Sem vinculo</span>{% endif %}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="3" class="text-secondary">Nenhum software coletado pelos agentes.</td></tr>
+            <tr><td colspan="2" class="text-secondary">Nenhum software coletado pelos agentes.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -253,3 +228,4 @@
   buildInventoryChart("inventarioSoChart", "inventario-so-chart-data", "pie");
 </script>
 {% endblock %}
+
