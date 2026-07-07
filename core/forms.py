@@ -53,8 +53,8 @@ class ConfiguracaoInstitucionalForm(BootstrapFormMixin, forms.ModelForm):
             "tema_visual": "Escolha Personalizado para liberar o uso manual das cores abaixo.",
         }
         labels = {
-            "cor_primaria": "Cor primaria",
-            "cor_secundaria": "Cor secundaria",
+            "cor_primaria": "Cor primária",
+            "cor_secundaria": "Cor secundária",
             "cor_fundo": "Cor de fundo",
             "cor_texto": "Cor da fonte",
             "cor_menu_texto": "Cor da fonte do menu lateral",
@@ -95,9 +95,9 @@ class UsuarioSistemaForm(BootstrapFormMixin, forms.ModelForm):
         cleaned_data = super().clean()
         if self.instance == self.usuario_logado:
             if not cleaned_data.get("is_active", True):
-                self.add_error("is_active", "Nao e possivel desativar o proprio usuario logado.")
+                self.add_error("is_active", "Não é possível desativar o próprio usuário logado.")
             if cleaned_data.get("papel") != "admin":
-                self.add_error("papel", "Nao e possivel remover o proprio perfil de administrador.")
+                self.add_error("papel", "Não é possível remover o próprio perfil de administrador.")
         return cleaned_data
 
     def save(self, commit=True):
@@ -118,13 +118,13 @@ class ConfiguracaoBackupForm(BootstrapFormMixin, forms.ModelForm):
         model = ConfiguracaoBackup
         fields = ["ativo", "intervalo_horas", "pasta_destino", "manter_ultimos", "validar_automaticamente"]
         help_texts = {
-            "pasta_destino": "Pasta local, compartilhamento de rede montado ou caminho acessivel pelo servidor.",
+            "pasta_destino": "Pasta local, compartilhamento de rede montado ou caminho acessível pelo servidor.",
         }
 
 
 class ConfiguracaoLDAPForm(BootstrapFormMixin, forms.ModelForm):
     senha = forms.CharField(
-        label="Senha do usuario de bind",
+        label="Senha do usuário de bind",
         required=False,
         widget=forms.PasswordInput(render_value=False),
         help_text="Deixe em branco para manter a senha atual.",
@@ -133,9 +133,20 @@ class ConfiguracaoLDAPForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = ConfiguracaoLDAP
         fields = [
-            "ativo", "servidor", "porta", "usar_ssl", "usuario_bind", "senha", "base_dn",
-            "filtro_usuarios", "filtro_computadores", "atributo_login", "atributo_nome", "atributo_sobrenome",
-            "atributo_email", "sincronizar_ativos",
+            "ativo",
+            "servidor",
+            "porta",
+            "usar_ssl",
+            "usuario_bind",
+            "senha",
+            "base_dn",
+            "filtro_usuarios",
+            "filtro_computadores",
+            "atributo_login",
+            "atributo_nome",
+            "atributo_sobrenome",
+            "atributo_email",
+            "sincronizar_ativos",
         ]
 
     def save(self, commit=True):

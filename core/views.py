@@ -5,7 +5,6 @@ import platform
 from re import sub
 import shutil
 import subprocess
-import sys
 import urllib.request
 
 from django.conf import settings
@@ -97,7 +96,7 @@ class UsuarioSistemaUpdateView(LoginRequiredMixin, SuperuserRequiredMixin, Updat
         return kwargs
 
     def form_valid(self, form):
-        messages.success(self.request, "Usuario atualizado com sucesso.")
+        messages.success(self.request, "Usuário atualizado com sucesso.")
         return super().form_valid(form)
 
 
@@ -114,6 +113,32 @@ def alterar_senha_usuario(request, pk):
     else:
         form = UsuarioSenhaAdminForm(usuario)
     return render(request, "core/usuario_senha_form.html", {"form": form, "usuario_editado": usuario})
+
+
+@login_required
+@user_passes_test(lambda user: user.is_superuser)
+@require_POST
+def alternar_status_usuario(request, pk):
+    usuario = get_object_or_404(get_user_model(), pk=pk)
+    ativar = request.POST.get("acao") == "ativar"
+
+    if usuario == request.user and not ativar:
+        messages.error(request, "Não é possível desativar o próprio usuário logado.")
+        return redirect("core:usuarios")
+
+    if (
+        not ativar
+        and usuario.is_superuser
+        and not get_user_model().objects.filter(is_superuser=True, is_active=True).exclude(pk=usuario.pk).exists()
+    ):
+        messages.error(request, "Não é possível desativar o último administrador ativo do sistema.")
+        return redirect("core:usuarios")
+
+    usuario.is_active = ativar
+    usuario.save(update_fields=["is_active"])
+    estado = "ativado" if ativar else "desativado"
+    messages.success(request, f"Usuário {usuario.get_username()} {estado} com sucesso.")
+    return redirect("core:usuarios")
 
 
 @login_required
@@ -662,143 +687,6 @@ class AtualizacaoSistemaView(LoginRequiredMixin, SuperuserRequiredMixin, Templat
         request.session["ultimo_resultado_atualizacao"] = "\n\n".join(saidas)
         messages.success(request, "Atualização concluída. Reinicie o serviço se estiver em produção.")
         return redirect("core:atualizacoes")
-
-
-class ControleServicosView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateView):
-    template_name = "core/controle_servicos.html"
-
-    ACOES = {
-        "reiniciar_servicos": {
-            "titulo": "Reiniciar servicos",
-            "confirmacao": "REINICIAR",
-        },
-        "parar_servicos": {
-            "titulo": "Parar servicos",
-            "confirmacao": "PARAR",
-        },
-        "reboot_servidor": {
-            "titulo": "Reiniciar servidor",
-            "confirmacao": "REBOOT",
-            "power_action": True,
-        },
-        "desligar_servidor": {
-            "titulo": "Desligar servidor",
-            "confirmacao": "DESLIGAR",
-            "power_action": True,
-        },
-    }
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["acoes"] = self.ACOES
-        context["ultimo_resultado"] = self.request.session.pop("ultimo_resultado_servicos", "")
-        context["power_actions_habilitadas"] = self._power_actions_habilitadas()
-        context["docker_disponivel"] = bool(self._docker_compose_command("ps"))
-        context["reinicio_interno"] = self._reinicio_interno_disponivel()
-        context["reinicio_disponivel"] = context["docker_disponivel"] or context["reinicio_interno"]
-        return context
-
-    def post(self, request, *args, **kwargs):
-        acao_id = request.POST.get("acao", "")
-        acao = self.ACOES.get(acao_id)
-        if not acao:
-            messages.error(request, "Acao invalida.")
-            return redirect("core:servicos")
-
-        if request.POST.get("confirmacao", "").strip().upper() != acao["confirmacao"]:
-            messages.error(request, f"Digite {acao['confirmacao']} para confirmar.")
-            return redirect("core:servicos")
-
-        if acao.get("power_action") and not self._power_actions_habilitadas():
-            messages.error(
-                request,
-                "Reboot/desligamento do servidor esta bloqueado. Defina ALLOW_SERVER_POWER_ACTIONS=True no .env para habilitar.",
-            )
-            return redirect("core:servicos")
-
-        if acao_id == "reiniciar_servicos" and self._reinicio_interno_disponivel():
-            agendado, erro = self._agendar_reinicio_container()
-            if not agendado:
-                messages.error(request, f"Nao foi possivel agendar o reinicio: {erro}")
-                return redirect("core:servicos")
-            request.session["ultimo_resultado_servicos"] = (
-                "Reinicio interno do container agendado. A aplicacao voltara em alguns segundos."
-            )
-            messages.success(request, "Reinicio da aplicacao agendado com sucesso.")
-            return redirect("core:servicos")
-
-        comando = self._comando_para_acao(acao_id)
-        if not comando:
-            messages.error(request, "Nao foi possivel encontrar um comando compativel neste ambiente.")
-            return redirect("core:servicos")
-
-        codigo, saida = self._rodar(comando, timeout=60)
-        request.session["ultimo_resultado_servicos"] = f"$ {' '.join(comando)}\n{saida or '(sem saida)'}"
-        if codigo == 0:
-            messages.success(request, f"{acao['titulo']} solicitado com sucesso.")
-        else:
-            messages.error(request, f"{acao['titulo']} falhou. Veja o resultado na tela.")
-        return redirect("core:servicos")
-
-    def _power_actions_habilitadas(self):
-        return os.getenv("ALLOW_SERVER_POWER_ACTIONS", "False").lower() in {"1", "true", "yes", "on"}
-
-    def _docker_compose_command(self, subcomando):
-        if shutil.which("docker"):
-            return ["docker", "compose", subcomando]
-        if shutil.which("docker-compose"):
-            return ["docker-compose", subcomando]
-        return None
-
-    def _reinicio_interno_disponivel(self):
-        return platform.system().lower() == "linux" and Path("/.dockerenv").exists()
-
-    def _agendar_reinicio_container(self):
-        codigo = "import os, signal, time; time.sleep(3); os.kill(1, signal.SIGTERM)"
-        try:
-            subprocess.Popen(
-                [sys.executable, "-c", codigo],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                close_fds=True,
-                start_new_session=True,
-            )
-        except Exception as exc:
-            return False, str(exc)
-        return True, ""
-
-    def _comando_para_acao(self, acao_id):
-        if acao_id in {"reiniciar_servicos", "parar_servicos"}:
-            subcomando = "restart" if acao_id == "reiniciar_servicos" else "down"
-            return self._docker_compose_command(subcomando)
-
-        sistema = platform.system().lower()
-        if acao_id == "reboot_servidor":
-            return ["shutdown", "/r", "/t", "5"] if sistema == "windows" else ["sudo", "systemctl", "reboot"]
-        if acao_id == "desligar_servidor":
-            return ["shutdown", "/s", "/t", "5"] if sistema == "windows" else ["sudo", "systemctl", "poweroff"]
-        return None
-
-    def _rodar(self, comando, timeout=60):
-        try:
-            resultado = subprocess.run(
-                comando,
-                cwd=settings.BASE_DIR,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=False,
-            )
-        except Exception as exc:
-            return 1, str(exc)
-
-        saida = "\n".join(
-            parte.strip()
-            for parte in [resultado.stdout, resultado.stderr]
-            if parte and parte.strip()
-        )
-        return resultado.returncode, saida
 
 
 @login_required

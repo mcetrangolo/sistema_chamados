@@ -3,19 +3,15 @@ from django.contrib import admin
 from .models import (
     AtivoRede,
     AgendamentoVarredura,
-    AnexoLicencaSoftware,
     CampoExternoAtivo,
     CredencialSNMP,
     FaixaRede,
     InterfaceRede,
-    IntegracaoExterna,
-    LicencaSoftware,
     HistoricoAlteracaoAtivo,
     MetodoDescoberta,
     MovimentacaoAtivo,
     OcorrenciaAtivo,
     RelacionamentoAtivo,
-    RegistroAcessoIntegracao,
     RegistroColetaAgente,
     SondaRemota,
     TermoResponsabilidadeAtivo,
@@ -158,40 +154,10 @@ class RelacionamentoAtivoAdmin(admin.ModelAdmin):
     search_fields = ("origem__nome", "destino__nome", "descricao")
 
 
-@admin.register(IntegracaoExterna)
-class IntegracaoExternaAdmin(admin.ModelAdmin):
-    list_display = ("nome", "tipo", "ativo", "ordem", "atualizado_em")
-    list_filter = ("tipo", "ativo")
-    search_fields = ("nome", "descricao", "url_template")
-
-
 @admin.register(CampoExternoAtivo)
 class CampoExternoAtivoAdmin(admin.ModelAdmin):
     list_display = ("ativo", "chave", "valor", "atualizado_em")
     search_fields = ("ativo__nome", "chave", "valor")
-
-
-@admin.register(RegistroAcessoIntegracao)
-class RegistroAcessoIntegracaoAdmin(admin.ModelAdmin):
-    list_display = ("criado_em", "usuario", "ativo", "integracao", "modo", "ip_origem")
-    list_filter = ("integracao", "modo", "criado_em")
-    search_fields = ("ativo__nome", "integracao__nome", "url_gerada", "usuario__username")
-    readonly_fields = ("usuario", "ativo", "integracao", "url_gerada", "modo", "ip_origem", "criado_em")
-
-
-@admin.register(LicencaSoftware)
-class LicencaSoftwareAdmin(admin.ModelAdmin):
-    list_display = ("nome", "fabricante", "quantidade_total", "quantidade_em_uso", "saldo", "validade", "status")
-    list_filter = ("status", "fabricante", "validade")
-    search_fields = ("nome", "fabricante", "chave")
-    filter_horizontal = ("ativos",)
-
-
-@admin.register(AnexoLicencaSoftware)
-class AnexoLicencaSoftwareAdmin(admin.ModelAdmin):
-    list_display = ("licenca", "descricao", "enviado_por", "criado_em")
-    list_filter = ("criado_em",)
-    search_fields = ("licenca__nome", "descricao", "arquivo")
 
 
 @admin.register(HistoricoAlteracaoAtivo)

@@ -81,7 +81,6 @@
               <a class="sidebar-link" href="{% url 'chamados:relatorio' %}">Relatórios chamados</a>
               <a class="sidebar-link" href="{% url 'inventario:relatorio' %}">Relatórios inventário</a>
               <a class="sidebar-link" href="{% url 'contratos:lista' %}">Contratos</a>
-              <a class="sidebar-link" href="{% url 'chamados:catalogo' %}">Catálogo público</a>
             </div>
           </div>
 
@@ -192,7 +191,7 @@
       ticketPopup.className = 'ticket-preview-popup';
       ticketPopup.setAttribute('role', 'tooltip');
       ticketPopup.hidden = true;
-      ticketPopup.innerHTML = '<strong>Descricao do problema</strong><div></div>';
+      ticketPopup.innerHTML = '<strong>Descrição do problema</strong><div></div>';
       document.body.appendChild(ticketPopup);
       ticketPopupBody = ticketPopup.querySelector('div');
     }
@@ -205,7 +204,7 @@
 
     function showTicketPreview(element) {
       ensureTicketPopup();
-      ticketPopupBody.textContent = element.dataset.ticketDescription || 'Sem descricao informada.';
+      ticketPopupBody.textContent = element.dataset.ticketDescription || 'Sem descrição informada.';
       ticketPopup.hidden = false;
       ticketPopup.classList.add('is-visible');
       const trigger = element.getBoundingClientRect();

@@ -6,7 +6,7 @@
     <h1 class="h3 mb-1">Usuários e permissões</h1>
     <p class="text-secondary mb-0">Gerencie dados cadastrais e o perfil operacional de cada conta.</p>
   </div>
-  <a class="btn btn-outline-secondary" href="{% url 'admin:auth_user_add' %}">Novo usuario</a>
+  <a class="btn btn-outline-secondary" href="{% url 'admin:auth_user_add' %}">Novo usuário</a>
 </div>
 
 <section class="detail-section mb-3">
@@ -15,15 +15,15 @@
     <div><strong>Administrador</strong><span>Acesso total, incluindo configurações, usuários, backup, atualizações e auditoria.</span></div>
     <div><strong>Suporte N2</strong><span>Chamados, inventário, documentação, governança, contratos e relatórios; sem gestão do sistema.</span></div>
     <div><strong>Suporte N1</strong><span>Chamados, filas, atendimento, respostas e base de conhecimento.</span></div>
-    <div><strong>Usuario comum</strong><span>Acesso basico ao proprio perfil e fluxos permitidos.</span></div>
+    <div><strong>Usuário comum</strong><span>Acesso básico ao próprio perfil e fluxos permitidos.</span></div>
   </div>
 </section>
 
 <section class="detail-section">
   <form class="row g-2 align-items-end mb-3" method="get">
     <div class="col-md-8">
-      <label class="form-label" for="q">Buscar usuario</label>
-      <input class="form-control" id="q" name="q" value="{{ q }}" placeholder="Nome, usuario ou e-mail">
+      <label class="form-label" for="q">Buscar usuário</label>
+      <input class="form-control" id="q" name="q" value="{{ q }}" placeholder="Nome, usuário ou e-mail">
     </div>
     <div class="col-md-4">
       <button class="btn btn-primary" type="submit">Buscar</button>
@@ -40,12 +40,22 @@
           <td>{{ usuario.username }}</td>
           <td>{{ usuario.email|default:"-" }}</td>
           <td><span class="badge text-bg-light" title="{{ usuario.papel_descricao }}">{{ usuario.papel_acesso|upper }}</span></td>
-          <td>{% if usuario.is_active %}Ativo{% else %}Inativo{% endif %}</td>
+          <td>{% if usuario.is_active %}<span class="badge text-bg-success">Ativo</span>{% else %}<span class="badge text-bg-secondary">Inativo</span>{% endif %}</td>
           <td class="text-end">
-            <div class="d-inline-flex gap-2">
+            <div class="d-inline-flex gap-2 flex-wrap justify-content-end">
               <a class="btn btn-sm btn-outline-primary" href="{% url 'core:usuario_editar' usuario.pk %}">Editar</a>
               <a class="btn btn-sm btn-outline-secondary" href="{% url 'core:usuario_senha' usuario.pk %}">Senha</a>
               {% if usuario != request.user %}
+                <form method="post" action="{% url 'core:usuario_status' usuario.pk %}">
+                  {% csrf_token %}
+                  {% if usuario.is_active %}
+                    <input type="hidden" name="acao" value="desativar">
+                    <button class="btn btn-sm btn-outline-warning" type="submit">Desativar</button>
+                  {% else %}
+                    <input type="hidden" name="acao" value="ativar">
+                    <button class="btn btn-sm btn-outline-success" type="submit">Ativar</button>
+                  {% endif %}
+                </form>
                 <form method="post" action="{% url 'core:usuario_excluir' usuario.pk %}" onsubmit="return confirm('Excluir este usuário? Se houver vínculos históricos, a conta será apenas desativada.');">
                   {% csrf_token %}
                   <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
@@ -55,7 +65,7 @@
           </td>
         </tr>
       {% empty %}
-        <tr><td colspan="6" class="text-center text-secondary py-4">Nenhum usuario encontrado.</td></tr>
+        <tr><td colspan="6" class="text-center text-secondary py-4">Nenhum usuário encontrado.</td></tr>
       {% endfor %}
     </tbody>
   </table>

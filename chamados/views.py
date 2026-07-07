@@ -316,7 +316,7 @@ class PainelView(LoginRequiredMixin, TemplateView):
         )
         try:
             from contratos.models import ContratoPublico
-            from inventario.models import AtivoRede, LicencaSoftware
+            from inventario.models import AtivoRede
 
             contratos = ContratoPublico.objects.all()
             limite_coleta = timezone.now() - timezone.timedelta(days=7)
@@ -327,7 +327,6 @@ class PainelView(LoginRequiredMixin, TemplateView):
                     origem=AtivoRede.Origem.AGENTE,
                     ultima_coleta_em__lt=limite_coleta,
                 ).exclude(status=AtivoRede.Status.DESATIVADO).count(),
-                "licencas_vencidas": LicencaSoftware.objects.filter(status=LicencaSoftware.Status.VENCIDA).count(),
             }
         except Exception:
             context["indicadores_executivos"] = {}
@@ -1128,9 +1127,9 @@ def decidir_aprovacao(request, pk, decisao):
             request.POST.get("observacao", ""),
         )
         if decisao == "aprovar":
-            messages.success(request, "SolicitaÃ§Ã£o aprovada.")
+            messages.success(request, "Solicitação aprovada.")
         else:
-            messages.success(request, "SolicitaÃ§Ã£o rejeitada.")
+            messages.success(request, "Solicitação rejeitada.")
         if chamado_destino:
             return redirect(chamado_destino)
         return redirect("chamados:aprovacoes")

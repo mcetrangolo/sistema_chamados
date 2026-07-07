@@ -22,18 +22,19 @@
     {% endif %}
   </div>
 </div>
+
 <div class="row g-4">
   <div class="col-xl-8">
     <section class="detail-section">
-      <h2 class="h5">Características</h2>
+      <h2 class="h5">Dados do inventário</h2>
       <dl class="row mb-0">
         <dt class="col-sm-3">Hostname</dt><dd class="col-sm-9">{{ ativo.hostname|default:"-" }}</dd>
         <dt class="col-sm-3">Fabricante</dt><dd class="col-sm-9">{{ ativo.fabricante|default:"-" }}</dd>
         <dt class="col-sm-3">Modelo</dt><dd class="col-sm-9">{{ ativo.modelo|default:"-" }}</dd>
         <dt class="col-sm-3">Serial</dt><dd class="col-sm-9">{{ ativo.numero_serie|default:"-" }}</dd>
-        <dt class="col-sm-3">Patrimonio</dt><dd class="col-sm-9">{{ ativo.patrimonio|default:"-" }}</dd>
+        <dt class="col-sm-3">Patrimônio</dt><dd class="col-sm-9">{{ ativo.patrimonio|default:"-" }}</dd>
         <dt class="col-sm-3">Ciclo de vida</dt><dd class="col-sm-9">{{ ativo.get_ciclo_vida_display }}</dd>
-        <dt class="col-sm-3">Aquisicao</dt><dd class="col-sm-9">{{ ativo.data_aquisicao|date:"d/m/Y"|default:"-" }}</dd>
+        <dt class="col-sm-3">Aquisição</dt><dd class="col-sm-9">{{ ativo.data_aquisicao|date:"d/m/Y"|default:"-" }}</dd>
         <dt class="col-sm-3">Garantia</dt><dd class="col-sm-9">{{ ativo.garantia_ate|date:"d/m/Y"|default:"-" }}</dd>
         <dt class="col-sm-3">Baixa</dt><dd class="col-sm-9">{{ ativo.data_baixa|date:"d/m/Y"|default:"-" }}</dd>
         <dt class="col-sm-3">Função</dt><dd class="col-sm-9">{{ ativo.funcao|default:"-" }}</dd>
@@ -41,8 +42,9 @@
         <dt class="col-sm-3">Responsável</dt><dd class="col-sm-9">{{ ativo.responsavel|default:"-" }}</dd>
       </dl>
     </section>
+
     <section class="detail-section">
-      <h2 class="h5">Hardware e software</h2>
+      <h2 class="h5">Coleta do agente</h2>
       <dl class="row mb-0">
         <dt class="col-sm-3">Sistema operacional</dt><dd class="col-sm-9">{{ ativo.sistema_operacional|default:"-" }}</dd>
         <dt class="col-sm-3">Arquitetura</dt><dd class="col-sm-9">{{ ativo.arquitetura|default:"-" }}</dd>
@@ -55,6 +57,7 @@
         <dt class="col-sm-3">Última coleta</dt><dd class="col-sm-9">{{ ativo.ultima_coleta_em|date:"d/m/Y H:i"|default:"-" }}</dd>
       </dl>
     </section>
+
     <section class="detail-section">
       <h2 class="h5">Softwares instalados</h2>
       {% if ativo.softwares_instalados %}
@@ -63,6 +66,7 @@
         <p class="text-secondary mb-0">Nenhum software coletado.</p>
       {% endif %}
     </section>
+
     <section class="detail-section">
       <h2 class="h5">Interfaces</h2>
       <table class="table table-sm mb-0">
@@ -76,6 +80,7 @@
         </tbody>
       </table>
     </section>
+
     <section class="detail-section">
       <h2 class="h5">Chamados vinculados</h2>
       <table class="table table-sm mb-0">
@@ -94,10 +99,11 @@
         </tbody>
       </table>
     </section>
+
     <section class="detail-section">
       <h2 class="h5">Relacionamentos CMDB</h2>
       <table class="table table-sm mb-0">
-        <thead><tr><th>Relacao</th><th>Ativo</th><th>Descricao</th></tr></thead>
+        <thead><tr><th>Relação</th><th>Ativo</th><th>Descrição</th></tr></thead>
         <tbody>
           {% for relacao in ativo.relacoes_origem.all %}
             <tr><td>{{ relacao.get_tipo_display }}</td><td><a href="{{ relacao.destino.get_absolute_url }}">{{ relacao.destino }}</a></td><td>{{ relacao.descricao|default:"-" }}</td></tr>
@@ -107,163 +113,50 @@
         </tbody>
       </table>
     </section>
+
     <section class="detail-section">
-      <h2 class="h5">Termos de responsabilidade</h2>
-      <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Data</th><th>Tipo</th><th>Responsável</th><th>Matrícula</th><th>Assinatura</th><th class="text-end">Documento</th></tr></thead><tbody>{% for termo in ativo.termos_responsabilidade.all %}<tr><td>{{ termo.data_evento|date:"d/m/Y" }}</td><td>{{ termo.get_tipo_display }}</td><td>{{ termo.responsavel }}</td><td>{{ termo.matricula|default:"-" }}</td><td>{{ termo.assinatura_nome|default:"-" }}</td><td class="text-end"><a class="btn btn-sm btn-outline-danger" href="{% url 'inventario:termo_pdf' termo.pk %}" target="_blank">PDF</a></td></tr>{% empty %}<tr><td colspan="6" class="text-secondary">Nenhum termo registrado.</td></tr>{% endfor %}</tbody></table></div>
-    </section>
-    <section class="detail-section">
-      <h2 class="h5">Movimentacoes patrimoniais</h2>
-      <div class="table-responsive"><table class="table table-sm align-middle mb-0"><thead><tr><th>Data</th><th>Ciclo</th><th>Setor</th><th>Local</th><th>Responsável</th><th>Motivo</th></tr></thead><tbody>{% for item in ativo.movimentacoes.all %}<tr><td>{{ item.criado_em|date:"d/m/Y H:i" }}</td><td>{{ item.get_ciclo_anterior_display }} &rarr; {{ item.get_ciclo_novo_display }}</td><td>{{ item.setor_origem|default:"-" }} &rarr; {{ item.setor_destino|default:"-" }}</td><td>{{ item.local_origem|default:"-" }} &rarr; {{ item.local_destino|default:"-" }}</td><td>{{ item.responsavel_origem|default:"-" }} &rarr; {{ item.responsavel_destino|default:"-" }}</td><td>{{ item.motivo }}</td></tr>{% empty %}<tr><td colspan="6" class="text-secondary">Nenhuma movimentação registrada.</td></tr>{% endfor %}</tbody></table></div>
-    </section>
-    <section class="detail-section">
-      <h2 class="h5">Historico de alteracoes</h2>
+      <h2 class="h5">Histórico de alterações</h2>
       <table class="table table-sm mb-0">
         <thead><tr><th>Data</th><th>Campo</th><th>Antes</th><th>Depois</th><th>Origem</th></tr></thead>
         <tbody>
           {% for item in ativo.historico_alteracoes.all|slice:":20" %}
             <tr><td>{{ item.criado_em|date:"d/m/Y H:i" }}</td><td>{{ item.campo }}</td><td>{{ item.valor_anterior|truncatechars:40 }}</td><td>{{ item.valor_novo|truncatechars:40 }}</td><td>{{ item.origem }}</td></tr>
           {% empty %}
-            <tr><td colspan="5" class="text-secondary">Nenhuma alteracao registrada.</td></tr>
+            <tr><td colspan="5" class="text-secondary">Nenhuma alteração registrada.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </section>
   </div>
+
   <aside class="col-xl-4">
-    <section class="side-panel text-center">
-      <h2 class="h6">Identificacao QR</h2>
+    <section class="side-panel">
+      <h2 class="h6">Saúde do ativo</h2>
+      <dl class="row mb-0 small">
+        <dt class="col-5">Status</dt><dd class="col-7">{{ ativo.get_status_display }}</dd>
+        <dt class="col-5">Origem</dt><dd class="col-7">{{ ativo.get_origem_display }}</dd>
+        <dt class="col-5">Última coleta</dt><dd class="col-7">{{ ativo.ultima_coleta_em|date:"d/m/Y H:i"|default:"-" }}</dd>
+        <dt class="col-5">Atualizado</dt><dd class="col-7">{{ ativo.atualizado_em|date:"d/m/Y H:i" }}</dd>
+      </dl>
+    </section>
+
+    <section class="side-panel text-center mt-3">
+      <h2 class="h6">Identificação QR</h2>
       <img src="{% url 'inventario:ativo_qr' ativo.pk %}" alt="QR Code do ativo" width="180" height="180">
-      <p class="text-secondary small mb-0">Patrimonio {{ ativo.patrimonio|default:"nao informado" }}</p>
+      <p class="text-secondary small mb-0">Patrimônio {{ ativo.patrimonio|default:"não informado" }}</p>
       <a class="btn btn-sm btn-outline-primary mt-3" href="{{ qr_public_url }}" target="_blank" rel="noopener">Testar QR Code</a>
     </section>
-    {% if False %}
-    <section class="side-panel mt-3">
-      <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-        <h2 class="h6 mb-0">Integracoes externas</h2>
-        {% if perfil_acesso.suporte_n2 %}
-          <a class="btn btn-sm btn-outline-secondary" href="{% url 'inventario:integracoes' %}">Configurar</a>
-        {% endif %}
-      </div>
-      {% for item in integracoes_externas %}
-        <a class="btn btn-outline-primary w-100 mb-2" href="{% url 'inventario:ativo_integracao_abrir' ativo.pk item.objeto.pk %}" {% if item.objeto.tipo == "link" and item.objeto.abrir_em_nova_aba %}target="_blank" rel="noopener"{% endif %}>
-          {{ item.objeto.nome }}
-        </a>
-      {% empty %}
-        <p class="text-secondary small mb-0">Nenhuma integracao ativa cadastrada.</p>
-      {% endfor %}
-    </section>
-    {% if perfil_acesso.suporte_n2 %}
-      <section class="side-panel mt-3">
-        <h2 class="h6">Campos externos</h2>
-        <ul class="task-list mb-3">
-          {% for campo in ativo.campos_externos.all %}
-            <li>
-              <strong>{{ campo.chave }}</strong>
-              <span>{{ campo.valor }}{% if campo.descricao %} - {{ campo.descricao }}{% endif %}</span>
-              <form method="post" action="{% url 'inventario:ativo_campo_externo_excluir' ativo.pk campo.pk %}" class="mt-2">
-                {% csrf_token %}
-                <button class="btn btn-sm btn-outline-danger" type="submit">Remover</button>
-              </form>
-            </li>
-          {% empty %}
-            <li class="text-secondary">Nenhum campo externo cadastrado.</li>
-          {% endfor %}
-        </ul>
-        <form method="post" action="{% url 'inventario:ativo_campo_externo_salvar' ativo.pk %}">
-          {% csrf_token %}
-          {% include "chamados/partials/form_fields.html" with form=campo_externo_form %}
-          <button class="btn btn-outline-primary w-100" type="submit">Salvar campo externo</button>
-        </form>
-      </section>
-    {% endif %}
-    <section class="side-panel mt-3">
-      <h2 class="h6">Movimentar / alterar ciclo</h2>
-      <form method="post" action="{% url 'inventario:ativo_movimentar' ativo.pk %}">
-        {% csrf_token %}{% include "chamados/partials/form_fields.html" with form=movimentacao_form %}
-        <button class="btn btn-outline-primary w-100" type="submit">Registrar movimentacao</button>
-      </form>
-    </section>
-    <section class="side-panel mt-3">
-      <h2 class="h6">Termo de responsabilidade</h2>
-      <form method="post" action="{% url 'inventario:ativo_termo_novo' ativo.pk %}">
-        {% csrf_token %}{% include "chamados/partials/form_fields.html" with form=termo_form %}
-        <button class="btn btn-outline-primary w-100" type="submit">Registrar termo</button>
-      </form>
-    </section>
-    <section class="side-panel mt-3">
-      <h2 class="h6">Status de conectividade</h2>
-      <form method="post" action="{% url 'inventario:ativo_verificar_status' ativo.pk %}">
-        {% csrf_token %}
-        <button class="btn btn-outline-success w-100" type="submit" {% if not ativo.ip %}disabled{% endif %}>Verificar por ping</button>
-      </form>
-      {% if ativo.ip %}
-        <p class="text-secondary small mb-0 mt-2">Atualiza para Online ou Offline conforme resposta ICMP.</p>
-      {% else %}
-        <p class="text-secondary small mb-0 mt-2">Cadastre um IP para validar conectividade.</p>
-      {% endif %}
-    </section>
-    <section class="side-panel mt-3">
-      <h2 class="h6">Varrer novamente</h2>
-      <form method="post" action="{% url 'inventario:ativo_revarrer' ativo.pk %}" class="scan-form">
-        {% csrf_token %}
-        <div class="mb-2">
-          <label class="form-label" for="id_metodo_revarrer">Metodo</label>
-          <select class="form-select form-select-sm" id="id_metodo_revarrer" name="metodo">
-            {% for value,label in varredura_form.fields.metodo.choices %}
-              {% if value == "auto" or value == "ping" or value == "dns" or value == "tcp" or value == "snmp" %}
-                <option value="{{ value }}" {% if value == "auto" %}selected{% endif %}>{{ label }}</option>
-              {% endif %}
-            {% endfor %}
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label" for="id_portas_revarrer">Portas TCP</label>
-          <input class="form-control form-control-sm" id="id_portas_revarrer" name="portas" placeholder="22,80,443,3389">
-        </div>
-        <button class="btn btn-outline-success w-100" type="submit" {% if not ativo.ip %}disabled{% endif %}>Escanear este ativo</button>
-      </form>
-      {% if not ativo.ip %}
-        <p class="text-secondary small mb-0 mt-2">Cadastre um IP para permitir a varredura individual.</p>
-      {% endif %}
-    </section>
-    <section class="side-panel mt-3">
-      <h2 class="h6">Relacionar ativo</h2>
-      <form method="post" action="{% url 'inventario:relacionamento_novo' ativo.pk %}">
-        {% csrf_token %}
-        {% include "chamados/partials/form_fields.html" with form=relacionamento_form %}
-        <button class="btn btn-outline-primary w-100" type="submit">Adicionar relacionamento</button>
-      </form>
-    </section>
-    <section class="side-panel mt-3">
-      <h2 class="h6">Registrar ocorrência</h2>
-      <form method="post" action="{% url 'inventario:ocorrencia_nova' ativo.pk %}">
-        {% csrf_token %}
-        {% include "chamados/partials/form_fields.html" with form=ocorrencia_form %}
-        <button class="btn btn-outline-primary w-100" type="submit">Registrar</button>
-      </form>
-    </section>
-    <section class="side-panel mt-3">
-      <h2 class="h6">Ocorrências</h2>
-      <ul class="task-list">
-        {% for ocorrencia in ativo.ocorrencias.all %}
-          <li><strong>{{ ocorrencia.titulo }}</strong><span>{{ ocorrencia.get_tipo_display }} · {{ ocorrencia.criado_em|date:"d/m/Y H:i" }}</span></li>
-        {% empty %}
-          <li class="text-secondary">Nenhuma ocorrência registrada.</li>
-        {% endfor %}
-      </ul>
-    </section>
-    {% endif %}
+
     <section class="side-panel mt-3">
       <h2 class="h6">Ocorrências</h2>
       <ul class="task-list">
         {% for ocorrencia in ativo.ocorrencias.all %}
           <li><strong>{{ ocorrencia.titulo }}</strong><span>{{ ocorrencia.get_tipo_display }} - {{ ocorrencia.criado_em|date:"d/m/Y H:i" }}</span></li>
         {% empty %}
-          <li class="text-secondary">Nenhuma ocorrencia registrada.</li>
+          <li class="text-secondary">Nenhuma ocorrência registrada.</li>
         {% endfor %}
       </ul>
     </section>
   </aside>
 </div>
 {% endblock %}
-

@@ -17,7 +17,6 @@ class PerfilAcessoMiddleware:
         "/configuracoes/institucional/",
         "/configuracoes/backup/",
         "/configuracoes/atualizacoes/",
-        "/configuracoes/servicos/",
         "/configuracoes/auditoria/",
         "/configuracoes/ldap/",
         "/configuracoes/usuarios/",

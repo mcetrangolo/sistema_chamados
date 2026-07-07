@@ -2,10 +2,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
-from unittest.mock import patch
 
 from .permissions import GRUPO_SUPORTE_N1, GRUPO_SUPORTE_N2
-from .views import ControleServicosView
 
 
 class AjudaSistemaTests(TestCase):
@@ -48,30 +46,6 @@ class AjudaSistemaTests(TestCase):
         self.assertContains(response, reverse("inventario:agente_config"))
 
 
-class ControleServicosTests(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.administrador = get_user_model().objects.create_superuser(
-            username="admin-servicos",
-            email="admin-servicos@example.com",
-            password="senha-teste",
-        )
-
-    @patch.object(ControleServicosView, "_agendar_reinicio_container", return_value=(True, ""))
-    @patch.object(ControleServicosView, "_reinicio_interno_disponivel", return_value=True)
-    def test_reinicio_interno_do_container_e_agendado(self, _reinicio_disponivel, _agendar):
-        self.client.force_login(self.administrador)
-
-        response = self.client.post(
-            reverse("core:servicos"),
-            {"acao": "reiniciar_servicos", "confirmacao": "REINICIAR"},
-        )
-
-        self.assertRedirects(response, reverse("core:servicos"), fetch_redirect_response=False)
-        self.assertIn("Reinicio interno", self.client.session["ultimo_resultado_servicos"])
-        _agendar.assert_called_once_with()
-
-
 class UsuariosPermissoesTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -100,6 +74,7 @@ class UsuariosPermissoesTests(TestCase):
         self.assertContains(response, "Usuários e permissões")
         self.assertContains(response, "Suporte N2")
         self.assertContains(response, reverse("core:usuario_senha", kwargs={"pk": self.usuario.pk}))
+        self.assertContains(response, reverse("core:usuario_status", kwargs={"pk": self.usuario.pk}))
         self.assertContains(response, reverse("core:usuario_excluir", kwargs={"pk": self.usuario.pk}))
 
     def test_admin_altera_senha_de_outro_usuario(self):
@@ -129,6 +104,44 @@ class UsuariosPermissoesTests(TestCase):
 
         self.assertRedirects(response, reverse("core:usuarios"))
         self.assertTrue(get_user_model().objects.filter(pk=self.admin.pk).exists())
+
+    def test_admin_desativa_usuario(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("core:usuario_status", kwargs={"pk": self.usuario.pk}),
+            {"acao": "desativar"},
+        )
+
+        self.assertRedirects(response, reverse("core:usuarios"))
+        self.usuario.refresh_from_db()
+        self.assertFalse(self.usuario.is_active)
+
+    def test_admin_ativa_usuario(self):
+        self.usuario.is_active = False
+        self.usuario.save(update_fields=["is_active"])
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("core:usuario_status", kwargs={"pk": self.usuario.pk}),
+            {"acao": "ativar"},
+        )
+
+        self.assertRedirects(response, reverse("core:usuarios"))
+        self.usuario.refresh_from_db()
+        self.assertTrue(self.usuario.is_active)
+
+    def test_admin_nao_desativa_proprio_usuario(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("core:usuario_status", kwargs={"pk": self.admin.pk}),
+            {"acao": "desativar"},
+        )
+
+        self.assertRedirects(response, reverse("core:usuarios"))
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.is_active)
 
     def test_usuario_comum_nao_acessa_tela_de_usuarios(self):
         self.client.force_login(self.usuario)

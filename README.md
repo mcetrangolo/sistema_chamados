@@ -1,8 +1,8 @@
-# Sistema de Chamados, Service Desk e Inventario
+# Sistema de Chamados, Service Desk e Inventário
 
-Sistema web em Django para helpdesk/service desk, governanca de acessos, base de conhecimento, contratos e inventario de rede. Esta Solução foi criada como uma alternativa opensource e gratuita para setores de TI de orgãos municipais. A ideia e algo simples e eficiente, que qualquer um possa usar e melhorar.
+Sistema web em Django para helpdesk/service desk, governança de acessos, base de conhecimento, contratos e inventário de rede. Esta solução foi criada como uma alternativa open source e gratuita para setores de TI de órgãos municipais. A ideia é algo simples e eficiente, que qualquer um possa usar e melhorar.
 
-Repositorio:
+Repositório:
 
 ```text
 https://github.com/mcetrangolo/sistema_chamados
@@ -10,17 +10,17 @@ https://github.com/mcetrangolo/sistema_chamados
 
 ## Recursos principais
 
-- Portal publico para abertura e consulta de chamados.
-- Area interna de gestao com filas, SLA, anexos, respostas, impressao e historico.
-- Catalogo de servicos com aprovacao quando necessario.
-- Base de conhecimento publica e interna.
-- Relatorios com filtros e exportacao em XLS/PDF.
-- Governanca de acessos e Wi-Fi com aceite e PDF.
-- Inventario de ativos, licencas, agentes Windows/Linux e descoberta por rede.
+- Portal público para abertura e consulta de chamados.
+- Área interna de gestão com filas, SLA, anexos, respostas, impressão e histórico.
+- Catálogo de serviços com aprovação quando necessário.
+- Base de conhecimento pública e interna.
+- Relatórios com filtros e exportação em XLS/PDF.
+- Governança de acessos e Wi-Fi com aceite e PDF.
+- Inventário de ativos, agentes Windows/Linux e descoberta por rede.
 - Descoberta por Nmap, Ping/ICMP, DNS reverso, TCP/portas, SNMP e Active Directory.
-- Backup/restauracao, atualizacao via GitHub e controle de servicos pela interface.
+- Backup/restauração e atualização via GitHub pela interface.
 
-## Instalacao rapida em Debian/Ubuntu
+## Instalação rápida em Debian/Ubuntu
 
 ```bash
 sudo apt update
@@ -30,7 +30,7 @@ cd /tmp/sistema-chamados
 bash scripts/install_linux.sh https://github.com/mcetrangolo/sistema_chamados.git
 ```
 
-Depois crie o usuario administrador:
+Depois crie o usuário administrador:
 
 ```bash
 cd /opt/sistema-chamados
@@ -44,7 +44,7 @@ http://IP_DO_SERVIDOR/
 http://IP_DO_SERVIDOR/login/
 ```
 
-## Atualizacao rapida
+## Atualização rápida
 
 No servidor:
 
@@ -54,15 +54,15 @@ docker compose exec web python manage.py backup_local
 bash scripts/deploy_linux.sh
 ```
 
-Pela interface, superusuarios tambem podem acessar:
+Pela interface, superusuários também podem acessar:
 
 ```text
-Configuracoes > Atualizacoes
+Configurações > Atualizações
 ```
 
-## Configuracao essencial do .env
+## Configuração essencial do .env
 
-O arquivo `.env` controla endereco do servidor, seguranca, banco, e-mail, AD e agente de inventario.
+O arquivo `.env` controla endereço do servidor, segurança, banco, e-mail, AD e agente de inventário.
 
 Quando definir IP fixo ou DNS do servidor, revise principalmente:
 
@@ -80,36 +80,35 @@ cd /opt/sistema-chamados
 docker compose restart
 ```
 
-Guia completo: [Configuracao do .env](docs/CONFIGURACAO_ENV.md).
+Guia completo: [Configuração do .env](docs/CONFIGURACAO_ENV.md).
 
-## Enderecos principais
+## Endereços principais
 
-- Portal publico: `/`
+- Portal público: `/`
 - Consulta de chamado: `/consultar/`
-- Catalogo de servicos: `/catalogo/`
+- Catálogo de serviços: `/catalogo/`
 - Base de conhecimento: `/conhecimento/`
 - Login interno: `/login/`
-- Gestao: `/gestao/`
+- Gestão: `/gestao/`
 - Chamados: `/gestao/chamados/`
-- Relatorios: `/gestao/relatorios/chamados/`
-- Configuracao institucional: `/configuracoes/institucional/`
-- Backup e restauracao: `/configuracoes/backup/`
-- Atualizacoes: `/configuracoes/atualizacoes/`
-- Controle de servicos: `/configuracoes/servicos/`
-- Inventario: `/inventario/`
+- Relatórios: `/gestao/relatorios/chamados/`
+- Configuração institucional: `/configuracoes/institucional/`
+- Backup e restauração: `/configuracoes/backup/`
+- Atualizações: `/configuracoes/atualizacoes/`
+- Inventário: `/inventario/`
 
-## Documentacao
+## Documentação
 
-- [Instalacao e primeiro acesso](docs/INSTALACAO.md)
-- [Configuracao do .env, IP fixo e DNS](docs/CONFIGURACAO_ENV.md)
-- [Atualizacao pelo GitHub](docs/ATUALIZACAO.md)
-- [Backup, restauracao e operacao diaria](docs/BACKUP_OPERACAO.md)
-- [Agentes de inventario Windows/Linux](docs/AGENTES_INVENTARIO.md)
+- [Instalação e primeiro acesso](docs/INSTALACAO.md)
+- [Configuração do .env, IP fixo e DNS](docs/CONFIGURACAO_ENV.md)
+- [Atualização pelo GitHub](docs/ATUALIZACAO.md)
+- [Backup, restauração e operação diária](docs/BACKUP_OPERACAO.md)
+- [Agentes de inventário Windows/Linux](docs/AGENTES_INVENTARIO.md)
 
-## Observacoes importantes
+## Observações importantes
 
 - O arquivo `.env` nunca deve ser enviado ao GitHub.
-- O banco SQLite, backups, logs, midias e `staticfiles` ficam fora do Git.
+- O banco SQLite, backups, logs, mídias e `staticfiles` ficam fora do Git.
 - No Docker atual, o SQLite fica no volume `sqlite_data`, usando o caminho `data/db.sqlite3`.
-- Em producao interna, prefira acessar por IP fixo interno ou nome DNS da rede.
-- Para HTTPS/dominio publico, ajuste `CSRF_TRUSTED_ORIGINS` e as opcoes `SECURE_*` no `.env`.
+- Em produção interna, prefira acessar por IP fixo interno ou nome DNS da rede.
+- Para HTTPS/domínio público, ajuste `CSRF_TRUSTED_ORIGINS` e as opções `SECURE_*` no `.env`.

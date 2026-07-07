@@ -1,11 +1,11 @@
-# Backup, Restauracao e Operacao Diaria
+# Backup, Restauração e Operação Diária
 
 ## Backup pela interface
 
 Acesse:
 
 ```text
-Configuracoes > Backup e restauracao
+Configurações > Backup e restauração
 ```
 
 A tela permite:
@@ -22,7 +22,7 @@ Para restaurar pela tela, selecione o arquivo e digite:
 RESTAURAR
 ```
 
-Depois da restauracao, reinicie a aplicacao.
+Depois da restauração, reinicie a aplicação.
 
 ## Backup pelo terminal
 
@@ -47,31 +47,15 @@ docker compose logs -f nginx
 docker compose logs -f scheduler
 ```
 
-## Controle de servicos
+## Reinício dos serviços
+
+O controle de serviços deve ser feito pelo terminal do servidor:
 
 ```bash
+cd /opt/sistema-chamados
 docker compose restart
 docker compose down
 docker compose up -d
 ```
 
-Pela interface:
-
-```text
-Configuracoes > Controle de servicos
-```
-
-Superusuarios podem:
-
-- reiniciar servicos;
-- parar servicos;
-- solicitar reboot do servidor;
-- solicitar desligamento do servidor.
-
-Reboot/desligamento ficam bloqueados por padrao. Para habilitar:
-
-```env
-ALLOW_SERVER_POWER_ACTIONS=True
-```
-
-Use apenas em servidor interno administrado.
+Em produção, faça backup antes de atualizar ou reiniciar a aplicação.

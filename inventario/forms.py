@@ -3,13 +3,10 @@ from chamados.models import Setor
 
 from .models import (
     AgendamentoVarredura,
-    AnexoLicencaSoftware,
     AtivoRede,
     CredencialSNMP,
     FaixaRede,
     CampoExternoAtivo,
-    IntegracaoExterna,
-    LicencaSoftware,
     MetodoDescoberta,
     MovimentacaoAtivo,
     OcorrenciaAtivo,
@@ -117,18 +114,6 @@ class RelacionamentoAtivoForm(BootstrapFormMixin, forms.ModelForm):
         fields = ["destino", "tipo", "descricao"]
 
 
-class IntegracaoExternaForm(BootstrapFormMixin, forms.ModelForm):
-    class Meta:
-        model = IntegracaoExterna
-        fields = ["nome", "descricao", "tipo", "url_template", "abrir_em_nova_aba", "ativo", "ordem"]
-        widgets = {
-            "descricao": forms.Textarea(attrs={"rows": 3}),
-        }
-        help_texts = {
-            "url_template": "Exemplo: https://zabbix.local/host?name={{ hostname }} ou https://grafana.local/d/x?var-host={{ hostname }}",
-        }
-
-
 class CampoExternoAtivoForm(BootstrapFormMixin, forms.ModelForm):
     class Meta:
         model = CampoExternoAtivo
@@ -189,23 +174,6 @@ class SondaRemotaForm(BootstrapFormMixin, forms.ModelForm):
             "descricao": forms.Textarea(attrs={"rows": 3}),
             "faixas": forms.SelectMultiple(attrs={"size": 8}),
         }
-
-
-class LicencaSoftwareForm(BootstrapFormMixin, forms.ModelForm):
-    class Meta:
-        model = LicencaSoftware
-        fields = ["nome", "fabricante", "chave", "quantidade_total", "validade", "status", "ativos", "observacoes"]
-        widgets = {
-            "validade": forms.DateInput(attrs={"type": "date"}),
-            "ativos": forms.SelectMultiple(attrs={"size": 10}),
-            "observacoes": forms.Textarea(attrs={"rows": 4}),
-        }
-
-
-class AnexoLicencaSoftwareForm(BootstrapFormMixin, forms.ModelForm):
-    class Meta:
-        model = AnexoLicencaSoftware
-        fields = ["arquivo", "descricao"]
 
 
 class ImportacaoAtivosCSVForm(BootstrapFormMixin, forms.Form):

@@ -15,7 +15,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import transaction
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Q
 from django.db.models.deletion import ProtectedError
 from django.http import FileResponse, Http404, JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
@@ -34,13 +34,10 @@ from governanca.pdf import montar_pdf
 from .forms import (
     AtivoRedeForm,
     AgendamentoVarreduraForm,
-    AnexoLicencaSoftwareForm,
     CampoExternoAtivoForm,
     CredencialSNMPForm,
     FaixaRedeForm,
     ImportacaoAtivosCSVForm,
-    IntegracaoExternaForm,
-    LicencaSoftwareForm,
     MesclarAtivosForm,
     MovimentacaoAtivoForm,
     OcorrenciaAtivoForm,
@@ -53,12 +50,10 @@ from .forms import (
 )
 from .models import (
     AgendamentoVarredura,
-    AnexoLicencaSoftware,
     AtivoRede,
     CampoExternoAtivo,
     CredencialSNMP,
     FaixaRede,
-    IntegracaoExterna,
     InterfaceRede,
     LicencaSoftware,
     HistoricoAlteracaoAtivo,
@@ -66,7 +61,6 @@ from .models import (
     MovimentacaoAtivo,
     OcorrenciaAtivo,
     RelacionamentoAtivo,
-    RegistroAcessoIntegracao,
     RegistroColetaAgente,
     SondaRemota,
     TermoResponsabilidadeAtivo,
@@ -493,7 +487,6 @@ class InventarioPainelView(LoginRequiredMixin, TemplateView):
             "online": ativos.filter(status=AtivoRede.Status.ONLINE).count(),
             "offline": ativos.filter(status=AtivoRede.Status.OFFLINE).count(),
             "snmp": ativos.filter(origem=AtivoRede.Origem.SNMP).count(),
-            "licencas": LicencaSoftware.objects.count(),
             "relacoes": RelacionamentoAtivo.objects.count(),
             "sem_comunicacao": queryset_ativos_sem_comunicacao().count(),
             "arquivados": todos_ativos.filter(status=AtivoRede.Status.DESATIVADO).count(),
@@ -879,23 +872,6 @@ def filtrar_ativos_relatorio(params):
 
 
 def dados_relatorio_inventario(ativos, filtro_aplicado=False):
-    licencas = LicencaSoftware.objects.prefetch_related("ativos")
-    if filtro_aplicado:
-        licencas = licencas.filter(ativos__in=ativos).distinct()
-    total_licencas = licencas.count()
-    total_posicoes = licencas.aggregate(total=Sum("quantidade_total"))["total"] or 0
-    licencas_lista = []
-    total_em_uso = 0
-    for licenca in licencas:
-        em_uso = licenca.quantidade_em_uso
-        total_em_uso += em_uso
-        licencas_lista.append(
-            {
-                "licenca": licenca,
-                "em_uso": em_uso,
-                "saldo": licenca.quantidade_total - em_uso,
-            }
-        )
     softwares = softwares_detectados_relatorio(ativos)
     duplicados_ip = ativos.exclude(ip__isnull=True).values("ip").annotate(total=Count("id")).filter(total__gt=1)
     duplicados_mac = ativos.exclude(mac="").values("mac").annotate(total=Count("id")).filter(total__gt=1)
@@ -932,34 +908,20 @@ def dados_relatorio_inventario(ativos, filtro_aplicado=False):
         "interfaces": ativos.filter(interfaces__isnull=False).values("interfaces__status").annotate(total=Count("interfaces")).order_by("interfaces__status"),
         "softwares": softwares[:50],
         "softwares_total": len(softwares),
-        "licencas_total": total_licencas,
-        "licencas_ativas": licencas.filter(status=LicencaSoftware.Status.ATIVA).count(),
-        "licencas_vencidas": licencas.filter(status=LicencaSoftware.Status.VENCIDA).count(),
-        "licencas_a_vencer": licencas.filter(status=LicencaSoftware.Status.A_VENCER).count(),
-        "licencas_posicoes": total_posicoes,
-        "licencas_em_uso": total_em_uso,
-        "licencas_saldo": total_posicoes - total_em_uso,
-        "licencas_por_status": licencas.values("status").annotate(total=Count("id")).order_by("status"),
-        "licencas_lista": sorted(licencas_lista, key=lambda item: (item["saldo"], item["licenca"].nome))[:50],
         "ultimas_varreduras": VarreduraRede.objects.select_related("faixa", "iniciado_por")[:10],
     }
 
 
 def softwares_detectados_relatorio(ativos):
-    licencas = list(LicencaSoftware.objects.values_list("nome", flat=True))
     encontrados = {}
     for ativo in ativos.exclude(softwares_instalados=""):
         for linha in ativo.softwares_instalados.splitlines():
             software = linha.strip()
             if not software:
                 continue
-            coberto = any(
-                licenca.lower() in software.lower() or software.lower() in licenca.lower()
-                for licenca in licencas
-            )
             registro = encontrados.setdefault(
                 software,
-                {"nome": software, "total": 0, "coberto": coberto, "ativos": []},
+                {"nome": software, "total": 0, "ativos": []},
             )
             registro["total"] += 1
             if len(registro["ativos"]) < 5:
@@ -1183,29 +1145,13 @@ def exportar_relatorio_inventario_xls(request):
         response.write("</table><br>")
 
     response.write("<h2>Softwares detectados</h2>")
-    response.write("<table border='1'><tr><th>Software</th><th>Ocorrencias</th><th>Cobertura</th><th>Exemplos de ativos</th></tr>")
+    response.write("<table border='1'><tr><th>Software</th><th>Ocorrências</th><th>Exemplos de ativos</th></tr>")
     for item in indicadores["softwares"]:
         response.write(
             "<tr>"
             f"<td>{escape(item['nome'])}</td>"
             f"<td>{item['total']}</td>"
-            f"<td>{'Licenciado' if item['coberto'] else 'Sem vinculo'}</td>"
             f"<td>{escape(', '.join(item['ativos']))}</td>"
-            "</tr>"
-        )
-    response.write("</table><br>")
-
-    response.write("<h2>Licencas</h2>")
-    response.write("<table border='1'><tr><th>Licenca</th><th>Status</th><th>Total</th><th>Em uso</th><th>Saldo</th></tr>")
-    for item in indicadores["licencas_lista"]:
-        licenca = item["licenca"]
-        response.write(
-            "<tr>"
-            f"<td>{escape(licenca.nome)}</td>"
-            f"<td>{escape(licenca.get_status_display())}</td>"
-            f"<td>{licenca.quantidade_total}</td>"
-            f"<td>{item['em_uso']}</td>"
-            f"<td>{item['saldo']}</td>"
             "</tr>"
         )
     response.write("</table><br>")
@@ -1293,10 +1239,6 @@ def exportar_relatorio_inventario_pdf(request):
         "RELATORIO DE INVENTARIO",
         f"Total filtrado: {indicadores['total']}",
         f"Softwares detectados: {indicadores['softwares_total']}",
-        f"Licencas cadastradas: {indicadores['licencas_total']}",
-        f"Posicoes de licenca: {indicadores['licencas_posicoes']}",
-        f"Licencas em uso: {indicadores['licencas_em_uso']}",
-        f"Saldo de licencas: {indicadores['licencas_saldo']}",
         f"Online: {indicadores['online']}",
         f"Offline: {indicadores['offline']}",
         f"Sem coleta: {indicadores['sem_coleta']}",
@@ -1328,14 +1270,6 @@ def exportar_relatorio_inventario_pdf(request):
     linhas.extend(["", "SISTEMAS OPERACIONAIS"])
     for item in indicadores["por_so"]:
         linhas.append(f"{item.get('sistema_operacional') or 'Nao informado'}: {item['total']}")
-
-    linhas.extend(["", "LICENCAS"])
-    for item in indicadores["licencas_lista"][:30]:
-        licenca = item["licenca"]
-        linhas.append(
-            f"{licenca.nome} | {licenca.get_status_display()} | total {licenca.quantidade_total} | "
-            f"uso {item['em_uso']} | saldo {item['saldo']}"
-        )
 
     linhas.extend(["", "ATIVOS FILTRADOS", "Nome | Patrimonio | IP | Tipo | Ciclo | Status | Coleta"])
     for ativo in ativos[:200]:
@@ -1491,86 +1425,18 @@ class AtivoRedeDetailView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return AtivoRede.objects.select_related("tipo", "setor").prefetch_related(
-            "interfaces", "ocorrencias", "chamados", "relacoes_origem__destino", "relacoes_destino__origem", "licencas", "historico_alteracoes", "movimentacoes", "termos_responsabilidade", "campos_externos"
+            "interfaces", "ocorrencias", "chamados", "relacoes_origem__destino", "relacoes_destino__origem", "historico_alteracoes"
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["qr_public_url"] = _url_publica_qr_ativo(self.request, self.object)
-        context["ocorrencia_form"] = OcorrenciaAtivoForm()
-        context["relacionamento_form"] = RelacionamentoAtivoForm()
-        context["varredura_form"] = VarreduraRedeForm()
-        context["movimentacao_form"] = MovimentacaoAtivoForm(initial={"ciclo_novo": self.object.ciclo_vida})
-        context["termo_form"] = TermoResponsabilidadeAtivoForm(initial={
-            "responsavel": self.object.responsavel,
-            "setor": self.object.setor,
-            "data_evento": timezone.localdate(),
-        })
-        integracoes = []
-        for integracao in IntegracaoExterna.objects.filter(ativo=True):
-            integracoes.append({
-                "objeto": integracao,
-                "url": integracao.renderizar_url(self.object),
-            })
-        context["integracoes_externas"] = integracoes
-        context["campo_externo_form"] = CampoExternoAtivoForm()
         return context
 
 
 class SuporteN2RequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return usuario_e_suporte_n2(self.request.user)
-
-
-class IntegracaoExternaListView(LoginRequiredMixin, SuporteN2RequiredMixin, ListView):
-    model = IntegracaoExterna
-    template_name = "inventario/integracao_list.html"
-    context_object_name = "integracoes"
-
-
-class IntegracaoExternaCreateView(LoginRequiredMixin, SuporteN2RequiredMixin, CreateView):
-    model = IntegracaoExterna
-    form_class = IntegracaoExternaForm
-    template_name = "inventario/integracao_form.html"
-    success_url = reverse_lazy("inventario:integracoes")
-
-    def form_valid(self, form):
-        messages.success(self.request, "Integracao experimental criada com sucesso.")
-        return super().form_valid(form)
-
-
-class IntegracaoExternaUpdateView(LoginRequiredMixin, SuporteN2RequiredMixin, UpdateView):
-    model = IntegracaoExterna
-    form_class = IntegracaoExternaForm
-    template_name = "inventario/integracao_form.html"
-    success_url = reverse_lazy("inventario:integracoes")
-
-    def form_valid(self, form):
-        messages.success(self.request, "Integracao experimental atualizada com sucesso.")
-        return super().form_valid(form)
-
-
-@login_required
-def abrir_integracao_ativo(request, ativo_pk, integracao_pk):
-    ativo = get_object_or_404(AtivoRede.objects.prefetch_related("campos_externos"), pk=ativo_pk)
-    integracao = get_object_or_404(IntegracaoExterna, pk=integracao_pk, ativo=True)
-    url = integracao.renderizar_url(ativo)
-    RegistroAcessoIntegracao.objects.create(
-        usuario=request.user,
-        ativo=ativo,
-        integracao=integracao,
-        url_gerada=url,
-        modo=integracao.tipo,
-        ip_origem=ip_origem_request(request),
-    )
-    if integracao.tipo == IntegracaoExterna.Tipo.IFRAME:
-        return TemplateView.as_view(template_name="inventario/integracao_iframe.html")(
-            request,
-            ativo=ativo,
-            integracao=integracao,
-            url_integracao=url,
-        )
-    return redirect(url)
 
 
 @login_required
@@ -1602,106 +1468,6 @@ def excluir_campo_externo_ativo(request, pk, campo_pk):
         campo.delete()
         messages.success(request, "Campo externo removido.")
     return redirect(ativo)
-
-
-class LicencaSoftwareListView(LoginRequiredMixin, ListView):
-    model = LicencaSoftware
-    template_name = "inventario/licenca_list.html"
-    context_object_name = "licencas"
-    paginate_by = 20
-
-    def get_queryset(self):
-        queryset = LicencaSoftware.objects.prefetch_related("ativos")
-        q = self.request.GET.get("q", "").strip()
-        status = self.request.GET.get("status", "")
-        if q:
-            queryset = queryset.filter(Q(nome__icontains=q) | Q(fabricante__icontains=q) | Q(chave__icontains=q))
-        if status:
-            queryset = queryset.filter(status=status)
-        return queryset
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["status_choices"] = LicencaSoftware.Status.choices
-        context["filtros"] = self.request.GET
-        return context
-
-
-class LicencaSoftwareDetailView(LoginRequiredMixin, DetailView):
-    model = LicencaSoftware
-    template_name = "inventario/licenca_detail.html"
-    context_object_name = "licenca"
-
-    def get_queryset(self):
-        return LicencaSoftware.objects.prefetch_related("ativos", "anexos")
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["anexo_form"] = AnexoLicencaSoftwareForm()
-        context["ativos_vigentes"] = self.object.ativos.exclude(status=AtivoRede.Status.DESATIVADO)
-        context["ativos_arquivados"] = self.object.ativos.filter(status=AtivoRede.Status.DESATIVADO)
-        return context
-
-
-class LicencaSoftwareCreateView(LoginRequiredMixin, CreateView):
-    model = LicencaSoftware
-    form_class = LicencaSoftwareForm
-    template_name = "inventario/licenca_form.html"
-    success_url = reverse_lazy("inventario:licencas")
-
-    def form_valid(self, form):
-        messages.success(self.request, "Licenca cadastrada com sucesso.")
-        return super().form_valid(form)
-
-
-class LicencaSoftwareUpdateView(LoginRequiredMixin, UpdateView):
-    model = LicencaSoftware
-    form_class = LicencaSoftwareForm
-    template_name = "inventario/licenca_form.html"
-    success_url = reverse_lazy("inventario:licencas")
-
-    def form_valid(self, form):
-        messages.success(self.request, "Licenca atualizada com sucesso.")
-        return super().form_valid(form)
-
-
-@login_required
-def anexar_licenca(request, pk):
-    licenca = get_object_or_404(LicencaSoftware, pk=pk)
-    if request.method == "POST":
-        form = AnexoLicencaSoftwareForm(request.POST, request.FILES)
-        if form.is_valid():
-            anexo = form.save(commit=False)
-            anexo.licenca = licenca
-            anexo.enviado_por = request.user
-            anexo.save()
-            messages.success(request, "Anexo enviado com sucesso.")
-        else:
-            messages.error(request, "Nao foi possivel enviar o anexo.")
-    return redirect("inventario:licenca_detalhe", pk=licenca.pk)
-
-
-class ConciliacaoLicencasView(LoginRequiredMixin, TemplateView):
-    template_name = "inventario/conciliacao_licencas.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        licencas = list(LicencaSoftware.objects.values_list("nome", flat=True))
-        encontrados = {}
-        for ativo in AtivoRede.objects.exclude(
-            status=AtivoRede.Status.DESATIVADO
-        ).exclude(softwares_instalados="").only("id", "nome", "softwares_instalados"):
-            for linha in ativo.softwares_instalados.splitlines():
-                software = linha.strip()
-                if not software:
-                    continue
-                coberto = any(licenca.lower() in software.lower() or software.lower() in licenca.lower() for licenca in licencas)
-                encontrados.setdefault(software, {"total": 0, "coberto": coberto, "ativos": []})
-                encontrados[software]["total"] += 1
-                if len(encontrados[software]["ativos"]) < 5:
-                    encontrados[software]["ativos"].append(ativo.nome)
-        context["softwares"] = sorted(encontrados.items(), key=lambda item: (-item[1]["total"], item[0]))[:200]
-        return context
 
 
 @login_required
