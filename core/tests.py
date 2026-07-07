@@ -99,6 +99,36 @@ class UsuariosPermissoesTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Usuários e permissões")
         self.assertContains(response, "Suporte N2")
+        self.assertContains(response, reverse("core:usuario_senha", kwargs={"pk": self.usuario.pk}))
+        self.assertContains(response, reverse("core:usuario_excluir", kwargs={"pk": self.usuario.pk}))
+
+    def test_admin_altera_senha_de_outro_usuario(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("core:usuario_senha", kwargs={"pk": self.usuario.pk}),
+            {"new_password1": "nova-senha-forte-123", "new_password2": "nova-senha-forte-123"},
+        )
+
+        self.assertRedirects(response, reverse("core:usuarios"))
+        self.usuario.refresh_from_db()
+        self.assertTrue(self.usuario.check_password("nova-senha-forte-123"))
+
+    def test_admin_exclui_usuario_sem_vinculos(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(reverse("core:usuario_excluir", kwargs={"pk": self.usuario.pk}))
+
+        self.assertRedirects(response, reverse("core:usuarios"))
+        self.assertFalse(get_user_model().objects.filter(pk=self.usuario.pk).exists())
+
+    def test_admin_nao_exclui_proprio_usuario(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(reverse("core:usuario_excluir", kwargs={"pk": self.admin.pk}))
+
+        self.assertRedirects(response, reverse("core:usuarios"))
+        self.assertTrue(get_user_model().objects.filter(pk=self.admin.pk).exists())
 
     def test_usuario_comum_nao_acessa_tela_de_usuarios(self):
         self.client.force_login(self.usuario)

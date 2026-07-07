@@ -29,7 +29,7 @@
 <section class="detail-section">
   <div class="table-responsive">
     <table class="table align-middle">
-      <thead><tr><th>Documento</th><th>Tipo</th><th>Criticidade</th><th>Local</th><th>Atualizado</th></tr></thead>
+      <thead><tr><th>Documento</th><th>Tipo</th><th>Criticidade</th><th>Local</th><th>Atualizado</th>{% if user.is_superuser %}<th class="text-end">Ações</th>{% endif %}</tr></thead>
       <tbody>
         {% for documento in documentos %}
           <tr>
@@ -42,9 +42,20 @@
             <td><span class="badge text-bg-light">{{ documento.get_criticidade_display }}</span></td>
             <td>{{ documento.localizacao|default:"-" }}</td>
             <td>{{ documento.atualizado_em|date:"d/m/Y H:i" }}</td>
+            {% if user.is_superuser %}
+              <td class="text-end">
+                <div class="d-inline-flex gap-2">
+                  <a class="btn btn-sm btn-outline-primary" href="{% url 'documentacao:editar' documento.pk %}">Editar</a>
+                  <form method="post" action="{% url 'documentacao:excluir' documento.pk %}" onsubmit="return confirm('Excluir este documento restrito?');">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+                  </form>
+                </div>
+              </td>
+            {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="5" class="text-center text-secondary py-4">Nenhum documento disponível para seu usuário.</td></tr>
+          <tr><td colspan="{% if user.is_superuser %}6{% else %}5{% endif %}" class="text-center text-secondary py-4">Nenhum documento disponível para seu usuário.</td></tr>
         {% endfor %}
       </tbody>
     </table>

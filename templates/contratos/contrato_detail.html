@@ -10,6 +10,10 @@
     <a class="btn btn-outline-primary" href="{% url 'contratos:prorrogacao_nova' contrato.pk %}">Pedir prorrogacao</a>
     <a class="btn btn-outline-primary" href="{% url 'contratos:aditivo_novo' contrato.pk %}">Registrar aditivo</a>
     <a class="btn btn-primary" href="{% url 'contratos:editar' contrato.pk %}">Editar</a>
+    <form method="post" action="{% url 'contratos:excluir' contrato.pk %}" onsubmit="return confirm('Excluir este contrato e seus anexos/aditivos/pedidos vinculados?');">
+      {% csrf_token %}
+      <button class="btn btn-outline-danger" type="submit">Excluir</button>
+    </form>
   </div>
 </div>
 

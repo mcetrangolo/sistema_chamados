@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Alterar senha | Sistema de Chamados{% endblock %}
+{% block content %}
+<div class="content-narrow">
+  <h1 class="h3 mb-1">Alterar senha</h1>
+  <p class="text-secondary">{{ usuario_editado.get_username }}</p>
+  <form method="post">
+    {% csrf_token %}
+    {% include "chamados/partials/form_fields.html" with form=form %}
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn btn-primary" type="submit">Salvar senha</button>
+      <a class="btn btn-outline-secondary" href="{% url 'core:usuarios' %}">Voltar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -16,6 +16,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import transaction
 from django.db.models import Count, Q, Sum
+from django.db.models.deletion import ProtectedError
 from django.http import FileResponse, Http404, JsonResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -90,6 +91,28 @@ AGENTE_LINUX_INSTALLER = "install.sh"
 def ip_origem_request(request):
     encaminhado = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
     return encaminhado or request.META.get("REMOTE_ADDR") or None
+
+
+@login_required
+@require_POST
+def excluir_cadastro_inventario(request, modelo, pk, redirect_name, nome_cadastro):
+    objeto = get_object_or_404(modelo, pk=pk)
+    nome = str(objeto)
+    try:
+        objeto.delete()
+        messages.success(request, f"{nome_cadastro} {nome} excluído com sucesso.")
+    except ProtectedError:
+        if hasattr(objeto, "ativo"):
+            objeto.ativo = False
+            objeto.save(update_fields=["ativo"])
+            messages.warning(request, f"{nome_cadastro} {nome} possui vínculos e foi marcado como inativo.")
+        elif hasattr(objeto, "ativa"):
+            objeto.ativa = False
+            objeto.save(update_fields=["ativa"])
+            messages.warning(request, f"{nome_cadastro} {nome} possui vínculos e foi marcado como inativo.")
+        else:
+            messages.error(request, f"{nome_cadastro} {nome} possui vínculos e não pode ser excluído.")
+    return redirect(redirect_name)
 
 
 def limite_ativos_sem_comunicacao():
@@ -1976,6 +1999,26 @@ class AgendamentoVarreduraUpdateView(LoginRequiredMixin, UpdateView):
     form_class = AgendamentoVarreduraForm
     template_name = "inventario/cadastros/agendamento_form.html"
     success_url = reverse_lazy("inventario:agendamentos")
+
+
+def excluir_tipo_ativo(request, pk):
+    return excluir_cadastro_inventario(request, TipoAtivo, pk, "inventario:tipos", "Tipo de ativo")
+
+
+def excluir_credencial_snmp(request, pk):
+    return excluir_cadastro_inventario(request, CredencialSNMP, pk, "inventario:snmp", "Credencial SNMP")
+
+
+def excluir_faixa_rede(request, pk):
+    return excluir_cadastro_inventario(request, FaixaRede, pk, "inventario:faixas", "Faixa de rede")
+
+
+def excluir_agendamento_varredura(request, pk):
+    return excluir_cadastro_inventario(request, AgendamentoVarredura, pk, "inventario:agendamentos", "Agendamento")
+
+
+def excluir_sonda_remota(request, pk):
+    return excluir_cadastro_inventario(request, SondaRemota, pk, "inventario:sondas", "Sonda")
 
 
 @login_required

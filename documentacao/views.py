@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
@@ -138,3 +139,22 @@ def anexar_documento(request, pk):
         else:
             messages.error(request, "Não foi possível enviar o anexo.")
     return redirect(documento)
+
+
+@login_required
+def excluir_documento(request, pk):
+    documento = get_object_or_404(DocumentoInfra, pk=pk)
+    if not request.user.is_superuser:
+        messages.error(request, "Apenas administradores podem excluir documentos.")
+        return redirect("documentacao:lista")
+    if request.method == "POST":
+        titulo = documento.titulo
+        try:
+            documento.delete()
+            messages.success(request, f"Documento {titulo} excluído com sucesso.")
+        except ProtectedError:
+            documento.ativo = False
+            documento.atualizado_por = request.user
+            documento.save(update_fields=["ativo", "atualizado_por", "atualizado_em"])
+            messages.warning(request, f"Documento {titulo} possui vínculos e foi marcado como inativo.")
+    return redirect("documentacao:lista")

@@ -1,7 +1,54 @@
 {% extends "base.html" %}
 {% block title %}{{ sonda.nome }} | Sonda{% endblock %}
 {% block content %}
-<div class="page-heading mb-4"><div><span class="section-label">Sonda remota</span><h1>{{ sonda.nome }}</h1><p>{{ sonda.localidade|default:"Localidade não informada" }}</p></div><div class="d-flex gap-2"><a class="btn btn-outline-primary" href="{% url 'inventario:sonda_editar' sonda.pk %}">Editar</a>{% if token %}<a class="btn btn-primary" href="{% url 'inventario:sonda_script' sonda.pk %}">Baixar script</a>{% endif %}</div></div>
+<div class="page-heading mb-4">
+  <div>
+    <span class="section-label">Sonda remota</span>
+    <h1>{{ sonda.nome }}</h1>
+    <p>{{ sonda.localidade|default:"Localidade não informada" }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'inventario:sonda_editar' sonda.pk %}">Editar</a>
+    {% if token %}<a class="btn btn-primary" href="{% url 'inventario:sonda_script' sonda.pk %}">Baixar script</a>{% endif %}
+    <form method="post" action="{% url 'inventario:sonda_excluir' sonda.pk %}" onsubmit="return confirm('Excluir esta sonda e o histórico de execuções?');">
+      {% csrf_token %}
+      <button class="btn btn-outline-danger" type="submit">Excluir</button>
+    </form>
+  </div>
+</div>
 {% if token %}<div class="alert alert-warning"><strong>Token exibido uma vez:</strong> <code>{{ token }}</code>. Guarde-o em local seguro.</div>{% endif %}
-<div class="row g-4"><div class="col-lg-8"><section class="detail-section"><h2 class="h5">Execuções</h2><table class="table table-sm align-middle mb-0"><thead><tr><th>Data</th><th>Status</th><th>Encontrados</th><th>Mensagem</th></tr></thead><tbody>{% for item in sonda.execucoes.all|slice:":50" %}<tr><td>{{ item.criado_em|date:"d/m/Y H:i" }}</td><td>{{ item.get_status_display }}</td><td>{{ item.ativos_encontrados }}</td><td>{{ item.mensagem }}</td></tr>{% empty %}<tr><td colspan="4" class="text-secondary">A sonda ainda não enviou resultados.</td></tr>{% endfor %}</tbody></table></section></div><aside class="col-lg-4"><section class="side-panel"><h2 class="h6">Instalação</h2><ol class="text-secondary"><li>Baixe o script após criar ou regenerar o token.</li><li>Copie para uma máquina com Python 3 dentro da VLAN.</li><li>Execute <code>python3 sonda-{{ sonda.pk }}.py</code>.</li><li>Agende no cron ou Agendador de Tarefas.</li></ol></section><form class="side-panel mt-3" method="post" action="{% url 'inventario:sonda_token' sonda.pk %}" onsubmit="return confirm('O token anterior deixará de funcionar. Continuar?');">{% csrf_token %}<h2 class="h6">Credencial</h2><p class="text-secondary">Prefixo atual: <code>{{ sonda.token_prefixo }}</code></p><button class="btn btn-outline-danger w-100" type="submit">Regenerar token</button></form></aside></div>
+<div class="row g-4">
+  <div class="col-lg-8">
+    <section class="detail-section">
+      <h2 class="h5">Execuções</h2>
+      <table class="table table-sm align-middle mb-0">
+        <thead><tr><th>Data</th><th>Status</th><th>Encontrados</th><th>Mensagem</th></tr></thead>
+        <tbody>
+          {% for item in sonda.execucoes.all|slice:":50" %}
+            <tr><td>{{ item.criado_em|date:"d/m/Y H:i" }}</td><td>{{ item.get_status_display }}</td><td>{{ item.ativos_encontrados }}</td><td>{{ item.mensagem }}</td></tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-secondary">A sonda ainda não enviou resultados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+  <aside class="col-lg-4">
+    <section class="side-panel">
+      <h2 class="h6">Instalação</h2>
+      <ol class="text-secondary">
+        <li>Baixe o script após criar ou regenerar o token.</li>
+        <li>Copie para uma máquina com Python 3 dentro da VLAN.</li>
+        <li>Execute <code>python3 sonda-{{ sonda.pk }}.py</code>.</li>
+        <li>Agende no cron ou Agendador de Tarefas.</li>
+      </ol>
+    </section>
+    <form class="side-panel mt-3" method="post" action="{% url 'inventario:sonda_token' sonda.pk %}" onsubmit="return confirm('O token anterior deixará de funcionar. Continuar?');">
+      {% csrf_token %}
+      <h2 class="h6">Credencial</h2>
+      <p class="text-secondary">Prefixo atual: <code>{{ sonda.token_prefixo }}</code></p>
+      <button class="btn btn-outline-danger w-100" type="submit">Regenerar token</button>
+    </form>
+  </aside>
+</div>
 {% endblock %}

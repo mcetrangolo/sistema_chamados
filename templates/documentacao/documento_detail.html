@@ -11,6 +11,10 @@
     <a class="btn btn-outline-secondary" href="{% url 'documentacao:lista' %}">Voltar</a>
     {% if user.is_superuser %}
       <a class="btn btn-primary" href="{% url 'documentacao:editar' documento.pk %}">Editar</a>
+      <form method="post" action="{% url 'documentacao:excluir' documento.pk %}" onsubmit="return confirm('Excluir este documento restrito?');">
+        {% csrf_token %}
+        <button class="btn btn-outline-danger" type="submit">Excluir</button>
+      </form>
     {% endif %}
   </div>
 </div>

@@ -4,6 +4,15 @@
 <div class="content-narrow">
   <h1 class="h3 mb-1">Editar usuario</h1>
   <p class="text-secondary">{{ object.username }}</p>
+  <div class="d-flex gap-2 mb-3">
+    <a class="btn btn-outline-secondary" href="{% url 'core:usuario_senha' object.pk %}">Alterar senha</a>
+    {% if object != request.user %}
+      <form method="post" action="{% url 'core:usuario_excluir' object.pk %}" onsubmit="return confirm('Excluir este usuário? Se houver vínculos históricos, a conta será apenas desativada.');">
+        {% csrf_token %}
+        <button class="btn btn-outline-danger" type="submit">Excluir usuário</button>
+      </form>
+    {% endif %}
+  </div>
   <form method="post">
     {% csrf_token %}
     {% include "chamados/partials/form_fields.html" with form=form %}

@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Count, Q
+from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import login_required
@@ -120,6 +121,31 @@ class FornecedorUpdateView(LoginRequiredMixin, UpdateView):
     def form_valid(self, form):
         messages.success(self.request, "Fornecedor atualizado com sucesso.")
         return super().form_valid(form)
+
+
+@login_required
+def excluir_contrato(request, pk):
+    contrato = get_object_or_404(ContratoPublico, pk=pk)
+    if request.method == "POST":
+        identificacao = f"{contrato.numero}/{contrato.ano}"
+        contrato.delete()
+        messages.success(request, f"Contrato {identificacao} excluído com sucesso.")
+    return redirect("contratos:lista")
+
+
+@login_required
+def excluir_fornecedor(request, pk):
+    fornecedor = get_object_or_404(Fornecedor, pk=pk)
+    if request.method == "POST":
+        nome = fornecedor.nome
+        try:
+            fornecedor.delete()
+            messages.success(request, f"Fornecedor {nome} excluído com sucesso.")
+        except ProtectedError:
+            fornecedor.ativo = False
+            fornecedor.save(update_fields=["ativo"])
+            messages.warning(request, f"Fornecedor {nome} possui contratos vinculados e foi marcado como inativo.")
+    return redirect("contratos:fornecedores")
 
 
 class PedidoProrrogacaoCreateView(LoginRequiredMixin, CreateView):

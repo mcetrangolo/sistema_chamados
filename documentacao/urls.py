@@ -10,5 +10,6 @@ urlpatterns = [
     path("novo/", views.DocumentoInfraCreateView.as_view(), name="novo"),
     path("<int:pk>/", views.DocumentoInfraDetailView.as_view(), name="detalhe"),
     path("<int:pk>/editar/", views.DocumentoInfraUpdateView.as_view(), name="editar"),
+    path("<int:pk>/excluir/", views.excluir_documento, name="excluir"),
     path("<int:pk>/anexos/", views.anexar_documento, name="anexo_novo"),
 ]

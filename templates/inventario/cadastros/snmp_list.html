@@ -10,7 +10,20 @@
     <thead><tr><th>Nome</th><th>Versão</th><th>Status</th><th class="text-end">Ações</th></tr></thead>
     <tbody>
       {% for credencial in credenciais %}
-        <tr><td>{{ credencial.nome }}</td><td>{{ credencial.get_versao_display }}</td><td>{{ credencial.ativo|yesno:"Ativa,Inativa" }}</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'inventario:snmp_editar' credencial.pk %}">Editar</a></td></tr>
+        <tr>
+          <td>{{ credencial.nome }}</td>
+          <td>{{ credencial.get_versao_display }}</td>
+          <td>{{ credencial.ativo|yesno:"Ativa,Inativa" }}</td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-2">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'inventario:snmp_editar' credencial.pk %}">Editar</a>
+              <form method="post" action="{% url 'inventario:snmp_excluir' credencial.pk %}" onsubmit="return confirm('Excluir esta credencial SNMP? Se houver faixas vinculadas, ela será inativada.');">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+              </form>
+            </div>
+          </td>
+        </tr>
       {% empty %}
         <tr><td colspan="4" class="text-center text-secondary py-4">Nenhuma credencial cadastrada.</td></tr>
       {% endfor %}

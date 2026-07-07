@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import SetPasswordForm
 
 from .models import ConfiguracaoBackup, ConfiguracaoInstitucional, ConfiguracaoLDAP
 from .permissions import PAPEIS, aplicar_papel, papel_usuario
@@ -106,6 +107,10 @@ class UsuarioSistemaForm(BootstrapFormMixin, forms.ModelForm):
             usuario.save()
             self.save_m2m()
         return usuario
+
+
+class UsuarioSenhaAdminForm(BootstrapFormMixin, SetPasswordForm):
+    pass
 
 
 class ConfiguracaoBackupForm(BootstrapFormMixin, forms.ModelForm):

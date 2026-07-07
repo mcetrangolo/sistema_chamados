@@ -16,7 +16,15 @@
           <td>{{ fornecedor.email|default:"-" }}</td>
           <td>{{ fornecedor.telefone|default:"-" }}</td>
           <td>{{ fornecedor.ativo|yesno:"Ativo,Inativo" }}</td>
-          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'contratos:fornecedor_editar' fornecedor.pk %}">Editar</a></td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-2">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'contratos:fornecedor_editar' fornecedor.pk %}">Editar</a>
+              <form method="post" action="{% url 'contratos:fornecedor_excluir' fornecedor.pk %}" onsubmit="return confirm('Excluir este fornecedor? Se houver contratos vinculados, ele será inativado.');">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+              </form>
+            </div>
+          </td>
         </tr>
       {% empty %}
         <tr><td colspan="6" class="text-center text-secondary py-4">Nenhum fornecedor cadastrado.</td></tr>

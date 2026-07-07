@@ -32,7 +32,7 @@
   </form>
 
   <table class="table table-hover align-middle mb-0">
-    <thead><tr><th>Nome</th><th>Usuario</th><th>E-mail</th><th>Perfil</th><th>Status</th><th class="text-end">Acoes</th></tr></thead>
+    <thead><tr><th>Nome</th><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Status</th><th class="text-end">Ações</th></tr></thead>
     <tbody>
       {% for usuario in usuarios %}
         <tr>
@@ -42,7 +42,16 @@
           <td><span class="badge text-bg-light" title="{{ usuario.papel_descricao }}">{{ usuario.papel_acesso|upper }}</span></td>
           <td>{% if usuario.is_active %}Ativo{% else %}Inativo{% endif %}</td>
           <td class="text-end">
-            <a class="btn btn-sm btn-outline-primary" href="{% url 'core:usuario_editar' usuario.pk %}">Editar</a>
+            <div class="d-inline-flex gap-2">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'core:usuario_editar' usuario.pk %}">Editar</a>
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'core:usuario_senha' usuario.pk %}">Senha</a>
+              {% if usuario != request.user %}
+                <form method="post" action="{% url 'core:usuario_excluir' usuario.pk %}" onsubmit="return confirm('Excluir este usuário? Se houver vínculos históricos, a conta será apenas desativada.');">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+                </form>
+              {% endif %}
+            </div>
           </td>
         </tr>
       {% empty %}

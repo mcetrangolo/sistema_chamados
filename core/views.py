@@ -16,14 +16,16 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connections
+from django.db.models.deletion import ProtectedError
 from django.http import FileResponse, Http404, HttpResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from django.views.generic import ListView, TemplateView, UpdateView
 
 from .backup_utils import descriptografar_backup, sha256_arquivo, validar_backup_zip
-from .forms import ConfiguracaoBackupForm, ConfiguracaoInstitucionalForm, ConfiguracaoLDAPForm, PerfilUsuarioForm, UsuarioSistemaForm
+from .forms import ConfiguracaoBackupForm, ConfiguracaoInstitucionalForm, ConfiguracaoLDAPForm, PerfilUsuarioForm, UsuarioSenhaAdminForm, UsuarioSistemaForm
 from .models import ConfiguracaoBackup, ConfiguracaoInstitucional, ConfiguracaoLDAP, Notificacao, RegistroAuditoria, RegistroBackup
 from .permissions import DESCRICAO_PAPEIS, papel_usuario
 
@@ -97,6 +99,46 @@ class UsuarioSistemaUpdateView(LoginRequiredMixin, SuperuserRequiredMixin, Updat
     def form_valid(self, form):
         messages.success(self.request, "Usuario atualizado com sucesso.")
         return super().form_valid(form)
+
+
+@login_required
+@user_passes_test(lambda user: user.is_superuser)
+def alterar_senha_usuario(request, pk):
+    usuario = get_object_or_404(get_user_model(), pk=pk)
+    if request.method == "POST":
+        form = UsuarioSenhaAdminForm(usuario, request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Senha de {usuario.get_username()} alterada com sucesso.")
+            return redirect("core:usuarios")
+    else:
+        form = UsuarioSenhaAdminForm(usuario)
+    return render(request, "core/usuario_senha_form.html", {"form": form, "usuario_editado": usuario})
+
+
+@login_required
+@user_passes_test(lambda user: user.is_superuser)
+@require_POST
+def excluir_usuario(request, pk):
+    usuario = get_object_or_404(get_user_model(), pk=pk)
+    if usuario == request.user:
+        messages.error(request, "Não é possível excluir o próprio usuário logado.")
+        return redirect("core:usuarios")
+    if usuario.is_superuser and not get_user_model().objects.filter(is_superuser=True).exclude(pk=usuario.pk).exists():
+        messages.error(request, "Não é possível excluir o último administrador do sistema.")
+        return redirect("core:usuarios")
+    nome = usuario.get_username()
+    try:
+        usuario.delete()
+        messages.success(request, f"Usuário {nome} excluído com sucesso.")
+    except ProtectedError:
+        usuario.is_active = False
+        usuario.save(update_fields=["is_active"])
+        messages.warning(
+            request,
+            f"Usuário {nome} possui vínculos históricos e não pode ser apagado. A conta foi desativada.",
+        )
+    return redirect("core:usuarios")
 
 
 class AjudaSistemaView(LoginRequiredMixin, TemplateView):

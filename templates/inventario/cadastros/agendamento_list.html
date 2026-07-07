@@ -17,7 +17,15 @@
           <td>{{ agendamento.intervalo_horas }}h</td>
           <td>{{ agendamento.ultima_execucao|date:"d/m/Y H:i"|default:"-" }}</td>
           <td>{{ agendamento.proxima_execucao|date:"d/m/Y H:i"|default:"-" }}</td>
-          <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'inventario:agendamento_editar' agendamento.pk %}">Editar</a></td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-2">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'inventario:agendamento_editar' agendamento.pk %}">Editar</a>
+              <form method="post" action="{% url 'inventario:agendamento_excluir' agendamento.pk %}" onsubmit="return confirm('Excluir este agendamento de varredura?');">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+              </form>
+            </div>
+          </td>
         </tr>
       {% empty %}
         <tr><td colspan="7" class="text-center text-secondary py-4">Nenhum agendamento cadastrado.</td></tr>

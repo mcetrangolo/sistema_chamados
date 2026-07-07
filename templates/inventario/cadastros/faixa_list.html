@@ -20,6 +20,10 @@
           <td>{{ faixa.ativa|yesno:"Ativa,Inativa" }}</td>
           <td class="text-end">
             <a class="btn btn-sm btn-outline-primary" href="{% url 'inventario:faixa_editar' faixa.pk %}">Editar</a>
+            <form method="post" action="{% url 'inventario:faixa_excluir' faixa.pk %}" class="d-inline-flex" onsubmit="return confirm('Excluir esta faixa de rede? Se houver varreduras vinculadas, ela será inativada.');">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+            </form>
             <form method="post" action="{% url 'inventario:varrer_snmp' faixa.pk %}" class="scan-form d-inline-flex gap-1 align-items-center">
               {% csrf_token %}
               <select class="form-select form-select-sm scan-method" name="metodo" aria-label="Método de descoberta">
