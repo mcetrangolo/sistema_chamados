@@ -13,7 +13,7 @@
 </div>
 <section class="detail-section">
   <table class="table table-hover align-middle mb-0">
-    <thead><tr><th>Ordem</th><th>Rotulo</th><th>Nome tecnico</th><th>Tipo</th><th>Obrigatorio</th><th>Status</th><th class="text-end">Acoes</th></tr></thead>
+    <thead><tr><th>Ordem</th><th>Rótulo</th><th>Nome técnico</th><th>Tipo</th><th>Obrigatório</th><th>Status</th><th class="text-end">Ações</th></tr></thead>
     <tbody>
       {% for campo in campos %}
         <tr>
@@ -21,7 +21,7 @@
           <td>{{ campo.rotulo }}</td>
           <td>{{ campo.nome }}</td>
           <td>{{ campo.get_tipo_display }}</td>
-          <td>{{ campo.obrigatorio|yesno:"Sim,Nao" }}</td>
+          <td>{{ campo.obrigatorio|yesno:"Sim,Não" }}</td>
           <td>{{ campo.ativo|yesno:"Ativo,Inativo" }}</td>
           <td class="text-end">
             <div class="d-inline-flex gap-2">

@@ -1,12 +1,12 @@
-﻿# Agente Windows de InventÃ¡rio
+# Agente Windows de Inventário
 
-Agente compatÃ­vel com Windows 7, 8, 10 e 11 em um Ãºnico instalador. A coleta usa WMI, serializaÃ§Ã£o JSON prÃ³pria compatÃ­vel com PowerShell 2.0 e o agendamento usa `schtasks.exe` para evitar dependÃªncia dos cmdlets modernos de tarefas agendadas. Pedidos feitos pelo botÃ£o **Solicitar coleta** sÃ£o consultados a cada minuto sem executar o inventÃ¡rio completo quando nÃ£o hÃ¡ pedido pendente.
+Agente compatível com Windows 7, 8, 10 e 11 em um único instalador. A coleta usa WMI, serialização JSON própria compatível com PowerShell 2.0 e o agendamento usa `schtasks.exe` para evitar dependência dos cmdlets modernos de tarefas agendadas. Pedidos feitos pelo botão **Solicitar coleta** são consultados a cada minuto sem executar o inventário completo quando não há pedido pendente.
 
-## PrÃ©-requisitos
+## Pré-requisitos
 
 - Executar o instalador como Administrador.
 - PowerShell habilitado. No Windows 7, o agente evita recursos exclusivos do PowerShell 3+.
-- .NET Framework 3.5 ou superior para o instalador grÃ¡fico e o Ã­cone da bandeja.
+- .NET Framework 3.5 ou superior para o instalador gráfico e o ícone da bandeja.
 - O servidor pode usar o token local padrao ou ter `INVENTARIO_AGENT_TOKEN` configurado no `.env`.
 - O computador cliente precisa acessar o servidor na URL informada, por exemplo `http://192.168.0.10:8000`.
 
@@ -18,7 +18,7 @@ No computador de desenvolvimento:
 powershell.exe -ExecutionPolicy RemoteSigned -File .\scripts\agent\windows\build_installer.ps1
 ```
 
-O arquivo serÃ¡ gerado em:
+O arquivo será gerado em:
 
 ```text
 dist\SistemaChamadosAgentSetup.exe
@@ -53,11 +53,11 @@ powershell.exe -ExecutionPolicy RemoteSigned -File .\install_gui.ps1
 O instalador pergunta:
 
 - IP:porta ou URL do servidor.
-- NÃºmero de sÃ©rie/patrimÃ´nio manual, opcional.
+- Número de série/patrimônio manual, opcional.
 
 Por padrao, o token ja vai embutido no instalador local. Se o servidor usar outro token no `.env`, ajuste o valor no script e gere novamente o instalador.
 
-O instalador exibe janelas simples de boas-vindas e configuraÃ§Ã£o. Ao final, o agente fica registrado em **Painel de Controle > Programas e Recursos** como `Sistema Chamados Agent`.
+O instalador exibe janelas simples de boas-vindas e configuração. Ao final, o agente fica registrado em **Painel de Controle > Programas e Recursos** como `Sistema Chamados Agent`.
 
 Ao atualizar uma instalacao existente, o instalador reaproveita automaticamente servidor, token e numero de patrimonio do `config.json`. Ele tambem instala um icone na bandeja do Windows com comandos para configurar a conexao, enviar uma coleta, reiniciar o agente, abrir o sistema e consultar o ultimo log.
 
@@ -74,7 +74,7 @@ C:\ProgramData\SistemaChamadosAgent\last-run.log
 ## Tarefas criadas
 
 - `SistemaChamadosAgentStartup`: executa ao iniciar o Windows.
-- `SistemaChamadosAgentInterval`: executa a cada 6 horas por padrÃ£o.
+- `SistemaChamadosAgentInterval`: executa a cada 6 horas por padrão.
 - `SistemaChamadosAgentSolicitacoes`: verifica a cada minuto se o servidor solicitou uma coleta manual.
 
 ## Arquivos instalados

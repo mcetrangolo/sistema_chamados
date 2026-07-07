@@ -15,7 +15,7 @@ https://github.com/mcetrangolo/sistema_chamados
 - Catálogo de serviços com aprovação quando necessário.
 - Base de conhecimento pública e interna.
 - Relatórios com filtros e exportação em XLS/PDF.
-- Governança de acessos e Wi-Fi com aceite e PDF.
+- Governança de acessos e Wi-Fi com aceite, PDF e aprovação antes da abertura do chamado.
 - Inventário de ativos, agentes Windows/Linux e descoberta por rede.
 - Descoberta por Nmap, Ping/ICMP, DNS reverso, TCP/portas, SNMP e Active Directory.
 - Backup/restauração e atualização via GitHub pela interface.

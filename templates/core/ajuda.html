@@ -64,11 +64,11 @@
         </article>
         <article class="help-card">
           <h3>Relatórios e governança</h3>
-          <p>Concentra indicadores, exportações, solicitações formais, catálogo público e registros úteis para prestação de contas.</p>
+          <p>Concentra indicadores, exportações, aprovações, solicitações formais e registros úteis para prestação de contas.</p>
         </article>
         <article class="help-card">
           <h3>Administração</h3>
-          <p>Área restrita para usuários, permissões, tema institucional, LDAP, backup, atualização, auditoria e controle de serviços.</p>
+          <p>Área restrita para usuários, permissões, tema institucional, LDAP, backup, atualização e auditoria.</p>
         </article>
       </div>
       <p class="help-note">O menu muda conforme o perfil do usuário. Se uma opção não aparecer, confirme o perfil de acesso com o administrador.</p>
@@ -88,7 +88,7 @@
           <p>Acesso total ao sistema. Deve ser usado por poucas contas, preferencialmente da equipe responsável pela operação técnica.</p>
           <ul>
             <li>Gerencia usuários, backup, LDAP e atualização.</li>
-            <li>Acessa auditoria e controle de serviços.</li>
+            <li>Acessa auditoria, backup, atualização e permissões.</li>
             <li>Configura catálogo, SLA, inventário e cadastros.</li>
           </ul>
         </article>
@@ -162,7 +162,7 @@
       </div>
       <div class="help-two-columns">
         <div>
-          <h3>Catálogo público</h3>
+          <h3>Catálogo de serviços</h3>
           <p>Permite que o usuário solicite serviços com formulário padronizado, como criação de acesso, instalação de software, troca de equipamento ou suporte a impressora.</p>
           <ul>
             <li>Use campos personalizados para dados obrigatórios.</li>
@@ -172,18 +172,18 @@
         </div>
         <div>
           <h3>Governança</h3>
-          <p>Registra solicitações formais de acesso e Wi-Fi com aceite, histórico e geração de documento em PDF. Serve para padronizar evidências e reduzir solicitações informais.</p>
+          <p>Registra solicitações formais de acesso e Wi-Fi com aceite, histórico, aprovação e geração de documento em PDF. O chamado só é aberto depois da aprovação.</p>
           <ul>
-            <li>Valide dados do solicitante antes de converter em chamado.</li>
+            <li>Aprove ou rejeite solicitações na tela de aprovações ou na lista de governança.</li>
             <li>Mantenha anexos e documentos vinculados ao processo.</li>
             <li>Use o status para acompanhar análise, aprovação ou rejeição.</li>
           </ul>
         </div>
       </div>
       <div class="help-actions">
-        <a href="{% url 'chamados:catalogo' %}">Catálogo público</a>
+        <a href="{% url 'chamados:catalogo' %}">Catálogo de serviços</a>
         {% if perfil_acesso.suporte_n2 %}<a href="{% url 'chamados:servicos' %}">Administrar catálogo</a>{% endif %}
-        <a href="{% url 'governanca:portal' %}">Portal de governança</a>
+        <a href="{% url 'governanca:solicitacoes' %}">Solicitações de governança</a>
       </div>
     </section>
 

@@ -1,9 +1,9 @@
 from django.contrib import messages
-from django.views.generic import ListView, RedirectView, TemplateView
 from django.shortcuts import redirect
 from django.utils import timezone
+from django.views.generic import ListView, RedirectView, TemplateView
 
-from chamados.models import Categoria, Chamado, HistoricoChamado, Setor, TopicoAjuda
+from chamados.models import AprovacaoSolicitacao
 
 from .forms import UsuarioAcessoForm, WifiCorporativoForm
 from .models import SolicitacaoGovernanca
@@ -26,73 +26,13 @@ def registrar_aceite(solicitacao, request, versao, texto):
     solicitacao.termo_aceito_user_agent = request.META.get("HTTP_USER_AGENT", "")[:300]
 
 
-def criar_chamado_governanca(solicitacao):
-    setor, _ = Setor.objects.get_or_create(
-        nome=solicitacao.setor,
-        defaults={"ativo": True},
+def criar_aprovacao_governanca(solicitacao):
+    return AprovacaoSolicitacao.objects.create(
+        origem=AprovacaoSolicitacao.Origem.GOVERNANCA,
+        governanca_id=solicitacao.pk,
+        titulo=f"Aprovar governança: {solicitacao.get_tipo_display()}",
+        solicitante=solicitacao.nome,
     )
-    categoria, _ = Categoria.objects.get_or_create(
-        nome="Governança",
-        defaults={"ativo": True},
-    )
-    topico, _ = TopicoAjuda.objects.get_or_create(
-        nome=solicitacao.get_tipo_display(),
-        defaults={
-            "categoria": categoria,
-            "prioridade_padrao": Chamado.Prioridade.MEDIA,
-            "sla_horas": 48,
-            "ativo": True,
-        },
-    )
-
-    detalhes = [
-        f"Solicitação de governança: {solicitacao.get_tipo_display()}",
-        f"Protocolo: {solicitacao.protocolo}",
-        f"Matrícula: {solicitacao.matricula}",
-        f"Cargo: {solicitacao.cargo or '-'}",
-        "",
-    ]
-    if solicitacao.acessos_solicitados:
-        detalhes.extend(["Acessos solicitados:", solicitacao.acessos_solicitados, ""])
-    if solicitacao.tipo_solicitacao_rede:
-        detalhes.extend(["Tipo de solicitação:", solicitacao.get_tipo_solicitacao_rede_display(), ""])
-    if solicitacao.usuario_rede_existente:
-        detalhes.extend(["Usuário de rede existente:", solicitacao.usuario_rede_existente, ""])
-    if solicitacao.chefia_imediata:
-        detalhes.extend(["Chefia/autorizador informado:", solicitacao.chefia_imediata, ""])
-    if solicitacao.aparelhos:
-        detalhes.extend(["Aparelhos:", solicitacao.aparelhos, ""])
-    detalhes.extend(
-        [
-            "Justificativa:",
-            solicitacao.justificativa or "-",
-            "",
-            "Aceite registrado:",
-            f"Versão: {solicitacao.termo_versao or '-'}",
-            f"Data/hora: {solicitacao.termo_aceito_em:%d/%m/%Y %H:%M:%S}" if solicitacao.termo_aceito_em else "Data/hora: -",
-            f"IP: {solicitacao.termo_aceito_ip or '-'}",
-        ]
-    )
-
-    chamado = Chamado.objects.create(
-        nome_solicitante=solicitacao.nome,
-        email=solicitacao.email,
-        telefone=solicitacao.telefone,
-        setor=setor,
-        categoria=categoria,
-        topico_ajuda=topico,
-        tipo=Chamado.Tipo.REQUISICAO,
-        prioridade=topico.prioridade_padrao,
-        descricao="\n".join(detalhes),
-        origem=Chamado.Origem.PORTAL,
-    )
-
-    HistoricoChamado.objects.create(
-        chamado=chamado,
-        status=chamado.status,
-        comentario=f"Chamado criado automaticamente pela governança ({solicitacao.protocolo}).",
-    )
-    return chamado
 
 
 class GovernancaPortalView(RedirectView):
@@ -126,10 +66,8 @@ class UsuarioAcessoCreateView(TemplateView):
             solicitacao.save()
             solicitacao.documento_caminho = gerar_documento_solicitacao(solicitacao)
             solicitacao.save(update_fields=["documento_caminho", "atualizado_em"])
-            chamado = criar_chamado_governanca(solicitacao)
-            solicitacao.status = SolicitacaoGovernanca.Status.EM_ANALISE
-            solicitacao.save(update_fields=["status", "atualizado_em"])
-            messages.success(request, f"Solicitação registrada e chamado aberto: {chamado.numero}.")
+            criar_aprovacao_governanca(solicitacao)
+            messages.success(request, f"Solicitação registrada para aprovação. Protocolo {solicitacao.protocolo}.")
             return redirect("governanca:portal")
         return self.render_to_response(self.get_context_data(form=form))
 
@@ -153,10 +91,8 @@ class WifiCorporativoCreateView(TemplateView):
             solicitacao.save()
             solicitacao.documento_caminho = gerar_documento_solicitacao(solicitacao)
             solicitacao.save(update_fields=["documento_caminho", "atualizado_em"])
-            chamado = criar_chamado_governanca(solicitacao)
-            solicitacao.status = SolicitacaoGovernanca.Status.EM_ANALISE
-            solicitacao.save(update_fields=["status", "atualizado_em"])
-            messages.success(request, f"Solicitação registrada e chamado aberto: {chamado.numero}.")
+            criar_aprovacao_governanca(solicitacao)
+            messages.success(request, f"Solicitação registrada para aprovação. Protocolo {solicitacao.protocolo}.")
             return redirect("governanca:portal")
         return self.render_to_response(self.get_context_data(form=form))
 
@@ -166,3 +102,20 @@ class SolicitacaoGovernancaListView(ListView):
     template_name = "governanca/solicitacao_list.html"
     context_object_name = "solicitacoes"
     paginate_by = 25
+
+    def get_queryset(self):
+        return super().get_queryset().order_by("-criado_em")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        solicitacoes = list(context["solicitacoes"])
+        ids = [solicitacao.pk for solicitacao in solicitacoes]
+        aprovacoes = AprovacaoSolicitacao.objects.filter(
+            origem=AprovacaoSolicitacao.Origem.GOVERNANCA,
+            governanca_id__in=ids,
+        )
+        aprovacoes_por_solicitacao = {aprovacao.governanca_id: aprovacao for aprovacao in aprovacoes}
+        for solicitacao in solicitacoes:
+            solicitacao.aprovacao = aprovacoes_por_solicitacao.get(solicitacao.pk)
+        context["solicitacoes"] = solicitacoes
+        return context

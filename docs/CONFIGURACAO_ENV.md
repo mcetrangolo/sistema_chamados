@@ -1,6 +1,6 @@
-# Configuracao do .env, IP Fixo e DNS
+# Configuração do .env, IP Fixo e DNS
 
-O arquivo `.env` controla como a aplicacao responde na rede, quais origens podem enviar formularios, como agentes encontram o servidor e quais integracoes estao ativas.
+O arquivo `.env` controla como a aplicação responde na rede, quais origens podem enviar formulários, como agentes encontram o servidor e quais integrações técnicas ficam disponíveis.
 
 No servidor Docker, edite:
 
@@ -10,7 +10,7 @@ nano /opt/sistema-chamados/.env
 
 ## Quando definir IP fixo no servidor
 
-Se o servidor passou a usar um IP fixo, dominio interno ou nome DNS, atualize estas variaveis:
+Se o servidor passou a usar um IP fixo, domínio interno ou nome DNS, atualize estas variáveis:
 
 ```env
 PUBLIC_BASE_URL=http://192.168.0.10
@@ -18,7 +18,7 @@ ALLOWED_HOSTS=192.168.0.10,chamados.local,localhost,127.0.0.1
 CSRF_TRUSTED_ORIGINS=http://192.168.0.10,http://chamados.local
 ```
 
-Se o sistema estiver em uma porta especifica:
+Se o sistema estiver em uma porta específica:
 
 ```env
 PUBLIC_BASE_URL=http://192.168.0.10:8000
@@ -40,11 +40,11 @@ docker compose exec web python manage.py check
 docker compose exec web python manage.py validar_producao
 ```
 
-## O que cada variavel faz
+## O que cada variável faz
 
 `PUBLIC_BASE_URL`
 
-Endereco base exibido e usado pelo sistema para links, downloads de agentes e endpoints de coleta. Ajuste quando mudar IP, DNS, porta ou HTTPS.
+Endereço base exibido e usado pelo sistema para links, downloads de agentes e endpoints de coleta. Ajuste quando mudar IP, DNS, porta ou HTTPS.
 
 `ALLOWED_HOSTS`
 
@@ -52,21 +52,21 @@ Lista de IPs/nomes pelos quais o Django aceita responder. Se faltar o IP ou DNS 
 
 `CSRF_TRUSTED_ORIGINS`
 
-Lista de origens confiaveis para formularios. Se faltar, botoes POST podem falhar quando o sistema e acessado por IP, DNS, HTTPS ou proxy.
+Lista de origens confiáveis para formulários. Se faltar, botões POST podem falhar quando o sistema é acessado por IP, DNS, HTTPS ou proxy.
 
 `INVENTARIO_AGENT_TOKEN`
 
-Token usado pelos agentes de inventario para enviar dados. Se estiver ausente, o sistema usa o valor fixo de compatibilidade `sistema-chamados-agent-local`. O valor efetivamente carregado e sua origem aparecem para o administrador em **Inventario > Agentes de inventario**. Em producao exposta, use um valor grande e exclusivo no `.env`.
+Token usado pelos agentes de inventário para enviar dados. Se estiver ausente, o sistema usa o valor fixo de compatibilidade `sistema-chamados-agent-local`. O valor efetivamente carregado e sua origem aparecem para o administrador em **Inventário > Agentes de inventário**. Em produção exposta, use um valor grande e exclusivo no `.env`.
 
-## Efeito nos agentes ja instalados
+## Efeito nos agentes já instalados
 
-Se os agentes Windows/Linux foram instalados apontando para o IP antigo, eles podem continuar tentando enviar para o endereco antigo.
+Se os agentes Windows/Linux foram instalados apontando para o IP antigo, eles podem continuar tentando enviar para o endereço antigo.
 
 Nesses casos:
 
-- no Windows, use o icone do agente na bandeja para alterar servidor e token, ou execute o instalador atual sobre a instalacao existente;
+- no Windows, use o ícone do agente na bandeja para alterar servidor e token, ou execute o instalador atual sobre a instalação existente;
 - no Linux, ajuste `/etc/sistema-chamados-agent/config.env` e reinicie o temporizador;
-- valide uma coleta manual antes de aguardar o proximo ciclo automatico.
+- valide uma coleta manual antes de aguardar o próximo ciclo automático.
 
 ## E-mail SMTP
 

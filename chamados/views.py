@@ -74,11 +74,9 @@ from .services import (
     ChamadoErro,
     atribuir_chamado_para_usuario,
     atualizar_chamado,
-    criar_chamado_de_governanca as criar_chamado_de_governanca_service,
     criar_chamado_de_solicitacao as criar_chamado_de_solicitacao_service,
     decidir_solicitacao,
     encerrar_chamado as encerrar_chamado_service,
-    notificar_chamado,
     registrar_atribuicao_chamado,
     registrar_chamado_aberto,
     registrar_resposta_interna,
@@ -1118,7 +1116,7 @@ class AprovacaoListView(LoginRequiredMixin, ListView):
 @login_required
 def decidir_aprovacao(request, pk, decisao):
     aprovacao = get_object_or_404(AprovacaoSolicitacao, pk=pk)
-    chamado_destino = aprovacao.solicitacao_servico.chamado if aprovacao.solicitacao_servico else None
+    proximo = request.POST.get("next") or request.GET.get("next")
     if request.method == "POST" and aprovacao.status == AprovacaoSolicitacao.Status.PENDENTE:
         decidir_solicitacao(
             aprovacao,
@@ -1130,168 +1128,12 @@ def decidir_aprovacao(request, pk, decisao):
             messages.success(request, "Solicitação aprovada.")
         else:
             messages.success(request, "Solicitação rejeitada.")
-        if chamado_destino:
-            return redirect(chamado_destino)
-        return redirect("chamados:aprovacoes")
-        aprovacao.aprovado_por = request.user
-        aprovacao.observacao = request.POST.get("observacao", "").strip()
-        aprovacao.decidido_em = timezone.now()
-        if decisao == "aprovar":
-            aprovacao.status = AprovacaoSolicitacao.Status.APROVADA
-            if aprovacao.solicitacao_servico:
-                chamado = aprovacao.solicitacao_servico.chamado
-                if not chamado:
-                    chamado = criar_chamado_de_solicitacao(aprovacao.solicitacao_servico)
-                chamado.aprovacao_necessaria = True
-                chamado.aprovado_por = request.user
-                chamado.aprovado_em = timezone.now()
-                chamado.status = Chamado.Status.ABERTO
-                chamado.save(update_fields=["aprovacao_necessaria", "aprovado_por", "aprovado_em", "status", "atualizado_em"])
-                HistoricoChamado.objects.create(
-                    chamado=chamado,
-                    usuario=request.user,
-                    status=chamado.status,
-                    comentario=f"Solicitacao aprovada. {aprovacao.observacao}",
-                )
-            elif aprovacao.origem == AprovacaoSolicitacao.Origem.GOVERNANCA and aprovacao.governanca_id:
-                criar_chamado_de_governanca(aprovacao.governanca_id)
-            messages.success(request, "Solicitação aprovada.")
-        else:
-            aprovacao.status = AprovacaoSolicitacao.Status.REJEITADA
-            if aprovacao.solicitacao_servico and aprovacao.solicitacao_servico.chamado:
-                chamado = aprovacao.solicitacao_servico.chamado
-                chamado.status = Chamado.Status.CANCELADO
-                chamado.save(update_fields=["status", "atualizado_em"])
-                HistoricoChamado.objects.create(
-                    chamado=chamado,
-                    usuario=request.user,
-                    status=chamado.status,
-                    comentario=f"Solicitacao rejeitada. {aprovacao.observacao}",
-                )
-            if aprovacao.origem == AprovacaoSolicitacao.Origem.GOVERNANCA and aprovacao.governanca_id:
-                from governanca.models import SolicitacaoGovernanca
-
-                SolicitacaoGovernanca.objects.filter(pk=aprovacao.governanca_id).update(
-                    status=SolicitacaoGovernanca.Status.NEGADA,
-                    atualizado_em=timezone.now(),
-                )
-            messages.success(request, "Solicitação rejeitada.")
-        aprovacao.save()
-    if chamado_destino:
-        return redirect(chamado_destino)
+        aprovacao.refresh_from_db()
+        if aprovacao.solicitacao_servico and aprovacao.solicitacao_servico.chamado:
+            return redirect(aprovacao.solicitacao_servico.chamado)
+        if proximo and proximo.startswith("/") and not proximo.startswith("//"):
+            return redirect(proximo)
     return redirect("chamados:aprovacoes")
-
-
-def criar_chamado_de_solicitacao(solicitacao):
-    return criar_chamado_de_solicitacao_service(solicitacao)
-    servico = solicitacao.servico
-    detalhes_personalizados = []
-    for item in (solicitacao.dados_personalizados or {}).values():
-        detalhes_personalizados.append(f"{item.get('rotulo')}: {item.get('valor')}")
-    detalhes = solicitacao.detalhes
-    if detalhes_personalizados:
-        detalhes = f"{detalhes}\n\nCampos do formulario:\n" + "\n".join(detalhes_personalizados)
-    chamado = Chamado.objects.create(
-        nome_solicitante=solicitacao.nome,
-        email=solicitacao.email,
-        telefone=solicitacao.telefone,
-        setor=solicitacao.setor,
-        categoria=servico.categoria,
-        topico_ajuda=servico.topico_ajuda,
-        equipe_responsavel=servico.equipe_padrao,
-        tipo=servico.tipo_chamado,
-        prioridade=servico.prioridade_padrao,
-        descricao=f"Solicitação de serviço: {servico.nome}\n\n{detalhes}",
-        origem=Chamado.Origem.PORTAL,
-        status=Chamado.Status.AGUARDANDO_APROVACAO if servico.requer_aprovacao else Chamado.Status.ABERTO,
-        aprovacao_necessaria=servico.requer_aprovacao,
-        tecnico_responsavel=servico.aprovador_padrao if servico.requer_aprovacao else None,
-    )
-    solicitacao.chamado = chamado
-    solicitacao.status = SolicitacaoServico.Status.CONVERTIDA
-    solicitacao.save(update_fields=["chamado", "status"])
-    HistoricoChamado.objects.create(
-        chamado=chamado,
-        status=chamado.status,
-        comentario=f"Chamado criado pelo catálogo de serviços ({solicitacao.protocolo}).",
-    )
-    notificar_chamado(chamado, "Chamado aberto", "Sua solicitação foi convertida em chamado.")
-    return chamado
-
-
-def criar_chamado_de_governanca(governanca_id):
-    return criar_chamado_de_governanca_service(governanca_id)
-    from governanca.models import SolicitacaoGovernanca
-
-    solicitacao = get_object_or_404(SolicitacaoGovernanca, pk=governanca_id)
-    setor, _ = Setor.objects.get_or_create(nome=solicitacao.setor, defaults={"ativo": True})
-    categoria, _ = Categoria.objects.get_or_create(nome="Governança", defaults={"ativo": True})
-    detalhes = [
-        f"Solicitação de governança: {solicitacao.get_tipo_display()}",
-        f"Protocolo: {solicitacao.protocolo}",
-        f"Matrícula: {solicitacao.matricula}",
-        f"Cargo: {solicitacao.cargo or '-'}",
-        "",
-    ]
-    if solicitacao.acessos_solicitados:
-        detalhes.extend(["Acessos solicitados:", solicitacao.acessos_solicitados, ""])
-    if solicitacao.tipo_solicitacao_rede:
-        detalhes.extend(["Tipo de solicitação:", solicitacao.get_tipo_solicitacao_rede_display(), ""])
-    if solicitacao.usuario_rede_existente:
-        detalhes.extend(["Usuário de rede existente:", solicitacao.usuario_rede_existente, ""])
-    if solicitacao.chefia_imediata:
-        detalhes.extend(["Chefia/autorizador informado:", solicitacao.chefia_imediata, ""])
-    if solicitacao.aparelhos:
-        detalhes.extend(["Aparelhos:", solicitacao.aparelhos, ""])
-    detalhes.extend(
-        [
-            "Justificativa:",
-            solicitacao.justificativa or "-",
-            "",
-            "Aceite registrado:",
-            f"Versão: {solicitacao.termo_versao or '-'}",
-            f"Data/hora: {solicitacao.termo_aceito_em:%d/%m/%Y %H:%M:%S}" if solicitacao.termo_aceito_em else "Data/hora: -",
-            f"IP: {solicitacao.termo_aceito_ip or '-'}",
-        ]
-    )
-
-    chamado = Chamado.objects.create(
-        nome_solicitante=solicitacao.nome,
-        email=solicitacao.email,
-        telefone=solicitacao.telefone,
-        setor=setor,
-        categoria=categoria,
-        prioridade=Chamado.Prioridade.MEDIA,
-        descricao="\n".join(detalhes),
-        origem=Chamado.Origem.PORTAL,
-    )
-    solicitacao.status = SolicitacaoGovernanca.Status.EM_ANALISE
-    solicitacao.save(update_fields=["status", "atualizado_em"])
-
-    if not solicitacao.documento_caminho:
-        from governanca.pdf import gerar_documento_solicitacao
-
-        solicitacao.documento_caminho = gerar_documento_solicitacao(solicitacao)
-        solicitacao.save(update_fields=["documento_caminho", "atualizado_em"])
-
-    pdf_path = Path(solicitacao.documento_caminho or "")
-    if pdf_path.is_file():
-        with pdf_path.open("rb") as arquivo:
-            anexo = AnexoChamado(
-                chamado=chamado,
-                descricao=f"Formulário {solicitacao.protocolo}",
-                nome_enviado_por=solicitacao.nome,
-                publico=True,
-            )
-            anexo.arquivo.save(pdf_path.name, File(arquivo), save=True)
-
-    HistoricoChamado.objects.create(
-        chamado=chamado,
-        status=chamado.status,
-        comentario=f"Chamado criado a partir da solicitação de governança {solicitacao.protocolo}.",
-    )
-    notificar_chamado(chamado, "Chamado aberto", "Sua solicitação de governança foi aprovada e convertida em chamado.")
-    return chamado
 
 
 class TecnicoListView(LoginRequiredMixin, AdminRequiredMixin, ListView):
