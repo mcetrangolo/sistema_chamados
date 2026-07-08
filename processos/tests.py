@@ -70,6 +70,17 @@ class ProcessosBPMNTests(TestCase):
         self.assertContains(response, 'id="bpmn-stroke-color"')
         self.assertContains(response, 'id="bpmn-import"')
         self.assertContains(response, 'id="bpmn-download"')
+        self.assertContains(response, reverse("processos:editar_amplo", args=[diagrama.pk]))
+
+    def test_editor_amplo_do_bpmn_renderiza_canvas_expandido(self):
+        diagrama = DiagramaBPMN.objects.create(titulo="Editor amplo", xml=DEFAULT_BPMN_XML)
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("processos:editar_amplo", args=[diagrama.pk]))
+
+        self.assertContains(response, "Editor BPMN amplo")
+        self.assertContains(response, "bpmn-full-canvas")
+        self.assertContains(response, 'id="bpmn-fit"')
 
     def test_usuario_n1_nao_acessa_processos(self):
         self.client.force_login(self.n1)

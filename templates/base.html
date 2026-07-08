@@ -131,7 +131,7 @@
         <button class="btn sidebar-toggle d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar">
           Menu
         </button>
-        <form class="topbar-search d-none d-md-block" method="get" action="{% url 'chamados:busca_global' %}">
+        <form class="topbar-search" method="get" action="{% url 'chamados:busca_global' %}">
           <input class="form-control" type="search" name="q" placeholder="Buscar chamados, ativos ou usuários" aria-label="Buscar">
         </form>
         {% if user.is_authenticated %}

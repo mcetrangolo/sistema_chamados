@@ -13,6 +13,7 @@
   </div>
   <div class="d-inline-flex gap-2">
     {% if object %}<a class="btn btn-outline-secondary" href="{{ object.get_absolute_url }}">Visualizar</a>{% endif %}
+    {% if object %}<a class="btn btn-outline-primary" href="{% url 'processos:editar_amplo' object.pk %}">Editor amplo</a>{% endif %}
     <a class="btn btn-outline-secondary" href="{% url 'processos:lista' %}">Voltar</a>
   </div>
 </div>

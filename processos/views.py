@@ -87,6 +87,10 @@ class DiagramaBPMNUpdateView(LoginRequiredMixin, SuporteN2RequiredMixin, UpdateV
         return super().form_valid(form)
 
 
+class DiagramaBPMNFullEditorView(DiagramaBPMNUpdateView):
+    template_name = "processos/diagrama_full_editor.html"
+
+
 class DiagramaBPMNDeleteView(LoginRequiredMixin, SuporteN2RequiredMixin, DeleteView):
     model = DiagramaBPMN
     template_name = "processos/diagrama_confirm_delete.html"
