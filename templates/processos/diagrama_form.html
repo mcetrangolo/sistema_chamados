@@ -45,7 +45,7 @@
     </div>
   </section>
 
-  <section class="detail-section p-0 overflow-hidden">
+  <section class="detail-section p-0 overflow-hidden bpmn-editor-section" id="bpmn-editor-section">
     <div class="bpmn-toolbar">
       <button class="btn btn-primary" type="submit">Salvar fluxo</button>
       <div class="btn-group" role="group" aria-label="Zoom do BPMN">
@@ -53,6 +53,7 @@
         <button class="btn btn-outline-secondary" type="button" id="bpmn-fit">Ajustar</button>
         <button class="btn btn-outline-secondary" type="button" id="bpmn-zoom-in">Zoom +</button>
       </div>
+      <button class="btn btn-outline-secondary" type="button" id="bpmn-fullscreen">Tela cheia</button>
       <div class="bpmn-color-tools">
         <label class="bpmn-color-field" for="bpmn-fill-color">
           Fundo
@@ -78,6 +79,8 @@
 <script>
   const xmlField = document.getElementById("id_xml");
   const form = document.getElementById("bpmn-form");
+  const editorSection = document.getElementById("bpmn-editor-section");
+  const fullscreenButton = document.getElementById("bpmn-fullscreen");
   const modeler = new BpmnJS({ container: "#bpmn-canvas" });
   const canvas = modeler.get("canvas");
   const eventBus = modeler.get("eventBus");
@@ -133,6 +136,28 @@
 
   document.getElementById("bpmn-fit").addEventListener("click", function () {
     canvas.zoom("fit-viewport");
+  });
+
+  fullscreenButton.addEventListener("click", function () {
+    if (!document.fullscreenElement) {
+      editorSection.requestFullscreen().then(function () {
+        fullscreenButton.textContent = "Sair da tela cheia";
+        canvas.zoom("fit-viewport");
+      }).catch(function () {
+        alert("Não foi possível abrir em tela cheia.");
+      });
+      return;
+    }
+    document.exitFullscreen();
+  });
+
+  document.addEventListener("fullscreenchange", function () {
+    if (!document.fullscreenElement) {
+      fullscreenButton.textContent = "Tela cheia";
+    }
+    setTimeout(function () {
+      canvas.zoom("fit-viewport");
+    }, 150);
   });
 
   applyColorButton.addEventListener("click", function () {

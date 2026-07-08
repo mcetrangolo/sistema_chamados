@@ -65,6 +65,7 @@ class ProcessosBPMNTests(TestCase):
         self.assertContains(response, 'id="bpmn-zoom-in"')
         self.assertContains(response, 'id="bpmn-zoom-out"')
         self.assertContains(response, 'id="bpmn-fit"')
+        self.assertContains(response, 'id="bpmn-fullscreen"')
         self.assertContains(response, 'id="bpmn-fill-color"')
         self.assertContains(response, 'id="bpmn-stroke-color"')
         self.assertContains(response, 'id="bpmn-import"')
