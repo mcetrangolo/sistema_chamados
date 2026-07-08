@@ -55,6 +55,10 @@ class DiagramaBPMN(models.Model):
     descricao = models.TextField(blank=True)
     xml = models.TextField(default=DEFAULT_BPMN_XML)
     ativo = models.BooleanField(default=True)
+    exibir_portal = models.BooleanField(
+        default=False,
+        verbose_name="exibir no portal público",
+    )
     criado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -90,4 +94,3 @@ class DiagramaBPMN(models.Model):
             for caractere in self.titulo.strip()
         ).strip("-")
         return f"{nome or 'processo'}-{self.pk}.bpmn"
-

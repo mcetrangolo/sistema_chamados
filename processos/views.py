@@ -12,6 +12,28 @@ from .forms import DiagramaBPMNForm
 from .models import DEFAULT_BPMN_XML, DiagramaBPMN
 
 
+class DiagramaBPMNPublicListView(ListView):
+    model = DiagramaBPMN
+    template_name = "processos/public/diagrama_list.html"
+    context_object_name = "diagramas"
+
+    def get_queryset(self):
+        queryset = DiagramaBPMN.objects.filter(ativo=True, exibir_portal=True)
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            queryset = queryset.filter(titulo__icontains=q)
+        return queryset
+
+
+class DiagramaBPMNPublicDetailView(DetailView):
+    model = DiagramaBPMN
+    template_name = "processos/public/diagrama_detail.html"
+    context_object_name = "diagrama"
+
+    def get_queryset(self):
+        return DiagramaBPMN.objects.filter(ativo=True, exibir_portal=True)
+
+
 class SuporteN2RequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return usuario_e_suporte_n2(self.request.user)

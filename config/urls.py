@@ -31,6 +31,7 @@ urlpatterns = [
         ),
         name="password_change_done",
     ),
+    path("bpmn/", include("processos.public_urls")),
     path("", include("chamados.urls")),
     path("inventario/", include("inventario.urls")),
     path("governanca/", include("governanca.urls")),

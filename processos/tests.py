@@ -34,12 +34,14 @@ class ProcessosBPMNTests(TestCase):
                 "descricao": "Processo de acesso à rede.",
                 "xml": DEFAULT_BPMN_XML,
                 "ativo": "on",
+                "exibir_portal": "on",
             },
         )
 
         diagrama = DiagramaBPMN.objects.get()
         self.assertRedirects(response, diagrama.get_absolute_url())
         self.assertEqual(diagrama.criado_por, self.admin)
+        self.assertTrue(diagrama.exibir_portal)
         self.assertIn("<bpmn:definitions", diagrama.xml)
 
     def test_diagrama_tem_pagina_propria_e_exportacao(self):
@@ -60,3 +62,43 @@ class ProcessosBPMNTests(TestCase):
         response = self.client.get(reverse("processos:lista"))
 
         self.assertEqual(response.status_code, 403)
+
+    def test_portal_exibe_apenas_diagramas_ativos_e_publicos(self):
+        publico = DiagramaBPMN.objects.create(
+            titulo="Fluxo público",
+            xml=DEFAULT_BPMN_XML,
+            ativo=True,
+            exibir_portal=True,
+        )
+        DiagramaBPMN.objects.create(
+            titulo="Fluxo interno",
+            xml=DEFAULT_BPMN_XML,
+            ativo=True,
+            exibir_portal=False,
+        )
+        DiagramaBPMN.objects.create(
+            titulo="Fluxo inativo",
+            xml=DEFAULT_BPMN_XML,
+            ativo=False,
+            exibir_portal=True,
+        )
+
+        response = self.client.get(reverse("processos_publicos:lista"))
+        detail_response = self.client.get(reverse("processos_publicos:detalhe", args=[publico.pk]))
+
+        self.assertContains(response, "Fluxo público")
+        self.assertNotContains(response, "Fluxo interno")
+        self.assertNotContains(response, "Fluxo inativo")
+        self.assertContains(detail_response, "Fluxo público")
+
+    def test_portal_nao_abre_diagrama_interno(self):
+        interno = DiagramaBPMN.objects.create(
+            titulo="Fluxo interno",
+            xml=DEFAULT_BPMN_XML,
+            ativo=True,
+            exibir_portal=False,
+        )
+
+        response = self.client.get(reverse("processos_publicos:detalhe", args=[interno.pk]))
+
+        self.assertEqual(response.status_code, 404)

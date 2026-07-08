@@ -6,7 +6,10 @@ from .models import DiagramaBPMN
 class DiagramaBPMNForm(forms.ModelForm):
     class Meta:
         model = DiagramaBPMN
-        fields = ["titulo", "descricao", "xml", "ativo"]
+        fields = ["titulo", "descricao", "xml", "ativo", "exibir_portal"]
+        labels = {
+            "exibir_portal": "Exibir no portal público",
+        }
         widgets = {
             "descricao": forms.Textarea(attrs={"rows": 3}),
             "xml": forms.HiddenInput(),
@@ -20,4 +23,3 @@ class DiagramaBPMNForm(forms.ModelForm):
                 css_class = "form-check-input"
             if not isinstance(field.widget, forms.HiddenInput):
                 field.widget.attrs.setdefault("class", css_class)
-

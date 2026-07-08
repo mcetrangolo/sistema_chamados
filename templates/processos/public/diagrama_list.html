@@ -1,0 +1,32 @@
+{% extends "public_base.html" %}
+{% block title %}BPMN | Portal de Chamados{% endblock %}
+{% block content %}
+<div class="public-header">
+  <div>
+    <span class="section-label">Processos</span>
+    <h1>BPMN</h1>
+    <p>Consulte os fluxos de processo publicados pela equipe de TI.</p>
+  </div>
+</div>
+
+<form method="get" class="filters mb-4">
+  <div class="row g-2">
+    <div class="col-md-10"><input class="form-control" name="q" value="{{ request.GET.q }}" placeholder="Buscar processo"></div>
+    <div class="col-md-2 d-grid"><button class="btn btn-primary" type="submit">Buscar</button></div>
+  </div>
+</form>
+
+<div class="row g-3">
+  {% for diagrama in diagramas %}
+    <div class="col-md-6 col-xl-4">
+      <article class="public-panel h-100">
+        <span class="section-label">BPMN</span>
+        <h2 class="h5 mt-2"><a href="{% url 'processos_publicos:detalhe' diagrama.pk %}">{{ diagrama.titulo }}</a></h2>
+        <p class="text-secondary mb-0">{{ diagrama.descricao|default:"Fluxo de processo publicado pela TI."|truncatechars:150 }}</p>
+      </article>
+    </div>
+  {% empty %}
+    <div class="col-12"><section class="public-panel text-center text-secondary">Nenhum BPMN disponível.</section></div>
+  {% endfor %}
+</div>
+{% endblock %}

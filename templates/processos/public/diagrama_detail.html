@@ -1,0 +1,33 @@
+{% extends "public_base.html" %}
+{% load static %}
+{% block title %}{{ diagrama.titulo }} | BPMN{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'vendor/bpmn-js/diagram-js.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/bpmn-js/bpmn-js.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/bpmn-js/bpmn-embedded.css' %}">
+
+<div class="public-header">
+  <div>
+    <span class="section-label">BPMN</span>
+    <h1>{{ diagrama.titulo }}</h1>
+    <p>{{ diagrama.descricao|default:"Fluxo de processo publicado pela equipe de TI." }}</p>
+  </div>
+  <a class="btn btn-outline-primary" href="{% url 'processos_publicos:lista' %}">Voltar</a>
+</div>
+
+<section class="public-panel p-0 overflow-hidden">
+  <div id="bpmn-viewer" class="bpmn-canvas bpmn-viewer"></div>
+</section>
+
+{{ diagrama.xml|json_script:"bpmn-xml" }}
+<script src="{% static 'vendor/bpmn-js/bpmn-modeler.production.min.js' %}"></script>
+<script>
+  const viewer = new BpmnJS({ container: "#bpmn-viewer" });
+  const xml = JSON.parse(document.getElementById("bpmn-xml").textContent);
+  viewer.importXML(xml).then(function () {
+    viewer.get("canvas").zoom("fit-viewport");
+  }).catch(function () {
+    document.getElementById("bpmn-viewer").innerHTML = '<div class="p-4 text-danger">Não foi possível carregar este BPMN.</div>';
+  });
+</script>
+{% endblock %}
