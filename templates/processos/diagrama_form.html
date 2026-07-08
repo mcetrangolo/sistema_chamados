@@ -48,6 +48,23 @@
   <section class="detail-section p-0 overflow-hidden">
     <div class="bpmn-toolbar">
       <button class="btn btn-primary" type="submit">Salvar fluxo</button>
+      <div class="btn-group" role="group" aria-label="Zoom do BPMN">
+        <button class="btn btn-outline-secondary" type="button" id="bpmn-zoom-out">Zoom -</button>
+        <button class="btn btn-outline-secondary" type="button" id="bpmn-fit">Ajustar</button>
+        <button class="btn btn-outline-secondary" type="button" id="bpmn-zoom-in">Zoom +</button>
+      </div>
+      <div class="bpmn-color-tools">
+        <label class="bpmn-color-field" for="bpmn-fill-color">
+          Fundo
+          <input id="bpmn-fill-color" type="color" value="#ffffff" disabled>
+        </label>
+        <label class="bpmn-color-field" for="bpmn-stroke-color">
+          Borda
+          <input id="bpmn-stroke-color" type="color" value="#1f2937" disabled>
+        </label>
+        <button class="btn btn-outline-secondary" type="button" id="bpmn-apply-color" disabled>Aplicar cor</button>
+        <button class="btn btn-outline-secondary" type="button" id="bpmn-clear-color" disabled>Limpar cor</button>
+      </div>
       <button class="btn btn-outline-secondary" type="button" id="bpmn-download">Exportar atual</button>
       <label class="btn btn-outline-secondary mb-0" for="bpmn-import">Importar .bpmn</label>
       <input class="d-none" id="bpmn-import" type="file" accept=".bpmn,.xml">
@@ -62,10 +79,18 @@
   const xmlField = document.getElementById("id_xml");
   const form = document.getElementById("bpmn-form");
   const modeler = new BpmnJS({ container: "#bpmn-canvas" });
+  const canvas = modeler.get("canvas");
+  const eventBus = modeler.get("eventBus");
+  const modeling = modeler.get("modeling");
+  const fillColor = document.getElementById("bpmn-fill-color");
+  const strokeColor = document.getElementById("bpmn-stroke-color");
+  const applyColorButton = document.getElementById("bpmn-apply-color");
+  const clearColorButton = document.getElementById("bpmn-clear-color");
+  let selectedElements = [];
 
   async function openDiagram(xml) {
     await modeler.importXML(xml);
-    modeler.get("canvas").zoom("fit-viewport");
+    canvas.zoom("fit-viewport");
   }
 
   async function syncXml() {
@@ -74,8 +99,58 @@
     return result.xml;
   }
 
+  function setZoom(delta) {
+    const currentZoom = canvas.zoom();
+    const nextZoom = Math.max(0.25, Math.min(4, currentZoom + delta));
+    canvas.zoom(nextZoom);
+  }
+
+  function updateColorControls(elements) {
+    selectedElements = elements.filter(function (element) {
+      return element.type !== "label";
+    });
+    const enabled = selectedElements.length > 0;
+    [fillColor, strokeColor, applyColorButton, clearColorButton].forEach(function (control) {
+      control.disabled = !enabled;
+    });
+  }
+
   openDiagram(xmlField.value).catch(function () {
     alert("Não foi possível carregar o XML BPMN.");
+  });
+
+  eventBus.on("selection.changed", function (event) {
+    updateColorControls(event.newSelection || []);
+  });
+
+  document.getElementById("bpmn-zoom-out").addEventListener("click", function () {
+    setZoom(-0.2);
+  });
+
+  document.getElementById("bpmn-zoom-in").addEventListener("click", function () {
+    setZoom(0.2);
+  });
+
+  document.getElementById("bpmn-fit").addEventListener("click", function () {
+    canvas.zoom("fit-viewport");
+  });
+
+  applyColorButton.addEventListener("click", function () {
+    if (!selectedElements.length) return;
+    modeling.setColor(selectedElements, {
+      fill: fillColor.value,
+      stroke: strokeColor.value
+    });
+    syncXml();
+  });
+
+  clearColorButton.addEventListener("click", function () {
+    if (!selectedElements.length) return;
+    modeling.setColor(selectedElements, {
+      fill: undefined,
+      stroke: undefined
+    });
+    syncXml();
   });
 
   form.addEventListener("submit", function (event) {

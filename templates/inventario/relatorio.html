@@ -1,5 +1,6 @@
 ﻿{% extends "base.html" %}
 {% block title %}Relatórios de inventário | Inventário{% endblock %}
+{% load static %}
 {% block content %}
 {{ tipo_chart|json_script:"inventario-tipo-chart-data" }}
 {{ status_chart|json_script:"inventario-status-chart-data" }}
@@ -193,7 +194,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
 <script>
   const inventoryChartColors = ["#155eef", "#16875d", "#b7791f", "#c2413d", "#0f766e", "#7c3aed", "#64748b", "#f97316"];
   const inventoryChartOptions = {

@@ -56,6 +56,20 @@ class ProcessosBPMNTests(TestCase):
         self.assertEqual(export_response["Content-Type"], "application/xml; charset=utf-8")
         self.assertIn(b"<bpmn:definitions", export_response.content)
 
+    def test_editor_tem_zoom_cores_importacao_e_exportacao(self):
+        diagrama = DiagramaBPMN.objects.create(titulo="Editor BPMN", xml=DEFAULT_BPMN_XML)
+        self.client.force_login(self.admin)
+
+        response = self.client.get(reverse("processos:editar", args=[diagrama.pk]))
+
+        self.assertContains(response, 'id="bpmn-zoom-in"')
+        self.assertContains(response, 'id="bpmn-zoom-out"')
+        self.assertContains(response, 'id="bpmn-fit"')
+        self.assertContains(response, 'id="bpmn-fill-color"')
+        self.assertContains(response, 'id="bpmn-stroke-color"')
+        self.assertContains(response, 'id="bpmn-import"')
+        self.assertContains(response, 'id="bpmn-download"')
+
     def test_usuario_n1_nao_acessa_processos(self):
         self.client.force_login(self.n1)
 

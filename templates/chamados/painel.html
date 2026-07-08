@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load chamados_extras %}
+{% load static chamados_extras %}
 {% block title %}Gestão | Sistema de Chamados{% endblock %}
 {% block content %}
 {{ status_chart|json_script:"status-chart-data" }}
@@ -152,7 +152,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
 <script>
   const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } };
   const barChartOptions = {

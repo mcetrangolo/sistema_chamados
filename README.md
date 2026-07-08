@@ -20,6 +20,7 @@ https://github.com/mcetrangolo/sistema_chamados
 - Inventário de ativos, agentes Windows/Linux e descoberta por rede.
 - Descoberta por Nmap, Ping/ICMP, DNS reverso, TCP/portas, SNMP e Active Directory.
 - Backup/restauração e atualização via GitHub pela interface.
+- Interface com Bootstrap, Chart.js e BPMN carregados localmente, sem dependência de CDN.
 
 ## Instalação rápida em Debian/Ubuntu
 
