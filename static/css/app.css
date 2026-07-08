@@ -1544,10 +1544,6 @@ a {
   display: none;
 }
 
-.bpmn-readonly-locked .djs-container {
-  pointer-events: none;
-}
-
 @media (max-width: 768px) {
   .bpmn-canvas {
     height: 62vh;

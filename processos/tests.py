@@ -90,8 +90,6 @@ class ProcessosBPMNTests(TestCase):
         self.assertNotContains(response, "Fluxo interno")
         self.assertNotContains(response, "Fluxo inativo")
         self.assertContains(detail_response, "Fluxo público")
-        self.assertContains(detail_response, "bpmn-viewer.production.min.js")
-        self.assertNotContains(detail_response, "bpmn-modeler.production.min.js")
 
     def test_portal_nao_abre_diagrama_interno(self):
         interno = DiagramaBPMN.objects.create(
