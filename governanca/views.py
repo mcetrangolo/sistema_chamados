@@ -3,11 +3,11 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.generic import ListView, RedirectView, TemplateView
 
-from chamados.models import AprovacaoSolicitacao
+from chamados.models import Chamado
+from chamados.services import criar_chamado_de_governanca
 
 from .forms import UsuarioAcessoForm, WifiCorporativoForm
 from .models import SolicitacaoGovernanca
-from .pdf import gerar_documento_solicitacao
 from .terms import TERMO_REDE_TEXTO, TERMO_REDE_VERSAO, TERMO_WIFI_TEXTO, TERMO_WIFI_VERSAO
 
 
@@ -24,15 +24,6 @@ def registrar_aceite(solicitacao, request, versao, texto):
     solicitacao.termo_aceito_em = timezone.now()
     solicitacao.termo_aceito_ip = obter_ip_cliente(request)
     solicitacao.termo_aceito_user_agent = request.META.get("HTTP_USER_AGENT", "")[:300]
-
-
-def criar_aprovacao_governanca(solicitacao):
-    return AprovacaoSolicitacao.objects.create(
-        origem=AprovacaoSolicitacao.Origem.GOVERNANCA,
-        governanca_id=solicitacao.pk,
-        titulo=f"Aprovar governança: {solicitacao.get_tipo_display()}",
-        solicitante=solicitacao.nome,
-    )
 
 
 class GovernancaPortalView(RedirectView):
@@ -64,10 +55,8 @@ class UsuarioAcessoCreateView(TemplateView):
             solicitacao.tipo = SolicitacaoGovernanca.Tipo.USUARIO_ACESSO
             registrar_aceite(solicitacao, request, TERMO_REDE_VERSAO, TERMO_REDE_TEXTO)
             solicitacao.save()
-            solicitacao.documento_caminho = gerar_documento_solicitacao(solicitacao)
-            solicitacao.save(update_fields=["documento_caminho", "atualizado_em"])
-            criar_aprovacao_governanca(solicitacao)
-            messages.success(request, f"Solicitação registrada para aprovação. Protocolo {solicitacao.protocolo}.")
+            chamado = criar_chamado_de_governanca(solicitacao.pk)
+            messages.success(request, f"Chamado de governança aberto: {chamado.numero}.")
             return redirect("governanca:portal")
         return self.render_to_response(self.get_context_data(form=form))
 
@@ -89,33 +78,21 @@ class WifiCorporativoCreateView(TemplateView):
             solicitacao.tipo = SolicitacaoGovernanca.Tipo.WIFI_CORPORATIVO
             registrar_aceite(solicitacao, request, TERMO_WIFI_VERSAO, TERMO_WIFI_TEXTO)
             solicitacao.save()
-            solicitacao.documento_caminho = gerar_documento_solicitacao(solicitacao)
-            solicitacao.save(update_fields=["documento_caminho", "atualizado_em"])
-            criar_aprovacao_governanca(solicitacao)
-            messages.success(request, f"Solicitação registrada para aprovação. Protocolo {solicitacao.protocolo}.")
+            chamado = criar_chamado_de_governanca(solicitacao.pk)
+            messages.success(request, f"Chamado de governança aberto: {chamado.numero}.")
             return redirect("governanca:portal")
         return self.render_to_response(self.get_context_data(form=form))
 
 
 class SolicitacaoGovernancaListView(ListView):
-    model = SolicitacaoGovernanca
+    model = Chamado
     template_name = "governanca/solicitacao_list.html"
-    context_object_name = "solicitacoes"
+    context_object_name = "chamados_governanca"
     paginate_by = 25
 
     def get_queryset(self):
-        return super().get_queryset().order_by("-criado_em")
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        solicitacoes = list(context["solicitacoes"])
-        ids = [solicitacao.pk for solicitacao in solicitacoes]
-        aprovacoes = AprovacaoSolicitacao.objects.filter(
-            origem=AprovacaoSolicitacao.Origem.GOVERNANCA,
-            governanca_id__in=ids,
+        return (
+            Chamado.objects.filter(numero__startswith="GOV-")
+            .select_related("setor", "categoria", "tecnico_responsavel", "equipe_responsavel")
+            .order_by("-criado_em")
         )
-        aprovacoes_por_solicitacao = {aprovacao.governanca_id: aprovacao for aprovacao in aprovacoes}
-        for solicitacao in solicitacoes:
-            solicitacao.aprovacao = aprovacoes_por_solicitacao.get(solicitacao.pk)
-        context["solicitacoes"] = solicitacoes
-        return context

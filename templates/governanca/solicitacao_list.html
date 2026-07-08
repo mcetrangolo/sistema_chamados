@@ -1,62 +1,44 @@
 {% extends "base.html" %}
+{% load chamados_extras %}
 {% block title %}Governança | Sistema de Chamados{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h1 class="h3 mb-0">Solicitações de governança</h1>
-    <p class="text-secondary mb-0">Acompanhe os pedidos de rede e Wi-Fi, aprove ou rejeite antes de virar chamado.</p>
+    <h1 class="h3 mb-0">Governança</h1>
+    <p class="text-secondary mb-0">Fila restrita de chamados GOV para tramitação de acessos, rede e Wi-Fi.</p>
   </div>
+  <a class="btn btn-outline-primary" href="{% url 'chamados:lista' %}?q=GOV-">Ver na fila geral</a>
 </div>
+
 <section class="detail-section">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead>
         <tr>
-          <th>Protocolo</th>
-          <th>Tipo</th>
-          <th>Nome</th>
-          <th>Matrícula</th>
+          <th>Número</th>
+          <th>Solicitante</th>
           <th>Setor</th>
           <th>Status</th>
-          <th>Aprovação</th>
-          <th>Documento</th>
+          <th>Atendente</th>
+          <th>Abertura</th>
+          <th class="text-end">Ações</th>
         </tr>
       </thead>
       <tbody>
-        {% for item in solicitacoes %}
+        {% for chamado in chamados_governanca %}
           <tr>
-            <td>{{ item.protocolo }}</td>
-            <td>{{ item.get_tipo_display }}</td>
-            <td>{{ item.nome }}</td>
-            <td>{{ item.matricula }}</td>
-            <td>{{ item.setor }}</td>
-            <td><span class="badge text-bg-light">{{ item.get_status_display }}</span></td>
-            <td>
-              {% if item.aprovacao %}
-                {% if item.aprovacao.status == "pendente" %}
-                  <div class="d-flex gap-2 flex-wrap">
-                    <form method="post" action="{% url 'chamados:decidir_aprovacao' item.aprovacao.pk 'aprovar' %}">
-                      {% csrf_token %}
-                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                      <button class="btn btn-sm btn-success" type="submit">Aprovar</button>
-                    </form>
-                    <form method="post" action="{% url 'chamados:decidir_aprovacao' item.aprovacao.pk 'rejeitar' %}">
-                      {% csrf_token %}
-                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                      <button class="btn btn-sm btn-outline-danger" type="submit">Rejeitar</button>
-                    </form>
-                  </div>
-                {% else %}
-                  <span class="badge text-bg-secondary">{{ item.aprovacao.get_status_display }}</span>
-                {% endif %}
-              {% else %}
-                <span class="text-secondary">-</span>
-              {% endif %}
+            <td><a href="{{ chamado.get_absolute_url }}">{{ chamado.numero }}</a></td>
+            <td>{{ chamado.nome_solicitante }}</td>
+            <td>{{ chamado.setor }}</td>
+            <td><span class="badge {{ chamado.status|status_badge }}">{{ chamado.get_status_display }}</span></td>
+            <td>{{ chamado.tecnico_responsavel|default:"-" }}</td>
+            <td>{{ chamado.criado_em|date:"d/m/Y H:i" }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-primary" href="{{ chamado.get_absolute_url }}">Tramitar</a>
             </td>
-            <td class="small">{{ item.documento_caminho|default:"-" }}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="8" class="text-center text-secondary py-4">Nenhuma solicitação registrada.</td></tr>
+          <tr><td colspan="7" class="text-center text-secondary py-4">Nenhum chamado GOV registrado.</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -91,6 +91,16 @@ class AdminRequiredMixin(UserPassesTestMixin):
         return self.request.user.is_superuser
 
 
+def filtrar_chamados_visiveis(usuario, queryset):
+    if usuario_e_suporte_n2(usuario):
+        return queryset
+    return queryset.exclude(numero__startswith="GOV-")
+
+
+def get_chamado_visivel_ou_404(usuario, pk):
+    return get_object_or_404(filtrar_chamados_visiveis(usuario, Chamado.objects.all()), pk=pk)
+
+
 class SuporteN2RequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return usuario_e_suporte_n2(self.request.user)
@@ -239,7 +249,7 @@ class PainelView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        chamados = Chamado.objects.all()
+        chamados = filtrar_chamados_visiveis(self.request.user, Chamado.objects.all())
         abertos = chamados.exclude(
             status__in=[Chamado.Status.ENCERRADO, Chamado.Status.CANCELADO]
         )
@@ -272,8 +282,11 @@ class PainelView(LoginRequiredMixin, TemplateView):
             "fora": context["contadores"]["atrasados"],
             "percentual": round((dentro_sla / total_com_sla) * 100, 1) if total_com_sla else None,
         }
-        context["ultimos_chamados"] = Chamado.objects.select_related(
-            "setor", "categoria", "equipe_responsavel", "tecnico_responsavel"
+        context["ultimos_chamados"] = filtrar_chamados_visiveis(
+            self.request.user,
+            Chamado.objects.select_related(
+                "setor", "categoria", "equipe_responsavel", "tecnico_responsavel"
+            ),
         )[:10]
         context["backlog_por_prioridade"] = list(
             abertos.values("prioridade").annotate(total=Count("id")).order_by("prioridade")
@@ -356,6 +369,7 @@ class ChamadoListView(LoginRequiredMixin, ListView):
         queryset = Chamado.objects.select_related(
             "setor", "categoria", "equipe_responsavel", "tecnico_responsavel", "solicitante"
         )
+        queryset = filtrar_chamados_visiveis(self.request.user, queryset)
         q = self.request.GET.get("q", "").strip()
         status = self.request.GET.get("status", "")
         tipo = self.request.GET.get("tipo", "")
@@ -452,9 +466,10 @@ class ChamadoDetailView(LoginRequiredMixin, DetailView):
     context_object_name = "chamado"
 
     def get_queryset(self):
-        return Chamado.objects.select_related(
+        queryset = Chamado.objects.select_related(
             "setor", "categoria", "equipe_responsavel", "tecnico_responsavel", "solicitante"
         ).prefetch_related("historico", "anexos", "tarefas", "comentarios")
+        return filtrar_chamados_visiveis(self.request.user, queryset)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -475,7 +490,7 @@ class ChamadoPrintView(LoginRequiredMixin, DetailView):
     context_object_name = "chamado"
 
     def get_queryset(self):
-        return Chamado.objects.select_related(
+        queryset = Chamado.objects.select_related(
             "setor",
             "categoria",
             "topico_ajuda",
@@ -484,6 +499,7 @@ class ChamadoPrintView(LoginRequiredMixin, DetailView):
             "solicitante",
             "ativo_rede",
         ).prefetch_related("historico", "anexos", "tarefas", "comentarios")
+        return filtrar_chamados_visiveis(self.request.user, queryset)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -495,6 +511,9 @@ class ChamadoUpdateView(LoginRequiredMixin, UpdateView):
     model = Chamado
     form_class = AtualizacaoChamadoForm
     template_name = "chamados/chamado_update.html"
+
+    def get_queryset(self):
+        return filtrar_chamados_visiveis(self.request.user, super().get_queryset())
 
     def form_valid(self, form):
         status_anterior = Chamado.objects.get(pk=self.object.pk).status
@@ -1083,6 +1102,7 @@ class BuscaGlobalView(LoginRequiredMixin, TemplateView):
         context["servicos"] = []
         if q or data_inicio or data_fim:
             chamados = Chamado.objects.select_related("setor", "categoria", "tecnico_responsavel")
+            chamados = filtrar_chamados_visiveis(self.request.user, chamados)
             if q:
                 chamados = chamados.filter(
                     Q(numero__icontains=q)
@@ -1126,6 +1146,9 @@ class AprovacaoListView(LoginRequiredMixin, ListView):
     template_name = "chamados/aprovacao_list.html"
     context_object_name = "aprovacoes"
     paginate_by = 25
+
+    def get_queryset(self):
+        return super().get_queryset().exclude(origem=AprovacaoSolicitacao.Origem.GOVERNANCA)
 
 
 @login_required
@@ -1474,7 +1497,7 @@ def exportar_relatorio_pdf(request):
 
 @login_required
 def encerrar_chamado(request, pk):
-    chamado = get_object_or_404(Chamado, pk=pk)
+    chamado = get_chamado_visivel_ou_404(request.user, pk)
     if request.method == "POST":
         solucao = request.POST.get("solucao_aplicada", "").strip()
         try:
@@ -1487,7 +1510,7 @@ def encerrar_chamado(request, pk):
 
 @login_required
 def atribuir_chamado_mim(request, pk):
-    chamado = get_object_or_404(Chamado, pk=pk)
+    chamado = get_chamado_visivel_ou_404(request.user, pk)
     if request.method == "POST":
         atribuir_chamado_para_usuario(chamado, request.user)
         messages.success(request, "Chamado atribuído a você.")
@@ -1496,7 +1519,7 @@ def atribuir_chamado_mim(request, pk):
 
 @login_required
 def atribuir_chamado(request, pk):
-    chamado = get_object_or_404(Chamado, pk=pk)
+    chamado = get_chamado_visivel_ou_404(request.user, pk)
     if request.method == "POST":
         form = AtribuicaoChamadoForm(request.POST, instance=chamado)
         if form.is_valid():
@@ -1510,7 +1533,7 @@ def atribuir_chamado(request, pk):
 
 @login_required
 def resolver_chamado_rapido(request, pk):
-    chamado = get_object_or_404(Chamado, pk=pk)
+    chamado = get_chamado_visivel_ou_404(request.user, pk)
     if request.method == "POST":
         solucao = request.POST.get("solucao_aplicada", "").strip()
         try:
@@ -1523,7 +1546,7 @@ def resolver_chamado_rapido(request, pk):
 
 @login_required
 def criar_tarefa_chamado(request, pk):
-    chamado = get_object_or_404(Chamado, pk=pk)
+    chamado = get_chamado_visivel_ou_404(request.user, pk)
     if request.method == "POST":
         form = TarefaChamadoForm(request.POST)
         if form.is_valid():
@@ -1538,7 +1561,7 @@ def criar_tarefa_chamado(request, pk):
 
 @login_required
 def responder_chamado(request, pk):
-    chamado = get_object_or_404(Chamado, pk=pk)
+    chamado = get_chamado_visivel_ou_404(request.user, pk)
     if request.method == "POST":
         form = ComentarioInternoForm(request.POST)
         if form.is_valid():
@@ -1552,7 +1575,7 @@ def responder_chamado(request, pk):
 
 @login_required
 def anexar_arquivo_chamado(request, pk):
-    chamado = get_object_or_404(Chamado, pk=pk)
+    chamado = get_chamado_visivel_ou_404(request.user, pk)
     if request.method == "POST":
         form = AnexoChamadoForm(request.POST, request.FILES)
         if form.is_valid():

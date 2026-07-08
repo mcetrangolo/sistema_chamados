@@ -1,11 +1,7 @@
-from pathlib import Path
-
-from django.core.files import File
 from django.core.mail import send_mail
 from django.utils import timezone
 
 from .models import (
-    AnexoChamado,
     AprovacaoSolicitacao,
     Categoria,
     Chamado,
@@ -92,21 +88,25 @@ def criar_chamado_de_governanca(governanca_id):
     from governanca.models import SolicitacaoGovernanca
 
     solicitacao = SolicitacaoGovernanca.objects.get(pk=governanca_id)
+    chamado_existente = Chamado.objects.filter(numero=solicitacao.protocolo).first()
+    if chamado_existente:
+        return chamado_existente
+
     setor, _ = Setor.objects.get_or_create(nome=solicitacao.setor, defaults={"ativo": True})
-    categoria, _ = Categoria.objects.get_or_create(nome="Governanca", defaults={"ativo": True})
+    categoria, _ = Categoria.objects.get_or_create(nome="Governança", defaults={"ativo": True})
     detalhes = [
-        f"Solicitacao de governanca: {solicitacao.get_tipo_display()}",
+        f"Solicitação de governança: {solicitacao.get_tipo_display()}",
         f"Protocolo: {solicitacao.protocolo}",
-        f"Matricula: {solicitacao.matricula}",
+        f"Matrícula: {solicitacao.matricula}",
         f"Cargo: {solicitacao.cargo or '-'}",
         "",
     ]
     if solicitacao.acessos_solicitados:
         detalhes.extend(["Acessos solicitados:", solicitacao.acessos_solicitados, ""])
     if solicitacao.tipo_solicitacao_rede:
-        detalhes.extend(["Tipo de solicitacao:", solicitacao.get_tipo_solicitacao_rede_display(), ""])
+        detalhes.extend(["Tipo de solicitação:", solicitacao.get_tipo_solicitacao_rede_display(), ""])
     if solicitacao.usuario_rede_existente:
-        detalhes.extend(["Usuario de rede existente:", solicitacao.usuario_rede_existente, ""])
+        detalhes.extend(["Usuário de rede existente:", solicitacao.usuario_rede_existente, ""])
     if solicitacao.chefia_imediata:
         detalhes.extend(["Chefia/autorizador informado:", solicitacao.chefia_imediata, ""])
     if solicitacao.aparelhos:
@@ -117,7 +117,7 @@ def criar_chamado_de_governanca(governanca_id):
             solicitacao.justificativa or "-",
             "",
             "Aceite registrado:",
-            f"Versao: {solicitacao.termo_versao or '-'}",
+            f"Versão: {solicitacao.termo_versao or '-'}",
             (
                 f"Data/hora: {solicitacao.termo_aceito_em:%d/%m/%Y %H:%M:%S}"
                 if solicitacao.termo_aceito_em
@@ -128,43 +128,29 @@ def criar_chamado_de_governanca(governanca_id):
     )
 
     chamado = Chamado.objects.create(
+        numero=solicitacao.protocolo,
         nome_solicitante=solicitacao.nome,
         email=solicitacao.email,
         telefone=solicitacao.telefone,
         setor=setor,
         categoria=categoria,
+        tipo=Chamado.Tipo.REQUISICAO,
         prioridade=Chamado.Prioridade.MEDIA,
         descricao="\n".join(detalhes),
         origem=Chamado.Origem.PORTAL,
+        status=Chamado.Status.ABERTO,
     )
     solicitacao.status = SolicitacaoGovernanca.Status.EM_ANALISE
     solicitacao.save(update_fields=["status", "atualizado_em"])
 
-    if not solicitacao.documento_caminho:
-        from governanca.pdf import gerar_documento_solicitacao
-
-        solicitacao.documento_caminho = gerar_documento_solicitacao(solicitacao)
-        solicitacao.save(update_fields=["documento_caminho", "atualizado_em"])
-
-    pdf_path = Path(solicitacao.documento_caminho or "")
-    if pdf_path.is_file():
-        with pdf_path.open("rb") as arquivo:
-            anexo = AnexoChamado(
-                chamado=chamado,
-                descricao=f"Formulario {solicitacao.protocolo}",
-                nome_enviado_por=solicitacao.nome,
-                publico=True,
-            )
-            anexo.arquivo.save(pdf_path.name, File(arquivo), save=True)
-
     registrar_historico(
         chamado,
-        comentario=f"Chamado criado a partir da solicitacao de governanca {solicitacao.protocolo}.",
+        comentario=f"Chamado GOV criado a partir da solicitação de governança {solicitacao.protocolo}.",
     )
     notificar_chamado(
         chamado,
         "Chamado aberto",
-        "Sua solicitacao de governanca foi aprovada e convertida em chamado.",
+        "Sua solicitação de governança foi registrada e encaminhada para atendimento.",
     )
     return chamado
 

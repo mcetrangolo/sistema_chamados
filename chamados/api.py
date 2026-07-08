@@ -4,7 +4,7 @@ from django.views.decorators.http import require_http_methods
 from core.api import api_error, api_success, json_body
 from core.audit import registrar_evento
 from core.models import RegistroAuditoria
-from core.permissions import usuario_e_suporte_n1
+from core.permissions import usuario_e_suporte_n1, usuario_e_suporte_n2
 
 from .models import Categoria, Chamado, Setor
 from .services import registrar_chamado_aberto
@@ -45,6 +45,12 @@ def chamado_payload(chamado):
     }
 
 
+def filtrar_chamados_visiveis_api(usuario, queryset):
+    if usuario_e_suporte_n2(usuario):
+        return queryset
+    return queryset.exclude(numero__startswith="GOV-")
+
+
 @require_http_methods(["GET", "POST"])
 def chamados_collection(request):
     erro = _exigir_suporte(request)
@@ -57,6 +63,7 @@ def chamados_collection(request):
     chamados = Chamado.objects.select_related(
         "setor", "categoria", "tecnico_responsavel"
     ).order_by("-criado_em")
+    chamados = filtrar_chamados_visiveis_api(request.user, chamados)
     q = request.GET.get("q", "").strip()
     if q:
         chamados = chamados.filter(
@@ -132,8 +139,11 @@ def chamado_detail(request, pk):
     if erro:
         return erro
     try:
-        chamado = Chamado.objects.select_related(
+        chamado = filtrar_chamados_visiveis_api(
+            request.user,
+            Chamado.objects.select_related(
             "setor", "categoria", "tecnico_responsavel"
+            ),
         ).get(pk=pk)
     except Chamado.DoesNotExist:
         return api_error("NOT_FOUND", "Chamado nao encontrado.", status=404)
