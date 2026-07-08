@@ -20,6 +20,7 @@ from core.models import ConfiguracaoInstitucional
 from core.audit import registrar_evento
 from core.models import RegistroAuditoria
 from core.permissions import usuario_e_suporte_n2
+from governanca.models import SolicitacaoGovernanca
 
 from . import report_services
 from .forms import (
@@ -204,20 +205,34 @@ class PortalConsultaView(TemplateView):
         context["anexo_form"] = kwargs.get("anexo_form") or AnexoChamadoForm()
         context["avaliacao_form"] = kwargs.get("avaliacao_form") or AvaliacaoChamadoForm()
         context["chamado"] = kwargs.get("chamado")
+        context["solicitacao_governanca"] = kwargs.get("solicitacao_governanca")
         return context
 
     def post(self, request, *args, **kwargs):
         form = ConsultaChamadoForm(request.POST)
         chamado = None
+        solicitacao_governanca = None
         if form.is_valid():
+            numero = form.cleaned_data["numero"].strip()
+            email = form.cleaned_data["email"].strip()
             chamado = Chamado.objects.filter(
-                numero__iexact=form.cleaned_data["numero"].strip(),
-                email__iexact=form.cleaned_data["email"].strip(),
+                numero__iexact=numero,
+                email__iexact=email,
             ).first()
             if not chamado:
-                messages.error(request, "Chamado não localizado com os dados informados.")
-        return self.render_to_response(self.get_context_data(form=form, chamado=chamado))
-
+                solicitacao_governanca = SolicitacaoGovernanca.objects.filter(
+                    protocolo__iexact=numero,
+                    email__iexact=email,
+                ).first()
+            if not chamado and not solicitacao_governanca:
+                messages.error(request, "Chamado ou solicita??o n?o localizado com os dados informados.")
+        return self.render_to_response(
+            self.get_context_data(
+                form=form,
+                chamado=chamado,
+                solicitacao_governanca=solicitacao_governanca,
+            )
+        )
 
 class PainelView(LoginRequiredMixin, TemplateView):
     template_name = "chamados/painel.html"

@@ -98,3 +98,16 @@ class GovernancaAprovacaoTests(TestCase):
         self.assertContains(response, reverse("chamados:decidir_aprovacao", kwargs={"pk": aprovacao.pk, "decisao": "aprovar"}))
         self.assertContains(response, "Aprovar")
         self.assertContains(response, "Rejeitar")
+        self.assertContains(response, reverse("governanca:solicitacoes"))
+
+    def test_consulta_publica_localiza_protocolo_governanca(self):
+        solicitacao, _ = self.criar_solicitacao_com_aprovacao()
+
+        response = self.client.post(
+            reverse("chamados:portal_consultar"),
+            {"numero": solicitacao.protocolo, "email": solicitacao.email},
+        )
+
+        self.assertContains(response, solicitacao.protocolo)
+        self.assertContains(response, "Solicitação de governança")
+        self.assertContains(response, "Recebida")

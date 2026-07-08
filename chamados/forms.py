@@ -263,7 +263,7 @@ class ComentarioPortalForm(BootstrapFormMixin, forms.ModelForm):
 
 
 class ConsultaChamadoForm(BootstrapFormMixin, forms.Form):
-    numero = forms.CharField(label="Número do chamado", max_length=30)
+    numero = forms.CharField(label="Número do chamado ou protocolo GOV", max_length=30)
     email = forms.EmailField(label="E-mail informado na abertura")
 
 

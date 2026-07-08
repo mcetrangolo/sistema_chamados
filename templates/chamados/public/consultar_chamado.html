@@ -97,11 +97,36 @@
           </form>
         {% endif %}
       </section>
+    {% elif solicitacao_governanca %}
+      <section class="public-panel ticket-summary">
+        <div class="ticket-title">
+          <div>
+            <span class="section-label">Solicitação de governança</span>
+            <h2>{{ solicitacao_governanca.protocolo }}</h2>
+            <p>{{ solicitacao_governanca.nome }} · {{ solicitacao_governanca.setor }}</p>
+          </div>
+          <span class="status-pill">{{ solicitacao_governanca.get_status_display }}</span>
+        </div>
+        <dl class="ticket-grid">
+          <div><dt>Tipo</dt><dd>{{ solicitacao_governanca.get_tipo_display }}</dd></div>
+          <div><dt>Matrícula</dt><dd>{{ solicitacao_governanca.matricula }}</dd></div>
+          <div><dt>Abertura</dt><dd>{{ solicitacao_governanca.criado_em|date:"d/m/Y H:i" }}</dd></div>
+          <div><dt>Última atualização</dt><dd>{{ solicitacao_governanca.atualizado_em|date:"d/m/Y H:i" }}</dd></div>
+        </dl>
+        <div class="ticket-text">
+          <h3>Andamento</h3>
+          <p>Sua solicitação foi registrada e está no fluxo de governança. Quando aprovada, ela será convertida em chamado para atendimento pela equipe de TI.</p>
+          {% if solicitacao_governanca.justificativa %}
+            <h3>Justificativa</h3>
+            <p>{{ solicitacao_governanca.justificativa|linebreaks }}</p>
+          {% endif %}
+        </div>
+      </section>
     {% else %}
       <section class="public-panel empty-state">
         <span class="section-label">Consulta segura</span>
-        <h2>Acompanhe pelo número do chamado</h2>
-        <p class="text-secondary mb-0">Use o número recebido na abertura e o e-mail informado no formulário.</p>
+        <h2>Acompanhe pelo número do chamado ou protocolo</h2>
+        <p class="text-secondary mb-0">Use o número do chamado ou protocolo GOV recebido na abertura e o e-mail informado no formulário.</p>
       </section>
     {% endif %}
   </div>
