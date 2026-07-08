@@ -116,6 +116,11 @@ class ProcessosBPMNTests(TestCase):
         self.assertNotContains(response, "Fluxo interno")
         self.assertNotContains(response, "Fluxo inativo")
         self.assertContains(detail_response, "Fluxo público")
+        self.assertContains(detail_response, 'id="bpmn-public-zoom-out"')
+        self.assertContains(detail_response, 'id="bpmn-public-fit"')
+        self.assertContains(detail_response, 'id="bpmn-public-zoom-in"')
+        self.assertNotContains(detail_response, "Salvar fluxo")
+        self.assertNotContains(detail_response, "Importar .bpmn")
 
     def test_portal_nao_abre_diagrama_interno(self):
         interno = DiagramaBPMN.objects.create(

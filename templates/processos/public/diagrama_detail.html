@@ -16,6 +16,13 @@
 </div>
 
 <section class="public-panel p-0 overflow-hidden">
+  <div class="bpmn-toolbar">
+    <div class="btn-group" role="group" aria-label="Zoom do BPMN">
+      <button class="btn btn-outline-secondary btn-sm" type="button" id="bpmn-public-zoom-out">Zoom -</button>
+      <button class="btn btn-outline-secondary btn-sm" type="button" id="bpmn-public-fit">Ajustar</button>
+      <button class="btn btn-outline-secondary btn-sm" type="button" id="bpmn-public-zoom-in">Zoom +</button>
+    </div>
+  </div>
   <div id="bpmn-viewer" class="bpmn-canvas bpmn-viewer"></div>
 </section>
 
@@ -23,11 +30,31 @@
 <script src="{% static 'vendor/bpmn-js/bpmn-modeler.production.min.js' %}"></script>
 <script>
   const viewer = new BpmnJS({ container: "#bpmn-viewer" });
+  const canvas = viewer.get("canvas");
   const xml = JSON.parse(document.getElementById("bpmn-xml").textContent);
+
+  function setPublicZoom(delta) {
+    const currentZoom = canvas.zoom();
+    const nextZoom = Math.max(0.25, Math.min(4, currentZoom + delta));
+    canvas.zoom(nextZoom);
+  }
+
   viewer.importXML(xml).then(function () {
-    viewer.get("canvas").zoom("fit-viewport");
+    canvas.zoom("fit-viewport");
   }).catch(function () {
     document.getElementById("bpmn-viewer").innerHTML = '<div class="p-4 text-danger">Não foi possível carregar este BPMN.</div>';
+  });
+
+  document.getElementById("bpmn-public-zoom-out").addEventListener("click", function () {
+    setPublicZoom(-0.2);
+  });
+
+  document.getElementById("bpmn-public-zoom-in").addEventListener("click", function () {
+    setPublicZoom(0.2);
+  });
+
+  document.getElementById("bpmn-public-fit").addEventListener("click", function () {
+    canvas.zoom("fit-viewport");
   });
 </script>
 {% endblock %}
