@@ -14,6 +14,7 @@
   <div class="d-inline-flex gap-2">
     <a class="btn btn-outline-secondary" href="{% url 'processos:exportar' diagrama.pk %}">Exportar</a>
     <a class="btn btn-primary" href="{% url 'processos:editar' diagrama.pk %}">Editar</a>
+    <a class="btn btn-outline-danger" href="{% url 'processos:excluir' diagrama.pk %}">Excluir</a>
     <a class="btn btn-outline-secondary" href="{% url 'processos:lista' %}">Voltar</a>
   </div>
 </div>
@@ -21,6 +22,7 @@
 <section class="detail-section p-0 overflow-hidden">
   <div class="bpmn-toolbar">
     <span class="badge {% if diagrama.ativo %}text-bg-success{% else %}text-bg-secondary{% endif %}">{{ diagrama.ativo|yesno:"Ativo,Inativo" }}</span>
+    <span class="badge {% if diagrama.exibir_portal %}text-bg-primary{% else %}text-bg-light text-dark{% endif %}">{{ diagrama.exibir_portal|yesno:"Público,Interno" }}</span>
     <span class="text-secondary small">Atualizado em {{ diagrama.atualizado_em|date:"d/m/Y H:i" }}</span>
   </div>
   <div id="bpmn-viewer" class="bpmn-canvas bpmn-viewer"></div>
@@ -38,4 +40,3 @@
   });
 </script>
 {% endblock %}
-

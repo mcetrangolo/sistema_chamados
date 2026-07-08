@@ -46,6 +46,7 @@
               <div class="d-inline-flex gap-2">
                 <a class="btn btn-sm btn-outline-primary" href="{{ diagrama.get_absolute_url }}">Abrir</a>
                 <a class="btn btn-sm btn-outline-secondary" href="{% url 'processos:editar' diagrama.pk %}">Editar</a>
+                <a class="btn btn-sm btn-outline-danger" href="{% url 'processos:excluir' diagrama.pk %}">Excluir</a>
               </div>
             </td>
           </tr>

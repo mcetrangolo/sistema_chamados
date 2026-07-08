@@ -102,3 +102,24 @@ class ProcessosBPMNTests(TestCase):
         response = self.client.get(reverse("processos_publicos:detalhe", args=[interno.pk]))
 
         self.assertEqual(response.status_code, 404)
+
+    def test_portal_nao_abre_diagrama_inativo(self):
+        inativo = DiagramaBPMN.objects.create(
+            titulo="Fluxo inativo",
+            xml=DEFAULT_BPMN_XML,
+            ativo=False,
+            exibir_portal=True,
+        )
+
+        response = self.client.get(reverse("processos_publicos:detalhe", args=[inativo.pk]))
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_admin_exclui_diagrama_bpmn(self):
+        diagrama = DiagramaBPMN.objects.create(titulo="Excluir BPMN", xml=DEFAULT_BPMN_XML)
+        self.client.force_login(self.admin)
+
+        response = self.client.post(reverse("processos:excluir", args=[diagrama.pk]))
+
+        self.assertRedirects(response, reverse("processos:lista"))
+        self.assertFalse(DiagramaBPMN.objects.filter(pk=diagrama.pk).exists())
