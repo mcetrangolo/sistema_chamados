@@ -1517,7 +1517,36 @@ a {
     padding: .75rem 1rem;
   }
 
-  .topbar-actions {
+.topbar-actions {
     gap: .35rem;
+  }
+}
+
+.bpmn-toolbar {
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  padding: .75rem;
+}
+
+.bpmn-canvas {
+  background: #fff;
+  height: min(70vh, 720px);
+  min-height: 480px;
+  width: 100%;
+}
+
+.bpmn-viewer .djs-palette,
+.bpmn-viewer .djs-context-pad {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .bpmn-canvas {
+    height: 62vh;
+    min-height: 360px;
   }
 }

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if object %}Editar{% else %}Novo{% endif %} BPMN | Sistema de Chamados{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'vendor/bpmn-js/diagram-js.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/bpmn-js/bpmn-js.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/bpmn-js/bpmn-embedded.css' %}">
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">{% if object %}Editar fluxo BPMN{% else %}Novo fluxo BPMN{% endif %}</h1>
+    <p class="text-secondary mb-0">Desenhe o processo, salve o XML BPMN e acesse depois por uma página própria.</p>
+  </div>
+  <div class="d-inline-flex gap-2">
+    {% if object %}<a class="btn btn-outline-secondary" href="{{ object.get_absolute_url }}">Visualizar</a>{% endif %}
+    <a class="btn btn-outline-secondary" href="{% url 'processos:lista' %}">Voltar</a>
+  </div>
+</div>
+
+<form method="post" id="bpmn-form" class="bpmn-form">
+  {% csrf_token %}
+  {{ form.xml }}
+  <section class="detail-section mb-3">
+    <div class="row g-3 align-items-end">
+      <div class="col-lg-5">
+        <label class="form-label" for="{{ form.titulo.id_for_label }}">Título</label>
+        {{ form.titulo }}
+        {{ form.titulo.errors }}
+      </div>
+      <div class="col-lg-5">
+        <label class="form-label" for="{{ form.descricao.id_for_label }}">Descrição</label>
+        {{ form.descricao }}
+        {{ form.descricao.errors }}
+      </div>
+      <div class="col-lg-2">
+        <label class="form-check">
+          {{ form.ativo }}
+          <span class="form-check-label">Ativo</span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <section class="detail-section p-0 overflow-hidden">
+    <div class="bpmn-toolbar">
+      <button class="btn btn-primary" type="submit">Salvar fluxo</button>
+      <button class="btn btn-outline-secondary" type="button" id="bpmn-download">Exportar atual</button>
+      <label class="btn btn-outline-secondary mb-0" for="bpmn-import">Importar .bpmn</label>
+      <input class="d-none" id="bpmn-import" type="file" accept=".bpmn,.xml">
+      {% if object %}<a class="btn btn-outline-danger ms-auto" href="{% url 'processos:excluir' object.pk %}">Excluir</a>{% endif %}
+    </div>
+    <div id="bpmn-canvas" class="bpmn-canvas"></div>
+  </section>
+</form>
+
+<script src="{% static 'vendor/bpmn-js/bpmn-modeler.production.min.js' %}"></script>
+<script>
+  const xmlField = document.getElementById("id_xml");
+  const form = document.getElementById("bpmn-form");
+  const modeler = new BpmnJS({ container: "#bpmn-canvas" });
+
+  async function openDiagram(xml) {
+    await modeler.importXML(xml);
+    modeler.get("canvas").zoom("fit-viewport");
+  }
+
+  async function syncXml() {
+    const result = await modeler.saveXML({ format: true });
+    xmlField.value = result.xml;
+    return result.xml;
+  }
+
+  openDiagram(xmlField.value).catch(function () {
+    alert("Não foi possível carregar o XML BPMN.");
+  });
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+    syncXml().then(function () { form.submit(); });
+  });
+
+  document.getElementById("bpmn-import").addEventListener("change", function (event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function () {
+      openDiagram(reader.result).then(function () {
+        xmlField.value = reader.result;
+      }).catch(function () {
+        alert("Arquivo BPMN inválido.");
+      });
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById("bpmn-download").addEventListener("click", function () {
+    syncXml().then(function (xml) {
+      const blob = new Blob([xml], { type: "application/xml" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "processo.bpmn";
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+  });
+</script>
+{% endblock %}
+

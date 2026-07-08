@@ -16,6 +16,7 @@ https://github.com/mcetrangolo/sistema_chamados
 - Base de conhecimento pública e interna.
 - Relatórios com filtros e exportação em XLS/PDF.
 - Governança de acessos e Wi-Fi como chamados GOV restritos para tramitação pela equipe autorizada.
+- Processos BPMN com editor visual, páginas próprias e importação/exportação `.bpmn`.
 - Inventário de ativos, agentes Windows/Linux e descoberta por rede.
 - Descoberta por Nmap, Ping/ICMP, DNS reverso, TCP/portas, SNMP e Active Directory.
 - Backup/restauração e atualização via GitHub pela interface.
@@ -96,6 +97,7 @@ Guia completo: [Configuração do .env](docs/CONFIGURACAO_ENV.md).
 - Backup e restauração: `/configuracoes/backup/`
 - Atualizações: `/configuracoes/atualizacoes/`
 - Inventário: `/inventario/`
+- Processos BPMN: `/processos/`
 
 ## Documentação
 

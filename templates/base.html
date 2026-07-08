@@ -73,14 +73,15 @@
 
         {% if perfil_acesso.suporte_n2 %}
           <div class="sidebar-section">
-            <button class="sidebar-group-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarGestao" aria-expanded="{% if request.resolver_match.app_name == 'governanca' %}true{% else %}false{% endif %}" aria-controls="sidebarGestao">
+            <button class="sidebar-group-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarGestao" aria-expanded="{% if request.resolver_match.app_name == 'governanca' or request.resolver_match.app_name == 'processos' %}true{% else %}false{% endif %}" aria-controls="sidebarGestao">
               <span>Gestão</span>
               <span class="sidebar-chevron">v</span>
             </button>
-            <div class="collapse {% if request.resolver_match.app_name == 'governanca' %}show{% endif %} sidebar-subnav" id="sidebarGestao">
+            <div class="collapse {% if request.resolver_match.app_name == 'governanca' or request.resolver_match.app_name == 'processos' %}show{% endif %} sidebar-subnav" id="sidebarGestao">
               <a class="sidebar-link" href="{% url 'chamados:relatorio' %}">Relatórios chamados</a>
               <a class="sidebar-link" href="{% url 'inventario:relatorio' %}">Relatórios inventário</a>
               <a class="sidebar-link {% if request.resolver_match.app_name == 'governanca' %}active{% endif %}" href="{% url 'governanca:solicitacoes' %}">Governança</a>
+              <a class="sidebar-link {% if request.resolver_match.app_name == 'processos' %}active{% endif %}" href="{% url 'processos:lista' %}">Processos BPMN</a>
               <a class="sidebar-link" href="{% url 'contratos:lista' %}">Contratos</a>
             </div>
           </div>

@@ -1,0 +1,62 @@
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.test import TestCase
+from django.urls import reverse
+
+from core.permissions import GRUPO_SUPORTE_N1
+
+from .models import DEFAULT_BPMN_XML, DiagramaBPMN
+
+
+class ProcessosBPMNTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        user_model = get_user_model()
+        cls.admin = user_model.objects.create_superuser(
+            username="admin-processos",
+            email="admin-processos@example.com",
+            password="senha-teste",
+        )
+        cls.n1 = user_model.objects.create_user(
+            username="n1-processos",
+            email="n1-processos@example.com",
+            password="senha-teste",
+        )
+        cls.n1.groups.add(Group.objects.create(name=GRUPO_SUPORTE_N1))
+
+    def test_admin_cria_diagrama_bpmn(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("processos:novo"),
+            {
+                "titulo": "Fluxo de governança",
+                "descricao": "Processo de acesso à rede.",
+                "xml": DEFAULT_BPMN_XML,
+                "ativo": "on",
+            },
+        )
+
+        diagrama = DiagramaBPMN.objects.get()
+        self.assertRedirects(response, diagrama.get_absolute_url())
+        self.assertEqual(diagrama.criado_por, self.admin)
+        self.assertIn("<bpmn:definitions", diagrama.xml)
+
+    def test_diagrama_tem_pagina_propria_e_exportacao(self):
+        diagrama = DiagramaBPMN.objects.create(titulo="Atendimento", xml=DEFAULT_BPMN_XML)
+        self.client.force_login(self.admin)
+
+        response = self.client.get(diagrama.get_absolute_url())
+        export_response = self.client.get(reverse("processos:exportar", args=[diagrama.pk]))
+
+        self.assertContains(response, "Atendimento")
+        self.assertEqual(export_response.status_code, 200)
+        self.assertEqual(export_response["Content-Type"], "application/xml; charset=utf-8")
+        self.assertIn(b"<bpmn:definitions", export_response.content)
+
+    def test_usuario_n1_nao_acessa_processos(self):
+        self.client.force_login(self.n1)
+
+        response = self.client.get(reverse("processos:lista"))
+
+        self.assertEqual(response.status_code, 403)

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ diagrama.titulo }} | Processos BPMN{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'vendor/bpmn-js/diagram-js.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/bpmn-js/bpmn-js.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/bpmn-js/bpmn-embedded.css' %}">
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-0">{{ diagrama.titulo }}</h1>
+    <p class="text-secondary mb-0">{{ diagrama.descricao|default:"Fluxo BPMN cadastrado no sistema." }}</p>
+  </div>
+  <div class="d-inline-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'processos:exportar' diagrama.pk %}">Exportar</a>
+    <a class="btn btn-primary" href="{% url 'processos:editar' diagrama.pk %}">Editar</a>
+    <a class="btn btn-outline-secondary" href="{% url 'processos:lista' %}">Voltar</a>
+  </div>
+</div>
+
+<section class="detail-section p-0 overflow-hidden">
+  <div class="bpmn-toolbar">
+    <span class="badge {% if diagrama.ativo %}text-bg-success{% else %}text-bg-secondary{% endif %}">{{ diagrama.ativo|yesno:"Ativo,Inativo" }}</span>
+    <span class="text-secondary small">Atualizado em {{ diagrama.atualizado_em|date:"d/m/Y H:i" }}</span>
+  </div>
+  <div id="bpmn-viewer" class="bpmn-canvas bpmn-viewer"></div>
+</section>
+
+{{ diagrama.xml|json_script:"bpmn-xml" }}
+<script src="{% static 'vendor/bpmn-js/bpmn-modeler.production.min.js' %}"></script>
+<script>
+  const viewer = new BpmnJS({ container: "#bpmn-viewer" });
+  const xml = JSON.parse(document.getElementById("bpmn-xml").textContent);
+  viewer.importXML(xml).then(function () {
+    viewer.get("canvas").zoom("fit-viewport");
+  }).catch(function () {
+    document.getElementById("bpmn-viewer").innerHTML = '<div class="p-4 text-danger">Não foi possível carregar este BPMN.</div>';
+  });
+</script>
+{% endblock %}
+
