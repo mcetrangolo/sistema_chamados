@@ -68,6 +68,8 @@
         <button class="btn btn-outline-secondary" type="button" id="bpmn-clear-color" disabled>Limpar cor</button>
       </div>
       <button class="btn btn-outline-secondary" type="button" id="bpmn-download">Exportar atual</button>
+      <button class="btn btn-outline-secondary" type="button" id="bpmn-export-svg">Exportar SVG</button>
+      <button class="btn btn-outline-secondary" type="button" id="bpmn-print-pdf">Salvar PDF</button>
       <label class="btn btn-outline-secondary mb-0" for="bpmn-import">Importar .bpmn</label>
       <input class="d-none" id="bpmn-import" type="file" accept=".bpmn,.xml">
       {% if object %}<a class="btn btn-outline-danger ms-auto" href="{% url 'processos:excluir' object.pk %}">Excluir</a>{% endif %}
@@ -90,11 +92,12 @@
   const strokeColor = document.getElementById("bpmn-stroke-color");
   const applyColorButton = document.getElementById("bpmn-apply-color");
   const clearColorButton = document.getElementById("bpmn-clear-color");
+  const fileName = "{% if object %}{{ object.nome_arquivo|escapejs }}{% else %}processo.bpmn{% endif %}".replace(/\.bpmn$/, "");
   let selectedElements = [];
 
   async function openDiagram(xml) {
     await modeler.importXML(xml);
-    canvas.zoom("fit-viewport");
+    refreshCanvas();
   }
 
   async function syncXml() {
@@ -103,10 +106,24 @@
     return result.xml;
   }
 
+  function downloadTextFile(content, name, type) {
+    const blob = new Blob([content], { type });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
   function setZoom(delta) {
     const currentZoom = canvas.zoom();
     const nextZoom = Math.max(0.25, Math.min(4, currentZoom + delta));
     canvas.zoom(nextZoom);
+  }
+
+  function refreshCanvas() {
+    canvas.resized();
+    canvas.zoom("fit-viewport");
   }
 
   function updateColorControls(elements) {
@@ -136,14 +153,14 @@
   });
 
   document.getElementById("bpmn-fit").addEventListener("click", function () {
-    canvas.zoom("fit-viewport");
+    refreshCanvas();
   });
 
   fullscreenButton.addEventListener("click", function () {
     if (!document.fullscreenElement) {
       editorSection.requestFullscreen().then(function () {
         fullscreenButton.textContent = "Sair da tela cheia";
-        canvas.zoom("fit-viewport");
+        setTimeout(refreshCanvas, 150);
       }).catch(function () {
         alert("Não foi possível abrir em tela cheia.");
       });
@@ -157,8 +174,12 @@
       fullscreenButton.textContent = "Tela cheia";
     }
     setTimeout(function () {
-      canvas.zoom("fit-viewport");
+      refreshCanvas();
     }, 150);
+  });
+
+  window.addEventListener("resize", function () {
+    setTimeout(refreshCanvas, 150);
   });
 
   applyColorButton.addEventListener("click", function () {
@@ -200,13 +221,24 @@
 
   document.getElementById("bpmn-download").addEventListener("click", function () {
     syncXml().then(function (xml) {
-      const blob = new Blob([xml], { type: "application/xml" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "processo.bpmn";
-      link.click();
-      URL.revokeObjectURL(link.href);
+      downloadTextFile(xml, fileName + ".bpmn", "application/xml");
     });
+  });
+
+  document.getElementById("bpmn-export-svg").addEventListener("click", function () {
+    syncXml().then(function () {
+      return modeler.saveSVG();
+    }).then(function (result) {
+      downloadTextFile(result.svg, fileName + ".svg", "image/svg+xml;charset=utf-8");
+    });
+  });
+
+  document.getElementById("bpmn-print-pdf").addEventListener("click", function () {
+    document.body.classList.add("bpmn-printing");
+    window.print();
+    setTimeout(function () {
+      document.body.classList.remove("bpmn-printing");
+    }, 500);
   });
 </script>
 {% endblock %}

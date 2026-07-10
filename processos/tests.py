@@ -55,6 +55,8 @@ class ProcessosBPMNTests(TestCase):
         self.assertEqual(export_response.status_code, 200)
         self.assertEqual(export_response["Content-Type"], "application/xml; charset=utf-8")
         self.assertIn(b"<bpmn:definitions", export_response.content)
+        self.assertContains(response, 'id="bpmn-export-svg"')
+        self.assertContains(response, 'id="bpmn-print-pdf"')
 
     def test_editor_tem_zoom_cores_importacao_e_exportacao(self):
         diagrama = DiagramaBPMN.objects.create(titulo="Editor BPMN", xml=DEFAULT_BPMN_XML)
@@ -70,6 +72,8 @@ class ProcessosBPMNTests(TestCase):
         self.assertContains(response, 'id="bpmn-stroke-color"')
         self.assertContains(response, 'id="bpmn-import"')
         self.assertContains(response, 'id="bpmn-download"')
+        self.assertContains(response, 'id="bpmn-export-svg"')
+        self.assertContains(response, 'id="bpmn-print-pdf"')
         self.assertContains(response, reverse("processos:editar_amplo", args=[diagrama.pk]))
 
     def test_editor_amplo_do_bpmn_renderiza_canvas_expandido(self):
@@ -81,6 +85,8 @@ class ProcessosBPMNTests(TestCase):
         self.assertContains(response, "Editor BPMN amplo")
         self.assertContains(response, "bpmn-full-canvas")
         self.assertContains(response, 'id="bpmn-fit"')
+        self.assertContains(response, 'id="bpmn-export-svg"')
+        self.assertContains(response, 'id="bpmn-print-pdf"')
 
     def test_usuario_n1_nao_acessa_processos(self):
         self.client.force_login(self.n1)
@@ -121,6 +127,8 @@ class ProcessosBPMNTests(TestCase):
         self.assertContains(detail_response, 'id="bpmn-public-zoom-in"')
         self.assertNotContains(detail_response, "Salvar fluxo")
         self.assertNotContains(detail_response, "Importar .bpmn")
+        self.assertNotContains(detail_response, "Exportar SVG")
+        self.assertNotContains(detail_response, "Salvar PDF")
 
     def test_portal_nao_abre_diagrama_interno(self):
         interno = DiagramaBPMN.objects.create(

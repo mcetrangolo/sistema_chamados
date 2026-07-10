@@ -1587,8 +1587,12 @@ a {
 }
 
 .bpmn-editor-section {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   height: calc(100vh - 230px);
+  height: calc(100dvh - 230px);
   min-height: 640px;
+  min-width: 0;
 }
 
 .bpmn-canvas {
@@ -1599,19 +1603,26 @@ a {
 }
 
 .bpmn-editor-section .bpmn-canvas {
-  height: calc(100% - 62px);
-  min-height: 520px;
+  height: 100%;
+  min-height: 0;
 }
 
 .bpmn-editor-section:fullscreen {
   background: #fff;
   height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .bpmn-editor-section:fullscreen .bpmn-canvas {
-  height: calc(100vh - 66px);
+  height: 100%;
   min-height: 0;
+}
+
+.bpmn-canvas .djs-container {
+  height: 100% !important;
+  width: 100% !important;
 }
 
 .bpmn-viewer .djs-palette,
@@ -1623,6 +1634,7 @@ a {
   background: #f4f7fb;
   color: var(--text);
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -1630,6 +1642,8 @@ a {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
+  height: 100dvh;
+  min-height: 0;
 }
 
 .bpmn-full-header {
@@ -1699,11 +1713,14 @@ a {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .bpmn-full-canvas {
   height: 100%;
   min-height: 0;
+  min-width: 0;
 }
 
 @media (max-width: 1200px) {
@@ -1720,6 +1737,7 @@ a {
 @media (max-width: 768px) {
   .bpmn-editor-section {
     height: calc(100vh - 180px);
+    height: calc(100dvh - 180px);
     min-height: 520px;
   }
 
@@ -1751,5 +1769,37 @@ a {
 
   .bpmn-full-editor {
     min-height: 75vh;
+  }
+}
+
+@media print {
+  .bpmn-printing .app-sidebar,
+  .bpmn-printing .app-topbar,
+  .bpmn-printing .app-footer,
+  .bpmn-printing .bpmn-toolbar,
+  .bpmn-printing .d-inline-flex.gap-2,
+  .bpmn-printing .public-navbar {
+    display: none !important;
+  }
+
+  .bpmn-printing .app-main {
+    padding: 0 !important;
+  }
+
+  .bpmn-printing .detail-section,
+  .bpmn-printing .public-panel {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .bpmn-printing .bpmn-canvas {
+    height: 92vh !important;
+    min-height: 720px !important;
+  }
+
+  .bpmn-printing.bpmn-full-page,
+  .bpmn-printing .bpmn-full-form {
+    height: auto !important;
+    overflow: visible !important;
   }
 }

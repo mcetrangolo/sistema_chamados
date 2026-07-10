@@ -12,7 +12,9 @@
     <p class="text-secondary mb-0">{{ diagrama.descricao|default:"Fluxo BPMN cadastrado no sistema." }}</p>
   </div>
   <div class="d-inline-flex gap-2">
-    <a class="btn btn-outline-secondary" href="{% url 'processos:exportar' diagrama.pk %}">Exportar</a>
+    <a class="btn btn-outline-secondary" href="{% url 'processos:exportar' diagrama.pk %}">Exportar BPMN</a>
+    <button class="btn btn-outline-secondary" type="button" id="bpmn-export-svg">Exportar SVG</button>
+    <button class="btn btn-outline-secondary" type="button" id="bpmn-print-pdf">Salvar PDF</button>
     <a class="btn btn-primary" href="{% url 'processos:editar' diagrama.pk %}">Editar</a>
     <a class="btn btn-outline-danger" href="{% url 'processos:excluir' diagrama.pk %}">Excluir</a>
     <a class="btn btn-outline-secondary" href="{% url 'processos:lista' %}">Voltar</a>
@@ -33,10 +35,35 @@
 <script>
   const viewer = new BpmnJS({ container: "#bpmn-viewer" });
   const xml = JSON.parse(document.getElementById("bpmn-xml").textContent);
+  const fileName = "{{ diagrama.nome_arquivo|escapejs }}".replace(/\.bpmn$/, "");
+
+  function downloadTextFile(content, name, type) {
+    const blob = new Blob([content], { type });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
   viewer.importXML(xml).then(function () {
     viewer.get("canvas").zoom("fit-viewport");
   }).catch(function () {
     document.getElementById("bpmn-viewer").innerHTML = '<div class="p-4 text-danger">Não foi possível carregar este BPMN.</div>';
+  });
+
+  document.getElementById("bpmn-export-svg").addEventListener("click", function () {
+    viewer.saveSVG().then(function (result) {
+      downloadTextFile(result.svg, fileName + ".svg", "image/svg+xml;charset=utf-8");
+    });
+  });
+
+  document.getElementById("bpmn-print-pdf").addEventListener("click", function () {
+    document.body.classList.add("bpmn-printing");
+    window.print();
+    setTimeout(function () {
+      document.body.classList.remove("bpmn-printing");
+    }, 500);
   });
 </script>
 {% endblock %}
